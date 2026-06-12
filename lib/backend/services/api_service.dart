@@ -1,0 +1,427 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '/core/app_config.dart';
+import '/app_state.dart';
+
+class ApiService {
+  // Central method — all requests go through here
+  static Future<Map<String, dynamic>> _request({
+    required String method,
+    required String path,
+    Map<String, dynamic>? body,
+    bool requiresAuth = true,
+  }) async {
+    final uri = Uri.parse('${AppConfig.api}$path');
+    final token = FFAppState().accessToken;
+
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      if (requiresAuth && token.isNotEmpty) 'Authorization': 'Bearer $token',
+    };
+
+    late http.Response response;
+
+    switch (method.toUpperCase()) {
+      case 'GET':
+        response = await http.get(uri, headers: headers);
+        break;
+      case 'POST':
+        response = await http.post(uri,
+            headers: headers, body: body != null ? jsonEncode(body) : null);
+        break;
+      case 'PUT':
+        response = await http.put(uri,
+            headers: headers, body: body != null ? jsonEncode(body) : null);
+        break;
+      case 'PATCH':
+        response = await http.patch(uri,
+            headers: headers, body: body != null ? jsonEncode(body) : null);
+        break;
+      case 'DELETE':
+        response = await http.delete(uri, headers: headers);
+        break;
+      default:
+        throw Exception('Unknown HTTP method: $method');
+    }
+
+    Map<String, dynamic> decoded = {};
+    String responseBody = response.body;
+
+    if (responseBody.isNotEmpty) {
+      try {
+        decoded = jsonDecode(responseBody) as Map<String, dynamic>;
+      } catch (_) {
+        decoded = {};
+      }
+    }
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return decoded;
+    }
+
+    final message = decoded['message'] is String
+        ? decoded['message'] as String
+        : responseBody;
+    throw Exception(message.isNotEmpty
+        ? message
+        : 'Request failed (${response.statusCode})');
+  }
+
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  static Future<Map<String, dynamic>> login({
+    required String identifier,
+    required String password,
+  }) =>
+      _request(
+        method: 'POST',
+        path: '/auth/login',
+        body: {'identifier': identifier, 'password': password},
+        requiresAuth: false,
+      );
+
+  static Future<Map<String, dynamic>> register({
+    required String firstName,
+    required String lastName,
+    required String username,
+    required String phone,
+    required String password,
+    String? email,
+    String? country,
+    String? referralCode,
+  }) =>
+      _request(
+        method: 'POST',
+        path: '/auth/register',
+        body: {
+          'first_name': firstName,
+          'last_name': lastName,
+          'username': username,
+          'phone': phone,
+          'password': password,
+          if (email != null && email.isNotEmpty) 'email': email,
+          if (country != null && country.isNotEmpty) 'country': country,
+          if (referralCode != null && referralCode.isNotEmpty)
+            'referral_code': referralCode,
+        },
+        requiresAuth: false,
+      );
+
+  static Future<Map<String, dynamic>> verifyOtp({
+    required String phone,
+    required String otpCode,
+    String purpose = 'phone_verification',
+  }) =>
+      _request(
+        method: 'POST',
+        path: '/auth/verify-otp',
+        body: {'phone': phone, 'otp_code': otpCode, 'purpose': purpose},
+        requiresAuth: false,
+      );
+
+  static Future<Map<String, dynamic>> setPin({
+    required String pin,
+    required String confirmPin,
+  }) =>
+      _request(
+        method: 'POST',
+        path: '/auth/set-pin',
+        body: {'pin': pin, 'confirm_pin': confirmPin},
+      );
+
+  static Future<Map<String, dynamic>> changePin({
+    required String currentPin,
+    required String newPin,
+    required String confirmPin,
+  }) =>
+      _request(
+        method: 'POST',
+        path: '/auth/change-pin',
+        body: {
+          'current_pin': currentPin,
+          'new_pin': newPin,
+          'confirm_pin': confirmPin,
+        },
+      );
+
+  static Future<void> logout() =>
+      _request(method: 'POST', path: '/auth/logout');
+
+  static Future<Map<String, dynamic>> refreshToken({
+    required String refreshToken,
+  }) =>
+      _request(
+        method: 'POST',
+        path: '/auth/refresh',
+        body: {'refresh_token': refreshToken},
+        requiresAuth: false,
+      );
+
+  static Future<Map<String, dynamic>> resendOtp() =>
+      _request(method: 'POST', path: '/auth/resend-otp');
+
+  // ── Wallet ────────────────────────────────────────────────────────────────
+  static Future<Map<String, dynamic>> getWallet() =>
+      _request(method: 'GET', path: '/wallet');
+
+  static Future<Map<String, dynamic>> sendFunds({
+    required String recipientIdentifier,
+    required double amount,
+    required String pin,
+    String? description,
+  }) =>
+      _request(
+        method: 'POST',
+        path: '/wallet/send',
+        body: {
+          'recipient_identifier': recipientIdentifier,
+          'amount': amount,
+          'pin': pin,
+          if (description != null) 'description': description,
+        },
+      );
+
+  static Future<Map<String, dynamic>> getTransactions({
+    String? type,
+    String? status,
+    int page = 1,
+    int limit = 20,
+  }) =>
+      _request(
+        method: 'GET',
+        path: '/wallet/transactions?page=$page&limit=$limit'
+            '${type != null ? "&type=$type" : ""}'
+            '${status != null ? "&status=$status" : ""}',
+      );
+
+  // ── Deposit ───────────────────────────────────────────────────────────────
+  static Future<Map<String, dynamic>> initiateDeposit({
+    required double amountFiat,
+    required String currency,
+  }) =>
+      _request(
+        method: 'POST',
+        path: '/payments/deposit',
+        body: {'amount_fiat': amountFiat, 'currency': currency},
+      );
+
+  static Future<Map<String, dynamic>> getDepositHistory() =>
+      _request(method: 'GET', path: '/payments/deposits');
+
+  static Future<Map<String, dynamic>> getDepositStatus(String reference) =>
+      _request(method: 'GET', path: '/payments/deposit/$reference');
+
+  // ── Withdraw ──────────────────────────────────────────────────────────────
+  static Future<Map<String, dynamic>> requestWithdrawal({
+    required double amountFarm,
+    required String currencyFiat,
+    required String method,
+    required String destination,
+    required String pin,
+  }) =>
+      _request(
+        method: 'POST',
+        path: '/payments/withdraw',
+        body: {
+          'amount_farm': amountFarm,
+          'currency_fiat': currencyFiat,
+          'method': method,
+          'destination': destination,
+          'pin': pin,
+        },
+      );
+
+  static Future<Map<String, dynamic>> getWithdrawalHistory() =>
+      _request(method: 'GET', path: '/payments/withdrawals');
+
+  static Future<Map<String, dynamic>> getWithdrawalStatus(String reference) =>
+      _request(method: 'GET', path: '/payments/withdraw/$reference');
+
+  // ── Escrow ────────────────────────────────────────────────────────────────
+  static Future<Map<String, dynamic>> getEscrows({String? status}) => _request(
+        method: 'GET',
+        path: '/escrow${status != null ? "?status=$status" : ""}',
+      );
+
+  static Future<Map<String, dynamic>> createEscrow({
+    required String sellerIdentifier,
+    required double amount,
+    required String title,
+    required String pin,
+    String? description,
+    int autoReleaseDays = 7,
+  }) =>
+      _request(
+        method: 'POST',
+        path: '/escrow',
+        body: {
+          'seller_identifier': sellerIdentifier,
+          'amount': amount,
+          'title': title,
+          'pin': pin,
+          if (description != null) 'description': description,
+          'auto_release_days': autoReleaseDays,
+        },
+      );
+
+  static Future<Map<String, dynamic>> releaseEscrow(String escrowId) =>
+      _request(method: 'POST', path: '/escrow/$escrowId/release');
+
+  static Future<Map<String, dynamic>> disputeEscrow(
+          String escrowId, String reason) =>
+      _request(
+        method: 'POST',
+        path: '/escrow/$escrowId/dispute',
+        body: {'reason': reason},
+      );
+
+  static Future<Map<String, dynamic>> cancelEscrow(String escrowId) =>
+      _request(method: 'POST', path: '/escrow/$escrowId/cancel');
+
+  // ── Investments ───────────────────────────────────────────────────────────
+  static Future<Map<String, dynamic>> getProjects({String? category}) =>
+      _request(
+        method: 'GET',
+        path: '/investments${category != null ? "?category=$category" : ""}',
+      );
+
+  static Future<Map<String, dynamic>> getProject(String id) =>
+      _request(method: 'GET', path: '/investments/$id');
+
+  static Future<Map<String, dynamic>> invest({
+    required String projectId,
+    required double amount,
+    required String pin,
+  }) =>
+      _request(
+        method: 'POST',
+        path: '/investments/$projectId/invest',
+        body: {'amount': amount, 'pin': pin},
+      );
+
+  static Future<Map<String, dynamic>> getMyInvestments() =>
+      _request(method: 'GET', path: '/investments/my');
+
+  // ── Merchants ─────────────────────────────────────────────────────────────
+  static Future<Map<String, dynamic>> getMerchantDashboard() =>
+      _request(method: 'GET', path: '/merchant/dashboard');
+
+  static Future<Map<String, dynamic>> getMerchantQr() =>
+      _request(method: 'GET', path: '/merchant/qr');
+
+  static Future<Map<String, dynamic>> validateQr(String qrPayload) => _request(
+        method: 'POST',
+        path: '/qr/validate',
+        body: {'qr_payload': qrPayload},
+      );
+
+  static Future<Map<String, dynamic>> merchantPay({
+    required String qrPayload,
+    required double amount,
+    required String pin,
+  }) =>
+      _request(
+        method: 'POST',
+        path: '/qr/merchant-pay',
+        body: {'qr_payload': qrPayload, 'amount': amount, 'pin': pin},
+      );
+
+  // ── KYC ───────────────────────────────────────────────────────────────────
+  static Future<Map<String, dynamic>> submitKyc({
+    required String documentType,
+    required String frontImageUrl,
+    String? backImageUrl,
+    required String selfieImageUrl,
+    String? documentNumber,
+  }) =>
+      _request(
+        method: 'POST',
+        path: '/kyc/submit',
+        body: {
+          'document_type': documentType,
+          'front_image_url': frontImageUrl,
+          if (backImageUrl != null) 'back_image_url': backImageUrl,
+          'selfie_image_url': selfieImageUrl,
+          if (documentNumber != null && documentNumber.isNotEmpty)
+            'document_number': documentNumber,
+        },
+      );
+
+  static Future<Map<String, dynamic>> getMyKyc() =>
+      _request(method: 'GET', path: '/kyc/my');
+
+  // ── Profile ───────────────────────────────────────────────────────────────
+  static Future<Map<String, dynamic>> getProfile() =>
+      _request(method: 'GET', path: '/users/me');
+
+  static Future<Map<String, dynamic>> updateProfile({
+    String? firstName,
+    String? lastName,
+    String? bio,
+    String? country,
+    String? city,
+  }) =>
+      _request(
+        method: 'PUT',
+        path: '/users/me',
+        body: {
+          if (firstName != null) 'first_name': firstName,
+          if (lastName != null) 'last_name': lastName,
+          if (bio != null) 'bio': bio,
+          if (country != null) 'country': country,
+          if (city != null) 'city': city,
+        },
+      );
+
+  static Future<Map<String, dynamic>> updateEmailOrPhone({
+    String? email,
+    String? phone,
+    required String currentPassword,
+  }) =>
+      _request(
+        method: 'PUT',
+        path: '/users/me',
+        body: {
+          if (email != null && email.isNotEmpty) 'email': email,
+          if (phone != null && phone.isNotEmpty) 'phone': phone,
+          'current_password': currentPassword,
+        },
+      );
+
+  static Future<Map<String, dynamic>> searchUsers(String query) => _request(
+      method: 'GET',
+      path: '/users/search?q=${Uri.encodeQueryComponent(query)}');
+
+  static Future<Map<String, dynamic>> getContacts() =>
+      _request(method: 'GET', path: '/users/contacts');
+
+  static Future<Map<String, dynamic>> addContact({
+    required String identifier,
+    String? nickname,
+  }) =>
+      _request(
+        method: 'POST',
+        path: '/users/contacts',
+        body: {
+          'identifier': identifier,
+          if (nickname != null) 'nickname': nickname
+        },
+      );
+
+  static Future<Map<String, dynamic>> getNotifications() =>
+      _request(method: 'GET', path: '/users/notifications');
+
+  // ── Health check ──────────────────────────────────────────────────────────
+  static Future<bool> isBackendAlive() async {
+    try {
+      final res = await http
+          .get(
+            Uri.parse('${AppConfig.baseUrl}/health'),
+          )
+          .timeout(const Duration(seconds: 10));
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+}

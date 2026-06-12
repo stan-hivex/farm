@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "624243276528",
+    "project_id": "farm-lgahou",
+    "storage_bucket": "farm-lgahou.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:624243276528:android:a3f9facb4552407926e035",
+        "android_client_info": {
+          "package_name": "com.mycompany.farm"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "624243276528-45h670vrpnf71lpgvcqlf6ej82pn33ib.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB66bY3xjE7C1MagLxehjvrm_DoIpLoO7k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "624243276528-45h670vrpnf71lpgvcqlf6ej82pn33ib.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "624243276528-hhmfsmcopv6ps03gs6034k4lljt8uopk.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.mycompany.farm"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

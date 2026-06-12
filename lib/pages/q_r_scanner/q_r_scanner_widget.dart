@@ -1,0 +1,674 @@
+import 'package:http/http.dart' as http;
+import '/core/app_config.dart';
+
+import '/components/action_circle/action_circle_widget.dart';
+import '/components/scan_overlay_corner/scan_overlay_corner_widget.dart';
+import '/flutter_flow/flutter_flow_icon_button.dart';
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import '/backend/api_requests/wallet_api_service.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:lottie/lottie.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+
+import 'q_r_scanner_model.dart';
+export 'q_r_scanner_model.dart';
+
+class QRScannerWidget extends StatefulWidget {
+  const QRScannerWidget({super.key});
+
+  static String routeName = 'QRScanner';
+  static String routePath = '/qRScanner';
+
+  @override
+  State<QRScannerWidget> createState() => _QRScannerWidgetState();
+}
+
+class _QRScannerWidgetState extends State<QRScannerWidget> {
+  late QRScannerModel _model;
+
+  final scaffoldKey = GlobalKey<ScaffoldState>();
+
+  final MobileScannerController cameraController =
+      MobileScannerController();
+
+  bool isProcessing = false;
+  
+  double walletBalance = 0.0;
+  bool balanceLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _model = createModel(context, () => QRScannerModel());
+    _fetchWalletBalance();
+  }
+
+  Future<void> _fetchWalletBalance() async {
+    try {
+      setState(() => balanceLoading = true);
+      
+      final wallet = await WalletApiService.getWallet(
+        token: FFAppState().accessToken,
+      );
+      
+      setState(() {
+        walletBalance = double.tryParse(wallet['balance']?.toString() ?? '0') ?? 0.0;
+        balanceLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Failed to fetch wallet balance: $e');
+      setState(() {
+        walletBalance = 0.0;
+        balanceLoading = false;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    cameraController.dispose();
+    _model.dispose();
+    super.dispose();
+  }
+
+  Future<void> validateQr(String qrPayload) async {
+    if (isProcessing) return;
+
+    isProcessing = true;
+
+    try {
+      final response = await http.post(
+        Uri.parse(
+          '${AppConfig.api}/qr/validate',
+        ),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization':
+              'Bearer ${FFAppState().accessToken}',
+        },
+        body: jsonEncode({
+          'qr_payload': qrPayload,
+        }),
+      );
+
+      debugPrint(response.body);
+
+      if (response.statusCode == 200 ||
+          response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+
+        final qrData = data['data'];
+
+        if (qrData['type'] == 'peer') {
+          context.pushNamed(
+            'SendReceive',
+            queryParameters: {
+              'wallet':
+                  qrData['wallet_address'].toString(),
+              'amount':
+                  qrData['suggested_amount']
+                          ?.toString() ??
+                      '',
+            },
+          );
+        } else if (qrData['type'] == 'merchant') {
+          context.pushNamed(
+            'MerchantPayment',
+            queryParameters: {
+              'merchantId':
+                  qrData['merchant_id'].toString(),
+              'businessName':
+                  qrData['business_name'].toString(),
+            },
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid QR Code'),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint(e.toString());
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'QR Validation Error: $e',
+          ),
+        ),
+      );
+    }
+
+    isProcessing = false;
+  }
+  Future<void> scanFromGallery() async {
+  final picker = ImagePicker();
+
+  final XFile? image = await picker.pickImage(
+    source: ImageSource.gallery,
+  );
+
+  if (image == null) return;
+
+  final file = File(image.path);
+
+  final barcodeCapture = await cameraController.analyzeImage(file.path);
+
+  if (barcodeCapture == null || barcodeCapture.barcodes.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("No QR found in image")),
+    );
+    return;
+  }
+
+  final code = barcodeCapture.barcodes.first.rawValue;
+
+  if (code != null) {
+    await validateQr(code);
+  }
+}
+
+void scanByUsername() {
+  final controller = TextEditingController();
+
+  showDialog(
+    context: context,
+    builder: (_) {
+      return AlertDialog(
+        title: const Text("Scan by Username"),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            hintText: "@username or wallet",
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+
+              await validateQr(controller.text.trim());
+            },
+            child: const Text("Scan"),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+void showMyQrCode() {
+  showDialog(
+    context: context,
+    builder: (_) {
+      return AlertDialog(
+        title: const Text("My QR Code"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.network(
+              "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${FFAppState().userName}",
+            ),
+            const SizedBox(height: 12),
+            Text("@${FFAppState().userName}"),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Close"),
+          ),
+        ],
+      );
+    },
+  );
+} 
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        FocusScope.of(context).unfocus();
+        FocusManager.instance.primaryFocus?.unfocus();
+      },
+      child: Scaffold(
+        key: scaffoldKey,
+        backgroundColor:
+            FlutterFlowTheme.of(context).primary,
+        body: Stack(
+          children: [
+            CachedNetworkImage(
+              fadeInDuration:
+                  const Duration(milliseconds: 0),
+              fadeOutDuration:
+                  const Duration(milliseconds: 0),
+              imageUrl:
+                  'https://dimg.dreamflow.cloud/v1/image/blurry%20dark%20modern%20interior%20background',
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+            ),
+
+            /// DARK OVERLAY
+            Container(
+              color: Colors.black.withOpacity(0.45),
+            ),
+
+            SafeArea(
+              child: Column(
+                children: [
+                  /// TOP BAR
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Row(
+                      mainAxisAlignment:
+                          MainAxisAlignment.spaceBetween,
+                      children: [
+                        FlutterFlowIconButton(
+                          borderRadius: 9999,
+                          buttonSize: 44,
+                          fillColor:
+                              FlutterFlowTheme.of(context)
+                                  .onPrimary13,
+                          icon: Icon(
+                            Icons.close_rounded,
+                            color:
+                                FlutterFlowTheme.of(context)
+                                    .onPrimary,
+                            size: 24,
+                          ),
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                        ),
+
+                        Text(
+                          'Scan QR Code',
+                          style:
+                              FlutterFlowTheme.of(context)
+                                  .titleMedium
+                                  .override(
+                                    font:
+                                        GoogleFonts
+                                            .plusJakartaSans(
+                                      fontWeight:
+                                          FontWeight.w600,
+                                    ),
+                                    color:
+                                        FlutterFlowTheme.of(
+                                                context)
+                                            .onPrimary,
+                                  ),
+                        ),
+
+                        FlutterFlowIconButton(
+                          borderRadius: 9999,
+                          buttonSize: 44,
+                          fillColor:
+                              FlutterFlowTheme.of(context)
+                                  .onPrimary13,
+                          icon: Icon(
+                            Icons.flash_on_rounded,
+                            color:
+                                FlutterFlowTheme.of(context)
+                                    .onPrimary,
+                            size: 24,
+                          ),
+                          onPressed: () async {
+                            await cameraController
+                                .toggleTorch();
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const Spacer(),
+
+                  /// SCANNER SECTION
+                  Column(
+                    children: [
+                      SizedBox(
+                        width: 280,
+                        height: 280,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            /// CAMERA
+                            ClipRRect(
+    borderRadius: BorderRadius.circular(24),
+    child: MobileScanner(
+      fit: BoxFit.cover,
+      controller: cameraController,
+      scanWindow: Rect.fromCenter(
+  center: const Offset(140, 140),
+  width: 250,
+  height: 250,
+),
+                                onDetect: (capture) async {
+                                  final List<Barcode>
+                                      barcodes =
+                                      capture.barcodes;
+
+                                  for (final barcode
+                                      in barcodes) {
+                                    final String? code =
+                                        barcode.rawValue;
+
+                                    if (code != null) {
+                                      await validateQr(
+                                          code);
+                                      break;
+                                    }
+                                  }
+                                },
+                              ),
+                            ),
+
+                            /// OVERLAY CORNERS
+                            Positioned(
+                              top: 0,
+                              left: 0,
+                              child: wrapWithModel(
+                                model: _model
+                                    .scanOverlayCornerModel1,
+                                updateCallback: () =>
+                                    safeSetState(() {}),
+                                child:
+                                    const ScanOverlayCornerWidget(
+                                  border_side:
+                                      Color(0x00000000),
+                                  radius: 0,
+                                ),
+                              ),
+                            ),
+
+                            Positioned(
+                              top: 0,
+                              right: 0,
+                              child: wrapWithModel(
+                                model: _model
+                                    .scanOverlayCornerModel2,
+                                updateCallback: () =>
+                                    safeSetState(() {}),
+                                child:
+                                    const ScanOverlayCornerWidget(
+                                  border_side:
+                                      Color(0x00000000),
+                                  radius: 0,
+                                ),
+                              ),
+                            ),
+
+                            Positioned(
+                              bottom: 0,
+                              left: 0,
+                              child: wrapWithModel(
+                                model: _model
+                                    .scanOverlayCornerModel3,
+                                updateCallback: () =>
+                                    safeSetState(() {}),
+                                child:
+                                    const ScanOverlayCornerWidget(
+                                  border_side:
+                                      Color(0x00000000),
+                                  radius: 0,
+                                ),
+                              ),
+                            ),
+
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: wrapWithModel(
+                                model: _model
+                                    .scanOverlayCornerModel4,
+                                updateCallback: () =>
+                                    safeSetState(() {}),
+                                child:
+                                    const ScanOverlayCornerWidget(
+                                  border_side:
+                                      Color(0x00000000),
+                                  radius: 0,
+                                ),
+                              ),
+                            ),
+
+                            /// SCANNING LINE
+                            IgnorePointer(
+                              child: Lottie.network(
+                                'https://dimg.dreamflow.cloud/v1/lottie/horizontal+scanning+line',
+                                width: 240,
+                                height: 240,
+                                fit: BoxFit.contain,
+                                animate: true,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      Opacity(
+                        opacity: 0.9,
+                        child: Text(
+                          'Align QR code within the frame',
+                          style:
+                              FlutterFlowTheme.of(context)
+                                  .bodyMedium
+                                  .override(
+                                    font:
+                                        GoogleFonts.inter(),
+                                    color:
+                                        FlutterFlowTheme.of(
+                                                context)
+                                            .onPrimary,
+                                  ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const Spacer(),
+
+                  /// ACTION BUTTONS
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      bottom: 24,
+                    ),
+                    child: Row(
+                      mainAxisAlignment:
+                          MainAxisAlignment.center,
+                      children: [
+                        wrapWithModel(
+                          model:
+                              _model.actionCircleModel1,
+                          updateCallback: () =>
+                              safeSetState(() {}),
+                          child: GestureDetector(
+                            onTap: scanFromGallery,
+                            child: ActionCircleWidget(
+                              icon: Icon(
+                                Icons.image_rounded,
+                                color:
+                                    FlutterFlowTheme.of(
+                                            context)
+                                        .onPrimary,
+                                size: 24,
+                              ),
+                              label: 'Gallery',
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(width: 32),
+
+                        wrapWithModel(
+                          model:
+                              _model.actionCircleModel2,
+                          updateCallback: () =>
+                              safeSetState(() {}),
+                          child: GestureDetector(
+                            onTap: scanByUsername,
+                            child: ActionCircleWidget(
+                              icon: Icon(
+                                Icons.person_search_rounded,
+                                color:
+                                    FlutterFlowTheme.of(
+                                            context)
+                                        .onPrimary,
+                                size: 24,
+                              ),
+                              label: 'Username',
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(width: 32),
+
+                        wrapWithModel(
+                          model:
+                              _model.actionCircleModel3,
+                          updateCallback: () =>
+                              safeSetState(() {}),
+                          child: GestureDetector(
+                            onTap: showMyQrCode,
+                            child: ActionCircleWidget(
+                              icon: Icon(
+                                Icons.qr_code_2_rounded,
+                                color:
+                                    FlutterFlowTheme.of(
+                                            context)
+                                        .onPrimary,
+                                size: 24,
+                              ),
+                              label: 'My Code',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  /// USER CARD
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      bottom: 32,
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color:
+                            FlutterFlowTheme.of(context)
+                                .onPrimary,
+                        borderRadius:
+                            BorderRadius.circular(9999),
+                      ),
+                      child: Padding(
+                        padding:
+                            const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color:
+                                    FlutterFlowTheme.of(
+                                            context)
+                                        .primary,
+                                shape: BoxShape.circle,
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                FFAppState()
+                                        .userName
+                                        .isNotEmpty
+                                    ? FFAppState()
+                                        .userName
+                                        .substring(0, 2)
+                                        .toUpperCase()
+                                    : 'US',
+                                style:
+                                    FlutterFlowTheme.of(
+                                            context)
+                                        .labelMedium
+                                        .override(
+                                          font: GoogleFonts
+                                              .plusJakartaSans(
+                                            fontWeight:
+                                                FontWeight
+                                                    .bold,
+                                          ),
+                                          color:
+                                              FlutterFlowTheme.of(
+                                                      context)
+                                                  .onPrimary,
+                                        ),
+                              ),
+                            ),
+
+                            const SizedBox(width: 16),
+
+                            Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment
+                                      .start,
+                              children: [
+                                Text(
+                                  'Sending from @${FFAppState().userName}',
+                                  style:
+                                      FlutterFlowTheme.of(
+                                              context)
+                                          .labelSmall,
+                                ),
+
+                                Text(
+                                  balanceLoading
+                                      ? 'Balance: Loading...'
+                                      : 'Balance: ${walletBalance.toStringAsFixed(2)} FARM',
+                                  style:
+                                      FlutterFlowTheme.of(
+                                              context)
+                                          .labelMedium
+                                          .override(
+                                            font: GoogleFonts
+                                                .plusJakartaSans(
+                                              fontWeight:
+                                                  FontWeight
+                                                      .bold,
+                                            ),
+                                          ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
