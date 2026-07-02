@@ -30,3 +30,9 @@ export '/pages/settings/language_settings_page.dart'
     show LanguageSettingsPageWidget;
 export '/pages/settings/support_help_center_page.dart'
     show SupportHelpCenterPageWidget;
+export '/pages/all_transactions/all_transactions_widget.dart'
+    show AllTransactionsWidget;
+export '/pages/superadmin/superadmin_dashboard_page.dart'
+    show SuperadminDashboardPage;
+export '/pages/superadmin/superadmin_wallet_page.dart'
+    show SuperadminWalletPage;

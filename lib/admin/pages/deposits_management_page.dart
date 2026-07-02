@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '/core/theme_extensions.dart';
 import '../services/admin_api_service.dart';
 
 class DepositsManagementPage extends StatefulWidget {
-  const DepositsManagementPage({super.key});
+  final VoidCallback? onGoBack;
+
+  const DepositsManagementPage({super.key, this.onGoBack});
 
   @override
   State<DepositsManagementPage> createState() => _DepositsManagementPageState();
@@ -34,10 +37,10 @@ class _DepositsManagementPageState extends State<DepositsManagementPage> {
 
   Color _sc(String? s) {
     switch (s) {
-      case 'completed': return Colors.green;
-      case 'pending': return Colors.orange;
-      case 'failed': return Colors.red;
-      default: return Colors.grey;
+      case 'completed': return context.successColor;
+      case 'pending': return context.warningColor;
+      case 'failed': return context.errorColor;
+      default: return context.textSecondary;
     }
   }
 
@@ -83,7 +86,7 @@ class _DepositsManagementPageState extends State<DepositsManagementPage> {
                           ? Center(
                               child: Text('No deposits found',
                                   style: GoogleFonts.plusJakartaSans(
-                                      color: Colors.white60)))
+                                      color: context.onSurface.withOpacity(0.6))))
                           : ListView.builder(
                               padding: const EdgeInsets.all(20),
                               itemCount: _deposits.length,
@@ -98,18 +101,18 @@ class _DepositsManagementPageState extends State<DepositsManagementPage> {
                                   decoration: BoxDecoration(
                                     color: cardColor,
                                     borderRadius: BorderRadius.circular(18),
-                                    border: Border.all(color: Colors.white10),
+                                    border: Border.all(color: context.onSurface.withOpacity(0.1)),
                                   ),
                                   child: Row(children: [
                                     Container(
                                       width: 44,
                                       height: 44,
                                       decoration: BoxDecoration(
-                                          color: Colors.green.withOpacity(0.14),
+                                          color: context.successColor.withAlpha((0.14 * 255).round()),
                                           borderRadius:
                                               BorderRadius.circular(12)),
-                                      child: const Icon(Icons.south_west_rounded,
-                                          color: Colors.green, size: 22),
+                                      child: Icon(Icons.south_west_rounded,
+                                          color: context.successColor, size: 22),
                                     ),
                                     const SizedBox(width: 14),
                                     Expanded(
@@ -121,7 +124,7 @@ class _DepositsManagementPageState extends State<DepositsManagementPage> {
                                               '${meta['currency_fiat'] ?? 'KES'} ${meta['amount_fiat'] ?? '-'}',
                                               style: GoogleFonts
                                                   .plusJakartaSans(
-                                                      color: Colors.white,
+                                                      color: context.onSurface,
                                                       fontWeight:
                                                           FontWeight.bold,
                                                       fontSize: 14)),
@@ -129,14 +132,14 @@ class _DepositsManagementPageState extends State<DepositsManagementPage> {
                                               d['transaction_reference'] ?? '',
                                               style: GoogleFonts
                                                 .plusJakartaSans(
-                                                  color: Colors.white70,
+                                                  color: context.onSurface.withOpacity(0.7),
                                                   fontSize: 11),
                                               overflow: TextOverflow.ellipsis),
                                             Text(
-                                              method ?? 'UNKNOWN',
+                                              method,
                                               style: GoogleFonts
                                                 .plusJakartaSans(
-                                                  color: Colors.white54,
+                                                  color: context.onSurface.withOpacity(0.54),
                                                   fontSize: 11)),
                                         ])),
                                     Column(
@@ -150,13 +153,13 @@ class _DepositsManagementPageState extends State<DepositsManagementPage> {
                                                       fontWeight:
                                                           FontWeight.bold,
                                                       fontSize: 13,
-                                                      color: Colors.green)),
+                                                      color: context.successColor)),
                                           Container(
                                             padding: const EdgeInsets
                                                 .symmetric(
                                                 horizontal: 8, vertical: 3),
                                             decoration: BoxDecoration(
-                                                color: color.withOpacity(0.16),
+                                                color: color.withAlpha((0.16 * 255).round()),
                                                 borderRadius:
                                                     BorderRadius.circular(6)),
                                             child: Text(
@@ -192,8 +195,8 @@ class _DepositsManagementPageState extends State<DepositsManagementPage> {
                         style: GoogleFonts.plusJakartaSans(
                             fontSize: 11,
                             color: _statusFilter == s
-                                ? Colors.black
-                                : Colors.white70)),
+                                ? context.background
+                                : context.onSurface.withOpacity(0.7))),
                     selected: _statusFilter == s,
                     selectedColor:
                         _statusFilter == s ? accent : Colors.transparent,
@@ -201,7 +204,7 @@ class _DepositsManagementPageState extends State<DepositsManagementPage> {
                     side: BorderSide(
                         color: _statusFilter == s
                             ? accent
-                            : Colors.white10,
+                            : context.onSurface.withOpacity(0.1),
                         width: 1),
                     onSelected: (_) {
                       setState(() {

@@ -204,7 +204,7 @@ class _LanguageSettingsPageWidgetState
 
       body: loading
 
-          ? const Center(
+          ? Center(
               child:
                   CircularProgressIndicator(),
             )

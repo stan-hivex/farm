@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import '/backend/services/api_service.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
+import '/core/theme_extensions.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 
 import 'kycpage_model.dart';
@@ -150,12 +151,9 @@ class _KycpageWidgetState extends State<KycpageWidget> {
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _dobController = TextEditingController();
-  final _genderController = TextEditingController();
-  final _nationalityController = TextEditingController();
   final _idNumberController = TextEditingController();
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
-  final _countryController = TextEditingController();
   final _stateController = TextEditingController();
   final _cityController = TextEditingController();
   final _addressController = TextEditingController();
@@ -174,6 +172,350 @@ class _KycpageWidgetState extends State<KycpageWidget> {
 
   final ImagePicker _picker = ImagePicker();
 
+  // Dropdown and date picker selections
+  String? _selectedGender;
+  String? _selectedNationality;
+  String? _selectedCountry;
+  DateTime? _selectedDob;
+  String _selectedCountryCode = '+1'; // Default to US
+
+  // Country codes mapping
+  final Map<String, String> _countryCodeMap = {
+    '+1': 'United States',
+    '+44': 'United Kingdom',
+    '+33': 'France',
+    '+49': 'Germany',
+    '+39': 'Italy',
+    '+34': 'Spain',
+    '+31': 'Netherlands',
+    '+32': 'Belgium',
+    '+43': 'Austria',
+    '+41': 'Switzerland',
+    '+46': 'Sweden',
+    '+47': 'Norway',
+    '+45': 'Denmark',
+    '+358': 'Finland',
+    '+353': 'Ireland',
+    '+48': 'Poland',
+    '+420': 'Czech Republic',
+    '+36': 'Hungary',
+    '+40': 'Romania',
+    '+359': 'Bulgaria',
+    '+30': 'Greece',
+    '+351': 'Portugal',
+    '+385': 'Croatia',
+    '+386': 'Slovenia',
+    '+81': 'Japan',
+    '+86': 'China',
+    '+91': 'India',
+    '+65': 'Singapore',
+    '+60': 'Malaysia',
+    '+66': 'Thailand',
+    '+84': 'Vietnam',
+    '+62': 'Indonesia',
+    '+63': 'Philippines',
+    '+82': 'South Korea',
+    '+234': 'Nigeria',
+    '+254': 'Kenya',
+    '+27': 'South Africa',
+    '+256': 'Uganda',
+    '+255': 'Tanzania',
+    '+212': 'Morocco',
+    '+213': 'Algeria',
+    '+20': 'Egypt',
+    '+216': 'Tunisia',
+    '+55': 'Brazil',
+    '+54': 'Argentina',
+    '+56': 'Chile',
+    '+57': 'Colombia',
+    '+51': 'Peru',
+    '+52': 'Mexico',
+    '+507': 'Panama',
+    '+505': 'Nicaragua',
+    '+502': 'Guatemala',
+    '+503': 'El Salvador',
+  };
+
+  final List<String> _genderOptions = [
+    'Male',
+    'Female',
+    'Other',
+    'Prefer not to say',
+  ];
+
+  final List<String> _countries = [
+    'Afghanistan',
+    'Albania',
+    'Algeria',
+    'Andorra',
+    'Angola',
+    'Argentina',
+    'Armenia',
+    'Australia',
+    'Austria',
+    'Azerbaijan',
+    'Bahamas',
+    'Bahrain',
+    'Bangladesh',
+    'Barbados',
+    'Belarus',
+    'Belgium',
+    'Belize',
+    'Benin',
+    'Bhutan',
+    'Bolivia',
+    'Bosnia and Herzegovina',
+    'Botswana',
+    'Brazil',
+    'Brunei',
+    'Bulgaria',
+    'Burkina Faso',
+    'Burundi',
+    'Cambodia',
+    'Cameroon',
+    'Canada',
+    'Cape Verde',
+    'Central African Republic',
+    'Chad',
+    'Chile',
+    'China',
+    'Colombia',
+    'Comoros',
+    'Congo',
+    'Costa Rica',
+    'Croatia',
+    'Cuba',
+    'Cyprus',
+    'Czech Republic',
+    'Denmark',
+    'Djibouti',
+    'Dominica',
+    'Dominican Republic',
+    'Ecuador',
+    'Egypt',
+    'El Salvador',
+    'Equatorial Guinea',
+    'Eritrea',
+    'Estonia',
+    'Eswatini',
+    'Ethiopia',
+    'Fiji',
+    'Finland',
+    'France',
+    'Gabon',
+    'Gambia',
+    'Georgia',
+    'Germany',
+    'Ghana',
+    'Greece',
+    'Grenada',
+    'Guatemala',
+    'Guinea',
+    'Guinea-Bissau',
+    'Guyana',
+    'Haiti',
+    'Honduras',
+    'Hungary',
+    'Iceland',
+    'India',
+    'Indonesia',
+    'Iran',
+    'Iraq',
+    'Ireland',
+    'Israel',
+    'Italy',
+    'Jamaica',
+    'Japan',
+    'Jordan',
+    'Kazakhstan',
+    'Kenya',
+    'Kiribati',
+    'Kosovo',
+    'Kuwait',
+    'Kyrgyzstan',
+    'Laos',
+    'Latvia',
+    'Lebanon',
+    'Lesotho',
+    'Liberia',
+    'Libya',
+    'Liechtenstein',
+    'Lithuania',
+    'Luxembourg',
+    'Madagascar',
+    'Malawi',
+    'Malaysia',
+    'Maldives',
+    'Mali',
+    'Malta',
+    'Marshall Islands',
+    'Mauritania',
+    'Mauritius',
+    'Mexico',
+    'Micronesia',
+    'Moldova',
+    'Monaco',
+    'Mongolia',
+    'Montenegro',
+    'Morocco',
+    'Mozambique',
+    'Myanmar',
+    'Namibia',
+    'Nauru',
+    'Nepal',
+    'Netherlands',
+    'New Zealand',
+    'Nicaragua',
+    'Niger',
+    'Nigeria',
+    'North Korea',
+    'North Macedonia',
+    'Norway',
+    'Oman',
+    'Pakistan',
+    'Palau',
+    'Palestine',
+    'Panama',
+    'Papua New Guinea',
+    'Paraguay',
+    'Peru',
+    'Philippines',
+    'Poland',
+    'Portugal',
+    'Qatar',
+    'Romania',
+    'Russia',
+    'Rwanda',
+    'Saint Kitts and Nevis',
+    'Saint Lucia',
+    'Saint Vincent and the Grenadines',
+    'Samoa',
+    'San Marino',
+    'Sao Tome and Principe',
+    'Saudi Arabia',
+    'Senegal',
+    'Serbia',
+    'Seychelles',
+    'Sierra Leone',
+    'Singapore',
+    'Slovakia',
+    'Slovenia',
+    'Solomon Islands',
+    'Somalia',
+    'South Africa',
+    'South Korea',
+    'South Sudan',
+    'Spain',
+    'Sri Lanka',
+    'Sudan',
+    'Suriname',
+    'Sweden',
+    'Switzerland',
+    'Syria',
+    'Taiwan',
+    'Tajikistan',
+    'Tanzania',
+    'Thailand',
+    'Timor-Leste',
+    'Togo',
+    'Tonga',
+    'Trinidad and Tobago',
+    'Tunisia',
+    'Turkey',
+    'Turkmenistan',
+    'Tuvalu',
+    'Uganda',
+    'Ukraine',
+    'United Arab Emirates',
+    'United Kingdom',
+    'United States',
+    'Uruguay',
+    'Uzbekistan',
+    'Vanuatu',
+    'Vatican City',
+    'Venezuela',
+    'Vietnam',
+    'Yemen',
+    'Zambia',
+    'Zimbabwe',
+  ];
+
+  String _flagForCountry(String country) {
+    const countryIso = {
+      'United States': 'US',
+      'Canada': 'CA',
+      'United Kingdom': 'GB',
+      'France': 'FR',
+      'Germany': 'DE',
+      'Italy': 'IT',
+      'Spain': 'ES',
+      'Netherlands': 'NL',
+      'Belgium': 'BE',
+      'Austria': 'AT',
+      'Switzerland': 'CH',
+      'Sweden': 'SE',
+      'Norway': 'NO',
+      'Denmark': 'DK',
+      'Finland': 'FI',
+      'Ireland': 'IE',
+      'Poland': 'PL',
+      'Czech Republic': 'CZ',
+      'Hungary': 'HU',
+      'Romania': 'RO',
+      'Bulgaria': 'BG',
+      'Greece': 'GR',
+      'Portugal': 'PT',
+      'Croatia': 'HR',
+      'Slovenia': 'SI',
+      'Japan': 'JP',
+      'China': 'CN',
+      'India': 'IN',
+      'Singapore': 'SG',
+      'Malaysia': 'MY',
+      'Thailand': 'TH',
+      'Vietnam': 'VN',
+      'Indonesia': 'ID',
+      'Philippines': 'PH',
+      'South Korea': 'KR',
+      'Nigeria': 'NG',
+      'Kenya': 'KE',
+      'South Africa': 'ZA',
+      'Uganda': 'UG',
+      'Tanzania': 'TZ',
+      'Morocco': 'MA',
+      'Algeria': 'DZ',
+      'Egypt': 'EG',
+      'Tunisia': 'TN',
+      'Brazil': 'BR',
+      'Argentina': 'AR',
+      'Chile': 'CL',
+      'Colombia': 'CO',
+      'Peru': 'PE',
+      'Mexico': 'MX',
+      'United Arab Emirates': 'AE',
+      'Australia': 'AU',
+      'New Zealand': 'NZ',
+      'Bahamas': 'BS',
+      'Barbados': 'BB',
+      'Jamaica': 'JM',
+      'Pakistan': 'PK',
+      'Saudi Arabia': 'SA',
+      'Ukraine': 'UA',
+      'Russia': 'RU',
+      'Israel': 'IL',
+      'Turkey': 'TR',
+      'Ghana': 'GH',
+    };
+
+    final iso = countryIso[country];
+    if (iso == null || iso.length != 2) {
+      return '';
+    }
+
+    final codeUnits = iso.toUpperCase().codeUnits;
+    return String.fromCharCodes(codeUnits.map((unit) => unit + 0x1F1A5));
+  }
+
   @override
   void initState() {
     super.initState();
@@ -186,17 +528,29 @@ class _KycpageWidgetState extends State<KycpageWidget> {
     _firstNameController.dispose();
     _lastNameController.dispose();
     _dobController.dispose();
-    _genderController.dispose();
-    _nationalityController.dispose();
     _idNumberController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
-    _countryController.dispose();
     _stateController.dispose();
     _cityController.dispose();
     _addressController.dispose();
     _postalController.dispose();
     super.dispose();
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDob ?? DateTime(2000, 1, 1),
+      firstDate: DateTime(1950),
+      lastDate: DateTime.now().subtract(const Duration(days: 6570)), // 18 years
+    );
+    if (picked != null && picked != _selectedDob) {
+      setState(() {
+        _selectedDob = picked;
+        _dobController.text = '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+      });
+    }
   }
 
   Future<void> _captureSelfie() async {
@@ -244,8 +598,8 @@ class _KycpageWidgetState extends State<KycpageWidget> {
                 Icons.camera_alt_rounded,
                 color: FlutterFlowTheme.of(context).primary,
               ),
-              title: const Text('Take Photo'),
-              subtitle: const Text('Capture using your camera'),
+              title: Text('Take Photo'),
+              subtitle: Text('Capture using your camera'),
               onTap: () async {
                 Navigator.pop(context);
                 await _captureDocumentPhoto(key);
@@ -256,8 +610,8 @@ class _KycpageWidgetState extends State<KycpageWidget> {
                 Icons.photo_library_rounded,
                 color: FlutterFlowTheme.of(context).primary,
               ),
-              title: const Text('Choose from Gallery'),
-              subtitle: const Text('Select from your device'),
+              title: Text('Choose from Gallery'),
+              subtitle: Text('Select from your device'),
               onTap: () async {
                 Navigator.pop(context);
                 await _pickDocumentFromGallery(key);
@@ -471,7 +825,7 @@ class _KycpageWidgetState extends State<KycpageWidget> {
                   fileName ?? 'Upload file',
                   style: FlutterFlowTheme.of(context).bodyMedium,
                 ),
-                const Icon(Icons.upload_file_rounded, size: 20),
+                Icon(Icons.upload_file_rounded, size: 20),
               ],
             ),
           ],
@@ -523,7 +877,7 @@ class _KycpageWidgetState extends State<KycpageWidget> {
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFDFCF8),
+                    color: context.isDarkMode ? context.background : const Color(0xFFFDFCF8),
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: Column(
@@ -543,13 +897,16 @@ class _KycpageWidgetState extends State<KycpageWidget> {
                               font: GoogleFonts.plusJakartaSans(
                                 fontWeight: FontWeight.w800,
                               ),
+                              color: context.isDarkMode ? context.onSurface : null,
                               fontWeight: FontWeight.w800,
                             ),
                       ),
                       const SizedBox(height: 12),
                       Text(
                         'Complete KYC verification to unlock deposits, withdrawals, escrow services, and higher transaction limits.',
-                        style: FlutterFlowTheme.of(context).bodyMedium,
+                        style: FlutterFlowTheme.of(context).bodyMedium.override(
+                          color: context.isDarkMode ? context.textSecondary : null,
+                        ),
                       ),
                     ],
                   ),
@@ -579,26 +936,95 @@ class _KycpageWidgetState extends State<KycpageWidget> {
                             value == null || value.isEmpty ? 'Required' : null,
                       ),
                       const SizedBox(height: 12),
-                      _buildTextField(
-                        _dobController,
-                        'Date of Birth',
-                        keyboardType: TextInputType.datetime,
-                        validator: (value) =>
-                            value == null || value.isEmpty ? 'Required' : null,
+                      GestureDetector(
+                        onTap: () => _selectDate(context),
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: FlutterFlowTheme.of(context).secondaryBackground,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: FlutterFlowTheme.of(context).alternate),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                _selectedDob != null
+                                    ? '${_selectedDob!.year}-${_selectedDob!.month.toString().padLeft(2, '0')}-${_selectedDob!.day.toString().padLeft(2, '0')}'
+                                    : 'Date of Birth',
+                                style: _selectedDob != null
+                                    ? FlutterFlowTheme.of(context).bodyMedium
+                                    : FlutterFlowTheme.of(context).bodySmall,
+                              ),
+                              Icon(Icons.calendar_today, size: 18, color: FlutterFlowTheme.of(context).secondaryText),
+                            ],
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 12),
-                      _buildTextField(
-                        _genderController,
-                        'Gender',
-                        validator: (value) =>
-                            value == null || value.isEmpty ? 'Required' : null,
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: FlutterFlowTheme.of(context).secondaryBackground,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: FlutterFlowTheme.of(context).alternate),
+                        ),
+                        child: DropdownButtonFormField<String>(
+                          initialValue: _selectedGender,
+                          hint: Text('Gender', style: FlutterFlowTheme.of(context).bodySmall),
+                          decoration: const InputDecoration.collapsed(hintText: ''),
+                          isExpanded: false,
+                          items: _genderOptions
+                              .map((gender) => DropdownMenuItem(
+                                    value: gender,
+                                    child: Text(gender),
+                                  ))
+                              .toList(),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() => _selectedGender = value);
+                            }
+                          },
+                          validator: (value) => value == null ? 'Required' : null,
+                        ),
                       ),
                       const SizedBox(height: 12),
-                      _buildTextField(
-                        _nationalityController,
-                        'Nationality',
-                        validator: (value) =>
-                            value == null || value.isEmpty ? 'Required' : null,
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: FlutterFlowTheme.of(context).secondaryBackground,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: FlutterFlowTheme.of(context).alternate),
+                        ),
+                        child: DropdownButtonFormField<String>(
+                          initialValue: _selectedNationality,
+                          hint: Text('Nationality', style: FlutterFlowTheme.of(context).bodySmall),
+                          decoration: const InputDecoration.collapsed(hintText: ''),
+                          isExpanded: true,
+                          items: _countries
+                              .map((country) {
+                                final flag = _flagForCountry(country);
+                                return DropdownMenuItem(
+                                  value: country,
+                                  child: Row(
+                                    children: [
+                                      if (flag.isNotEmpty) ...[
+                                        Text(flag),
+                                        const SizedBox(width: 8),
+                                      ],
+                                      Expanded(child: Text(country)),
+                                    ],
+                                  ),
+                                );
+                              })
+                              .toList(),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() => _selectedNationality = value);
+                            }
+                          },
+                          validator: (value) => value == null ? 'Required' : null,
+                        ),
                       ),
                       const SizedBox(height: 12),
                       _buildTextField(
@@ -608,12 +1034,68 @@ class _KycpageWidgetState extends State<KycpageWidget> {
                             value == null || value.isEmpty ? 'Required' : null,
                       ),
                       const SizedBox(height: 12),
-                      _buildTextField(
-                        _phoneController,
-                        'Phone Number',
-                        keyboardType: TextInputType.phone,
-                        validator: (value) =>
-                            value == null || value.isEmpty ? 'Required' : null,
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: FlutterFlowTheme.of(context).secondaryBackground,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: FlutterFlowTheme.of(context).alternate),
+                            ),
+                            child: DropdownButton<String>(
+                              value: _selectedCountryCode,
+                              underline: const SizedBox(),
+                              items: _countryCodeMap.entries
+                                  .map((entry) {
+                                    final flag = _flagForCountry(entry.value);
+                                    return DropdownMenuItem(
+                                      value: entry.key,
+                                      child: Row(
+                                        children: [
+                                          if (flag.isNotEmpty) ...[
+                                            Text(flag),
+                                            const SizedBox(width: 8),
+                                          ],
+                                          Expanded(
+                                            child: Text(
+                                              '${entry.key} ${entry.value}',
+                                              style: FlutterFlowTheme.of(context).bodyMedium,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  })
+                                  .toList(),
+                              onChanged: (value) {
+                                if (value != null) {
+                                  setState(() => _selectedCountryCode = value);
+                                }
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _phoneController,
+                              keyboardType: TextInputType.phone,
+                              validator: (value) =>
+                                  value == null || value.isEmpty ? 'Required' : null,
+                              decoration: InputDecoration(
+                                labelText: 'Phone Number',
+                                labelStyle: FlutterFlowTheme.of(context).bodySmall,
+                                filled: true,
+                                fillColor: FlutterFlowTheme.of(context).secondaryBackground,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: BorderSide.none,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 12),
                       _buildTextField(
@@ -693,40 +1175,67 @@ class _KycpageWidgetState extends State<KycpageWidget> {
                         'Provide a recent proof of address and your location details.',
                       ),
                       const SizedBox(height: 16),
-                      _buildTextField(
-                        _countryController,
-                        'Country',
-                        validator: (value) =>
-                            value == null || value.isEmpty ? 'Required' : null,
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: FlutterFlowTheme.of(context).secondaryBackground,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: FlutterFlowTheme.of(context).alternate),
+                        ),
+                        child: DropdownButtonFormField<String>(
+                          initialValue: _selectedCountry,
+                          hint: Text('Country', style: FlutterFlowTheme.of(context).bodySmall),
+                          decoration: const InputDecoration.collapsed(hintText: ''),
+                          isExpanded: true,
+                          items: _countries
+                              .map((country) {
+                                final flag = _flagForCountry(country);
+                                return DropdownMenuItem(
+                                  value: country,
+                                  child: Row(
+                                    children: [
+                                      if (flag.isNotEmpty) ...[
+                                        Text(flag),
+                                        const SizedBox(width: 8),
+                                      ],
+                                      Expanded(child: Text(country)),
+                                    ],
+                                  ),
+                                );
+                              })
+                              .toList(),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() => _selectedCountry = value);
+                            }
+                          },
+                          validator: (value) => null,
+                        ),
                       ),
                       const SizedBox(height: 12),
                       _buildTextField(
                         _stateController,
                         'County / State',
-                        validator: (value) =>
-                            value == null || value.isEmpty ? 'Required' : null,
+                        validator: (value) => null,
                       ),
                       const SizedBox(height: 12),
                       _buildTextField(
                         _cityController,
                         'City',
-                        validator: (value) =>
-                            value == null || value.isEmpty ? 'Required' : null,
+                        validator: (value) => null,
                       ),
                       const SizedBox(height: 12),
                       _buildTextField(
                         _addressController,
                         'Physical Address',
                         maxLines: 2,
-                        validator: (value) =>
-                            value == null || value.isEmpty ? 'Required' : null,
+                        validator: (value) => null,
                       ),
                       const SizedBox(height: 12),
                       _buildTextField(
                         _postalController,
                         'Postal Code',
-                        validator: (value) =>
-                            value == null || value.isEmpty ? 'Required' : null,
+                        validator: (value) => null,
                       ),
                       const SizedBox(height: 24),
                       Container(
@@ -785,12 +1294,12 @@ class _KycpageWidgetState extends State<KycpageWidget> {
                                 options: FFButtonOptions(
                                   width: double.infinity,
                                   height: 52,
-                                  color: Colors.black,
+                                  color: FlutterFlowTheme.of(context).primary,
                                   textStyle: FlutterFlowTheme.of(context)
                                       .titleSmall
                                       .override(
                                         fontFamily: 'Plus Jakarta Sans',
-                                        color: Colors.white,
+                                          color: FlutterFlowTheme.of(context).onPrimary,
                                         fontWeight: FontWeight.bold,
                                       ),
                                   elevation: 0,

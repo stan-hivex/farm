@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'flutter_flow/flutter_flow_theme.dart';
+
 class FFAppState extends ChangeNotifier {
   static FFAppState _instance = FFAppState._internal();
 
@@ -22,15 +24,26 @@ class FFAppState extends ChangeNotifier {
     _firstName = prefs.getString('firstName') ?? '';
     _userName = prefs.getString('userName') ?? '';
     _phone = prefs.getString('phone') ?? '';
+    _kycStatus = prefs.getString('kycStatus') ?? '';
     _isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
     _biometricsEnabled = prefs.getBool('biometricsEnabled') ?? false;
     _role = prefs.getString('role') ?? '';
+    
+    // Load theme mode
+    final themeModeString = prefs.getString('themeMode');
+    if (themeModeString != null) {
+      _themeMode = ThemeMode.values.firstWhere(
+        (mode) => mode.name == themeModeString,
+        orElse: () => ThemeMode.system,
+      );
+    }
   }
 
   void update(VoidCallback callback) {
     callback();
     notifyListeners();
   }
+
   String _accessToken = '';
   String get accessToken => _accessToken;
   set accessToken(String value) {
@@ -41,7 +54,6 @@ class FFAppState extends ChangeNotifier {
     );
   }
 
-  // Backwards-compatible alias expected elsewhere
   String get authToken => _accessToken;
 
   String _refreshToken = '';
@@ -65,11 +77,11 @@ class FFAppState extends ChangeNotifier {
   String _firstName = '';
   String get firstName => _firstName;
   set firstName(String value) {
-  _firstName = value;
-  SharedPreferences.getInstance().then(
-    (prefs) => prefs.setString('firstName', value),
-  );
-}
+    _firstName = value;
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setString('firstName', value),
+    );
+  }
 
   String _userName = '';
   String get userName => _userName;
@@ -89,6 +101,15 @@ class FFAppState extends ChangeNotifier {
     );
   }
 
+  String _kycStatus = '';
+  String get kycStatus => _kycStatus;
+  set kycStatus(String value) {
+    _kycStatus = value;
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setString('kycStatus', value),
+    );
+  }
+
   bool _isLoggedIn = false;
   bool get isLoggedIn => _isLoggedIn;
   set isLoggedIn(bool value) {
@@ -98,10 +119,8 @@ class FFAppState extends ChangeNotifier {
     );
   }
 
-  /// BIOMETRICS
   bool _biometricsEnabled = false;
   bool get biometricsEnabled => _biometricsEnabled;
-
   set biometricsEnabled(bool value) {
     _biometricsEnabled = value;
     SharedPreferences.getInstance().then(
@@ -109,7 +128,6 @@ class FFAppState extends ChangeNotifier {
     );
   }
 
-  // Role (persisted)
   String _role = '';
   String get role => _role;
   set role(String value) {
@@ -118,4 +136,43 @@ class FFAppState extends ChangeNotifier {
       (prefs) => prefs.setString('role', value),
     );
   }
-} 
+
+  ThemeMode _themeMode = ThemeMode.light;
+  ThemeMode get themeMode => _themeMode;
+  set themeMode(ThemeMode value) {
+    _themeMode = value;
+    notifyListeners();
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setString('themeMode', value.name),
+    );
+    FlutterFlowTheme.saveThemeMode(value);
+  }
+
+  Future<void> setThemeMode(ThemeMode value) async {
+    themeMode = value;
+  }
+
+  Future<void> clearAuthCredentials() async {
+    accessToken = '';
+    refreshToken = '';
+    userId = '';
+    firstName = '';
+    userName = '';
+    phone = '';
+    kycStatus = '';
+    isLoggedIn = false;
+    biometricsEnabled = false;
+    role = '';
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('accessToken');
+    await prefs.remove('refreshToken');
+    await prefs.remove('userId');
+    await prefs.remove('firstName');
+    await prefs.remove('userName');
+    await prefs.remove('phone');
+    await prefs.remove('kycStatus');
+    await prefs.remove('isLoggedIn');
+    await prefs.remove('biometricsEnabled');
+    await prefs.remove('role');
+  }
+}

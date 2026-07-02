@@ -12,6 +12,7 @@ import 'package:timeago/timeago.dart' as timeago;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../main.dart';
+import '../app_state.dart';
 
 
 export 'lat_lng.dart';
@@ -265,8 +266,9 @@ extension IterableExt<T> on Iterable<T> {
       .toList();
 }
 
-void setDarkModeSetting(BuildContext context, ThemeMode themeMode) =>
-    MyApp.of(context).setThemeMode(themeMode);
+void setDarkModeSetting(BuildContext context, ThemeMode themeMode) {
+  FFAppState().themeMode = themeMode;
+}
 
 void showSnackbar(
   BuildContext context,
@@ -285,7 +287,7 @@ void showSnackbar(
               child: SizedBox(
                 height: 20,
                 width: 20,
-                child: const CircularProgressIndicator(
+                child: CircularProgressIndicator(
                   color: Colors.white,
                 ),
               ),

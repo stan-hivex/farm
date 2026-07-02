@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import '/core/app_config.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
+import '/core/theme_extensions.dart';
+import '/core/responsive.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -55,6 +57,327 @@ class _RegisterpageWidgetState
   final TextEditingController referralController =
       TextEditingController();
 
+  String? _selectedCountry = 'United States';
+  String _selectedCountryCode = '+1';
+
+  final Map<String, String> _countryCodeMap = {
+    '+1': 'United States',
+    '+44': 'United Kingdom',
+    '+33': 'France',
+    '+49': 'Germany',
+    '+39': 'Italy',
+    '+34': 'Spain',
+    '+31': 'Netherlands',
+    '+32': 'Belgium',
+    '+43': 'Austria',
+    '+41': 'Switzerland',
+    '+46': 'Sweden',
+    '+47': 'Norway',
+    '+45': 'Denmark',
+    '+358': 'Finland',
+    '+353': 'Ireland',
+    '+48': 'Poland',
+    '+420': 'Czech Republic',
+    '+36': 'Hungary',
+    '+40': 'Romania',
+    '+359': 'Bulgaria',
+    '+30': 'Greece',
+    '+351': 'Portugal',
+    '+385': 'Croatia',
+    '+386': 'Slovenia',
+    '+81': 'Japan',
+    '+86': 'China',
+    '+91': 'India',
+    '+65': 'Singapore',
+    '+60': 'Malaysia',
+    '+66': 'Thailand',
+    '+84': 'Vietnam',
+    '+62': 'Indonesia',
+    '+63': 'Philippines',
+    '+82': 'South Korea',
+    '+234': 'Nigeria',
+    '+254': 'Kenya',
+    '+27': 'South Africa',
+    '+256': 'Uganda',
+    '+255': 'Tanzania',
+    '+212': 'Morocco',
+    '+213': 'Algeria',
+    '+20': 'Egypt',
+    '+216': 'Tunisia',
+    '+55': 'Brazil',
+    '+54': 'Argentina',
+    '+56': 'Chile',
+    '+57': 'Colombia',
+    '+51': 'Peru',
+    '+52': 'Mexico',
+    '+507': 'Panama',
+    '+505': 'Nicaragua',
+    '+502': 'Guatemala',
+    '+503': 'El Salvador',
+  };
+
+  final List<String> _countries = [
+    'Afghanistan',
+    'Albania',
+    'Algeria',
+    'Andorra',
+    'Angola',
+    'Argentina',
+    'Armenia',
+    'Australia',
+    'Austria',
+    'Azerbaijan',
+    'Bahamas',
+    'Bahrain',
+    'Bangladesh',
+    'Barbados',
+    'Belarus',
+    'Belgium',
+    'Belize',
+    'Benin',
+    'Bhutan',
+    'Bolivia',
+    'Bosnia and Herzegovina',
+    'Botswana',
+    'Brazil',
+    'Brunei',
+    'Bulgaria',
+    'Burkina Faso',
+    'Burundi',
+    'Cambodia',
+    'Cameroon',
+    'Canada',
+    'Cape Verde',
+    'Central African Republic',
+    'Chad',
+    'Chile',
+    'China',
+    'Colombia',
+    'Comoros',
+    'Congo',
+    'Costa Rica',
+    'Croatia',
+    'Cuba',
+    'Cyprus',
+    'Czech Republic',
+    'Denmark',
+    'Djibouti',
+    'Dominica',
+    'Dominican Republic',
+    'Ecuador',
+    'Egypt',
+    'El Salvador',
+    'Equatorial Guinea',
+    'Eritrea',
+    'Estonia',
+    'Eswatini',
+    'Ethiopia',
+    'Fiji',
+    'Finland',
+    'France',
+    'Gabon',
+    'Gambia',
+    'Georgia',
+    'Germany',
+    'Ghana',
+    'Greece',
+    'Grenada',
+    'Guatemala',
+    'Guinea',
+    'Guinea-Bissau',
+    'Guyana',
+    'Haiti',
+    'Honduras',
+    'Hungary',
+    'Iceland',
+    'India',
+    'Indonesia',
+    'Iran',
+    'Iraq',
+    'Ireland',
+    'Israel',
+    'Italy',
+    'Jamaica',
+    'Japan',
+    'Jordan',
+    'Kazakhstan',
+    'Kenya',
+    'Kiribati',
+    'Kosovo',
+    'Kuwait',
+    'Kyrgyzstan',
+    'Laos',
+    'Latvia',
+    'Lebanon',
+    'Lesotho',
+    'Liberia',
+    'Libya',
+    'Liechtenstein',
+    'Lithuania',
+    'Luxembourg',
+    'Madagascar',
+    'Malawi',
+    'Malaysia',
+    'Maldives',
+    'Mali',
+    'Malta',
+    'Marshall Islands',
+    'Mauritania',
+    'Mauritius',
+    'Mexico',
+    'Micronesia',
+    'Moldova',
+    'Monaco',
+    'Mongolia',
+    'Montenegro',
+    'Morocco',
+    'Mozambique',
+    'Myanmar',
+    'Namibia',
+    'Nauru',
+    'Nepal',
+    'Netherlands',
+    'New Zealand',
+    'Nicaragua',
+    'Niger',
+    'Nigeria',
+    'North Korea',
+    'North Macedonia',
+    'Norway',
+    'Oman',
+    'Pakistan',
+    'Palau',
+    'Palestine',
+    'Panama',
+    'Papua New Guinea',
+    'Paraguay',
+    'Peru',
+    'Philippines',
+    'Poland',
+    'Portugal',
+    'Qatar',
+    'Romania',
+    'Russia',
+    'Rwanda',
+    'Saint Kitts and Nevis',
+    'Saint Lucia',
+    'Saint Vincent and the Grenadines',
+    'Samoa',
+    'San Marino',
+    'Sao Tome and Principe',
+    'Saudi Arabia',
+    'Senegal',
+    'Serbia',
+    'Seychelles',
+    'Sierra Leone',
+    'Singapore',
+    'Slovakia',
+    'Slovenia',
+    'Solomon Islands',
+    'Somalia',
+    'South Africa',
+    'South Korea',
+    'South Sudan',
+    'Spain',
+    'Sri Lanka',
+    'Sudan',
+    'Suriname',
+    'Sweden',
+    'Switzerland',
+    'Syria',
+    'Taiwan',
+    'Tajikistan',
+    'Tanzania',
+    'Thailand',
+    'Timor-Leste',
+    'Togo',
+    'Tonga',
+    'Trinidad and Tobago',
+    'Tunisia',
+    'Turkey',
+    'Turkmenistan',
+    'Tuvalu',
+    'Uganda',
+    'Ukraine',
+    'United Arab Emirates',
+    'United Kingdom',
+    'United States',
+    'Uruguay',
+    'Uzbekistan',
+    'Vanuatu',
+    'Vatican City',
+    'Venezuela',
+    'Vietnam',
+    'Yemen',
+    'Zambia',
+    'Zimbabwe',
+  ];
+
+  String _flagForCountry(String country) {
+    const countryIso = {
+      'United States': 'US',
+      'Canada': 'CA',
+      'United Kingdom': 'GB',
+      'France': 'FR',
+      'Germany': 'DE',
+      'Italy': 'IT',
+      'Spain': 'ES',
+      'Netherlands': 'NL',
+      'Belgium': 'BE',
+      'Austria': 'AT',
+      'Switzerland': 'CH',
+      'Sweden': 'SE',
+      'Norway': 'NO',
+      'Denmark': 'DK',
+      'Finland': 'FI',
+      'Ireland': 'IE',
+      'Poland': 'PL',
+      'Czech Republic': 'CZ',
+      'Hungary': 'HU',
+      'Romania': 'RO',
+      'Bulgaria': 'BG',
+      'Greece': 'GR',
+      'Portugal': 'PT',
+      'Croatia': 'HR',
+      'Slovenia': 'SI',
+      'Japan': 'JP',
+      'China': 'CN',
+      'India': 'IN',
+      'Singapore': 'SG',
+      'Malaysia': 'MY',
+      'Thailand': 'TH',
+      'Vietnam': 'VN',
+      'Indonesia': 'ID',
+      'Philippines': 'PH',
+      'South Korea': 'KR',
+      'Nigeria': 'NG',
+      'Kenya': 'KE',
+      'South Africa': 'ZA',
+      'Uganda': 'UG',
+      'Tanzania': 'TZ',
+      'Morocco': 'MA',
+      'Algeria': 'DZ',
+      'Egypt': 'EG',
+      'Tunisia': 'TN',
+      'Brazil': 'BR',
+      'Argentina': 'AR',
+      'Chile': 'CL',
+      'Colombia': 'CO',
+      'Peru': 'PE',
+      'Mexico': 'MX',
+    };
+
+    final iso = countryIso[country];
+    if (iso == null || iso.length != 2) {
+      return '';
+    }
+
+    final codeUnits = iso.toUpperCase().codeUnits;
+    return String.fromCharCodes(
+      codeUnits.map((unit) => unit + 0x1F1A5),
+    );
+  }
+
   bool passwordVisible = false;
   bool confirmPasswordVisible = false;
 
@@ -65,6 +388,8 @@ class _RegisterpageWidgetState
       context,
       () => RegisterpageModel(),
     );
+    // Ensure registration screen defaults to light theme
+    FFAppState().themeMode = ThemeMode.light;
   }
 
   @override
@@ -126,8 +451,8 @@ class _RegisterpageWidgetState
       errorBorder: OutlineInputBorder(
         borderRadius:
             BorderRadius.circular(14.0),
-        borderSide: const BorderSide(
-          color: Colors.red,
+        borderSide: BorderSide(
+          color: context.errorColor,
           width: 1.0,
         ),
       ),
@@ -135,8 +460,8 @@ class _RegisterpageWidgetState
           OutlineInputBorder(
         borderRadius:
             BorderRadius.circular(14.0),
-        borderSide: const BorderSide(
-          color: Colors.red,
+        borderSide: BorderSide(
+          color: context.errorColor,
           width: 1.5,
         ),
       ),
@@ -181,9 +506,7 @@ class _RegisterpageWidgetState
                 .primaryBackground,
         body: SingleChildScrollView(
           primary: false,
-          child: Padding(
-            padding:
-                const EdgeInsets.all(32.0),
+          child: context.responsiveBody(
             child: Form(
               key: _formKey,
               child: Column(
@@ -196,8 +519,8 @@ class _RegisterpageWidgetState
                   Column(
                     children: [
                       Container(
-                        width: 64.0,
-                        height: 64.0,
+                        width: context.responsiveValue(64.0, minValue: 56.0),
+                        height: context.responsiveValue(64.0, minValue: 56.0),
                         decoration:
                             BoxDecoration(
                           color:
@@ -213,8 +536,8 @@ class _RegisterpageWidgetState
                             const AlignmentDirectional(
                                 0.0, 0.0),
                         child: SizedBox(
-                          width: 40.0,
-                          height: 50.0,
+                          width: context.responsiveValue(40.0, minValue: 32.0),
+                          height: context.responsiveValue(50.0, minValue: 42.0),
                           child: Stack(
                             alignment:
                                 const AlignmentDirectional(
@@ -251,9 +574,9 @@ class _RegisterpageWidgetState
                                 child:
                                     Container(
                                   width:
-                                      24.0,
+                                      context.responsiveValue(24.0, minValue: 18.0),
                                   height:
-                                      6.0,
+                                      context.responsiveValue(6.0, minValue: 4.0),
                                   decoration:
                                       BoxDecoration(
                                     color:
@@ -274,9 +597,9 @@ class _RegisterpageWidgetState
                                 child:
                                     Container(
                                   width:
-                                      18.0,
+                                      context.responsiveValue(18.0, minValue: 14.0),
                                   height:
-                                      6.0,
+                                      context.responsiveValue(6.0, minValue: 4.0),
                                   decoration:
                                       BoxDecoration(
                                     color:
@@ -490,35 +813,78 @@ class _RegisterpageWidgetState
                   const SizedBox(
                       height: 8.0),
 
-                  TextFormField(
-                    controller:
-                        phoneController,
-                    keyboardType:
-                        TextInputType
-                            .phone,
-                    validator:
-                        (value) {
-                      if (value ==
-                              null ||
-                          value
-                              .isEmpty) {
-                        return 'Phone number required';
-                      }
-
-                      if (!RegExp(
-                              r'^\+?[1-9]\d{7,14}$')
-                          .hasMatch(
-                              value)) {
-                        return 'Enter valid phone number';
-                      }
-
-                      return null;
-                    },
-                    decoration:
-                        inputDecoration(
-                      context,
-                      '+254700123456',
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: DropdownButtonFormField<String>(
+                          initialValue: _selectedCountryCode,
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setState(() {
+                              _selectedCountryCode = value;
+                            });
+                          },
+                          decoration: inputDecoration(
+                            context,
+                            'Code',
+                          ),
+                          items: _countryCodeMap.keys.map(
+                            (dialCode) {
+                              final country = _countryCodeMap[dialCode] ?? '';
+                              final flag = _flagForCountry(country);
+                              return DropdownMenuItem(
+                                value: dialCode,
+                                child: Row(
+                                  children: [
+                                    if (flag.isNotEmpty) ...[
+                                      Text(flag),
+                                      const SizedBox(width: 6.0),
+                                    ],
+                                    Expanded(
+                                      child: Text(
+                                        '$dialCode $country',
+                                        overflow:
+                                            TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ).toList(),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Country code required';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12.0),
+                      Expanded(
+                        flex: 3,
+                        child: TextFormField(
+                          controller: phoneController,
+                          keyboardType:
+                              TextInputType.number,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Phone number required';
+                            }
+                            if (!RegExp(r'^[0-9]{6,15}$')
+                                .hasMatch(value)) {
+                              return 'Enter valid phone number';
+                            }
+                            return null;
+                          },
+                          decoration: inputDecoration(
+                            context,
+                            '700123456',
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
 
                   const SizedBox(
@@ -660,14 +1026,54 @@ class _RegisterpageWidgetState
                   const SizedBox(
                       height: 8.0),
 
-                  TextFormField(
-                    controller:
-                        countryController,
-                    decoration:
-                        inputDecoration(
+                  DropdownButtonFormField<String>(
+                    initialValue: _selectedCountry,
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setState(() {
+                        _selectedCountry = value;
+                        final countryCodeEntry = _countryCodeMap.entries
+                            .firstWhere(
+                              (entry) => entry.value == value,
+                              orElse: () => const MapEntry('', ''),
+                            );
+                        if (countryCodeEntry.key.isNotEmpty) {
+                          _selectedCountryCode = countryCodeEntry.key;
+                        }
+                      });
+                    },
+                    decoration: inputDecoration(
                       context,
-                      'Enter country',
+                      'Select country',
                     ),
+                    items: _countries.map(
+                      (country) {
+                        final flag = _flagForCountry(country);
+                        return DropdownMenuItem(
+                          value: country,
+                          child: Row(
+                            children: [
+                              if (flag.isNotEmpty) ...[
+                                Text(flag),
+                                const SizedBox(width: 6.0),
+                              ],
+                              Expanded(
+                                child: Text(
+                                  country,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ).toList(),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Country required';
+                      }
+                      return null;
+                    },
                   ),
 
                   const SizedBox(
@@ -702,14 +1108,15 @@ class _RegisterpageWidgetState
     return;
   }
 
+  final fullPhone = '$_selectedCountryCode${phoneController.text.trim()}';
   final registerData = {
     "first_name": firstNameController.text.trim(),
     "last_name": lastNameController.text.trim(),
     "username": usernameController.text.trim(),
-    "phone": phoneController.text.trim(),
+    "phone": fullPhone,
     "email": emailController.text.trim(),
     "password": passwordController.text.trim(),
-    "country": countryController.text.trim(),
+    "country": _selectedCountry?.trim() ?? '',
     "referral_code": referralController.text.trim(),
   };
 
@@ -741,17 +1148,19 @@ class _RegisterpageWidgetState
             responseData['message'] ??
                 'Registration successful',
           ),
-          backgroundColor: Colors.green,
+          backgroundColor: context.successColor,
         ),
       );
 
       Future.delayed(
   const Duration(seconds: 1),
   () {
+    // Ensure theme remains light after successful registration
+    FFAppState().themeMode = ThemeMode.light;
     context.pushNamed(
       'otppage',
       queryParameters: {
-        'phone': phoneController.text.trim(),
+        'phone': fullPhone,
       },
     );
   },
@@ -765,7 +1174,7 @@ class _RegisterpageWidgetState
             responseData['message'] ??
                 'Registration failed',
           ),
-          backgroundColor: Colors.red,
+          backgroundColor: context.errorColor,
         ),
       );
     }
@@ -775,19 +1184,17 @@ class _RegisterpageWidgetState
     print('ERROR: $e');
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Text(
           'Could not connect to backend server',
         ),
-        backgroundColor: Colors.red,
+        backgroundColor: context.errorColor,
       ),
     );
   }
 },
-                    text:
-                        'Create Account',
-                    options:
-                        FFButtonOptions(
+                    text: 'Create Account',
+                    options: FFButtonOptions(
                       width:
                           double.infinity,
                       height: 54.0,

@@ -11,6 +11,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
+import '/core/theme_extensions.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 
 
@@ -170,7 +171,7 @@ class _PinSetupPageWidgetState
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       content: Text(message),
-      backgroundColor: Colors.red,
+      backgroundColor: context.errorColor,
     ),
   );
 }
@@ -195,15 +196,15 @@ class _PinSetupPageWidgetState
         width: 70,
         height: 70,
         decoration: BoxDecoration(
-          color: Colors.black,
+          color: context.background,
           borderRadius:
               BorderRadius.circular(18),
         ),
         alignment: Alignment.center,
         child: Text(
           number,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: context.onSurface,
             fontSize: 24,
             fontWeight: FontWeight.bold,
           ),
@@ -219,13 +220,13 @@ class _PinSetupPageWidgetState
         width: 70,
         height: 70,
         decoration: BoxDecoration(
-          color: Colors.grey.shade900,
+          color: context.isDarkMode ? context.background : context.textPrimary,
           borderRadius:
               BorderRadius.circular(18),
         ),
-        child: const Icon(
+        child: Icon(
           Icons.backspace_outlined,
-          color: Colors.white,
+          color: context.isDarkMode ? Colors.white : context.onSurface,
         ),
       ),
     );
@@ -290,15 +291,15 @@ class _PinSetupPageWidgetState
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: Colors.black,
+                    color: context.background,
                     borderRadius:
                         BorderRadius.circular(
                       24,
                     ),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.lock_outline,
-                    color: Colors.white,
+                    color: context.onSurface,
                     size: 40,
                   ),
                 ),
@@ -402,10 +403,10 @@ class _PinSetupPageWidgetState
                   text: 'Verify PIN',
                   options: FFButtonOptions(
                     height: 55,
-                    color: Colors.black,
+                    color: FlutterFlowTheme.of(context).primary,
                     textStyle:
-                        const TextStyle(
-                      color: Color.fromARGB(255, 121, 248, 3),
+                        TextStyle(
+                      color: FlutterFlowTheme.of(context).onPrimary,
                       fontSize: 16,
                       fontWeight:
                           FontWeight.bold,

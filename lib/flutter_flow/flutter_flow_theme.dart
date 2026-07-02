@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/app_theme.dart';
 
 const kThemeModeKey = '__theme_mode__';
 
@@ -14,6 +15,14 @@ abstract class FlutterFlowTheme {
       _prefs = await SharedPreferences.getInstance();
 
   static ThemeMode get themeMode {
+    final modeString = _prefs?.getString(kThemeModeKey);
+    if (modeString != null) {
+      return ThemeMode.values.firstWhere(
+        (mode) => mode.name == modeString,
+        orElse: () => ThemeMode.system,
+      );
+    }
+
     final darkMode = _prefs?.getBool(kThemeModeKey);
     return darkMode == null
         ? ThemeMode.system
@@ -22,9 +31,14 @@ abstract class FlutterFlowTheme {
             : ThemeMode.light;
   }
 
-  static void saveThemeMode(ThemeMode mode) => mode == ThemeMode.system
-      ? _prefs?.remove(kThemeModeKey)
-      : _prefs?.setBool(kThemeModeKey, mode == ThemeMode.dark);
+  static void saveThemeMode(ThemeMode mode) {
+    if (mode == ThemeMode.system) {
+      _prefs?.remove(kThemeModeKey);
+    } else {
+      _prefs?.setString(kThemeModeKey, mode.name);
+      _prefs?.setBool(kThemeModeKey, mode == ThemeMode.dark);
+    }
+  }
 
   static FlutterFlowTheme of(BuildContext context) {
     return Theme.of(context).brightness == Brightness.dark
@@ -163,41 +177,41 @@ class LightModeTheme extends FlutterFlowTheme {
   @Deprecated('Use tertiary instead')
   Color get tertiaryColor => tertiary;
 
-  late Color primary = const Color(0xFF000000);
-  late Color secondary = const Color(0xFF2D2D2D);
-  late Color tertiary = const Color(0xFF1A1A1A);
-  late Color alternate = const Color(0xFFEEEEEE);
-  late Color primaryText = const Color(0xFF000000);
-  late Color secondaryText = const Color(0xFF666666);
-  late Color primaryBackground = const Color(0xFFFFFFFF);
-  late Color secondaryBackground = const Color(0xFFF9F9F9);
-  late Color accent1 = const Color(0x4C4B39EF);
-  late Color accent2 = const Color(0x4D39D2C0);
-  late Color accent3 = const Color(0xFFA1A1A1);
-  late Color accent4 = const Color(0xCCFFFFFF);
-  late Color success = const Color(0xFF000000);
-  late Color warning = const Color(0xFFF9CF58);
-  late Color error = const Color(0xFF000000);
-  late Color info = const Color(0xFFFFFFFF);
+  late Color primary = AppTheme.lightPrimary;
+  late Color secondary = AppTheme.lightSecondary;
+  late Color tertiary = AppTheme.lightTertiary;
+  late Color alternate = AppTheme.lightSurface;
+  late Color primaryText = AppTheme.lightTextPrimary;
+  late Color secondaryText = AppTheme.lightTextSecondary;
+  late Color primaryBackground = AppTheme.lightBackground;
+  late Color secondaryBackground = AppTheme.lightSurface;
+  late Color accent1 = AppTheme.lightInfo.withOpacity(0.3);
+  late Color accent2 = AppTheme.lightSuccess.withOpacity(0.3);
+  late Color accent3 = AppTheme.lightSecondary.withOpacity(0.4);
+  late Color accent4 = AppTheme.lightBackground.withOpacity(0.8);
+  late Color success = AppTheme.success;
+  late Color warning = AppTheme.warning;
+  late Color error = AppTheme.error;
+  late Color info = AppTheme.info;
 
-  late Color onPrimary = const Color(0xFFFFFFFF);
-  late Color onSecondary = const Color(0xFFFFFFFF);
-  late Color onSurface = const Color(0xFF000000);
-  late Color onError = const Color(0xFFFFFFFF);
+  late Color onPrimary = AppTheme.lightBackground;
+  late Color onSecondary = AppTheme.lightBackground;
+  late Color onSurface = AppTheme.lightTextPrimary;
+  late Color onError = AppTheme.lightBackground;
   late Color transparent = const Color(0x00000000);
-  late Color onPrimary6 = const Color(0x0FFFFFFF);
-  late Color onPrimary3 = const Color(0x08FFFFFF);
-  late Color onPrimary70 = const Color(0xB3FFFFFF);
-  late Color onPrimary60 = const Color(0x99FFFFFF);
-  late Color onPrimary50 = const Color(0x80FFFFFF);
-  late Color primary10 = const Color(0x1A000000);
-  late Color onPrimary13 = const Color(0x21FFFFFF);
-  late Color background70 = const Color(0xB3FFFFFF);
-  late Color background50 = const Color(0x80FFFFFF);
-  late Color background20 = const Color(0x33FFFFFF);
-  late Color onPrimary80 = const Color(0xCCFFFFFF);
-  late Color primary67 = const Color(0xAB000000);
-  late Color onPrimary90 = const Color(0xE6FFFFFF);
+  late Color onPrimary6 = AppTheme.lightBackground.withOpacity(0.06);
+  late Color onPrimary3 = AppTheme.lightBackground.withOpacity(0.03);
+  late Color onPrimary70 = AppTheme.lightBackground.withOpacity(0.7);
+  late Color onPrimary60 = AppTheme.lightBackground.withOpacity(0.6);
+  late Color onPrimary50 = AppTheme.lightBackground.withOpacity(0.5);
+  late Color primary10 = AppTheme.lightTextPrimary.withOpacity(0.1);
+  late Color onPrimary13 = AppTheme.lightBackground.withOpacity(0.13);
+  late Color background70 = AppTheme.lightBackground.withOpacity(0.7);
+  late Color background50 = AppTheme.lightBackground.withOpacity(0.5);
+  late Color background20 = AppTheme.lightBackground.withOpacity(0.2);
+  late Color onPrimary80 = AppTheme.lightBackground.withOpacity(0.8);
+  late Color primary67 = AppTheme.lightTextPrimary.withOpacity(0.67);
+  late Color onPrimary90 = AppTheme.lightBackground.withOpacity(0.9);
 }
 
 abstract class Typography {
@@ -378,41 +392,41 @@ class DarkModeTheme extends FlutterFlowTheme {
   @Deprecated('Use tertiary instead')
   Color get tertiaryColor => tertiary;
 
-  late Color primary = const Color(0xFFFFFFFF);
-  late Color secondary = const Color(0xFFE0E0E0);
-  late Color tertiary = const Color(0xFFF5F5F5);
-  late Color alternate = const Color(0xFF222222);
-  late Color primaryText = const Color(0xFFFFFFFF);
-  late Color secondaryText = const Color(0xFFA1A1A1);
-  late Color primaryBackground = const Color(0xFF000000);
-  late Color secondaryBackground = const Color(0xFF121212);
-  late Color accent1 = const Color(0x4C4B39EF);
-  late Color accent2 = const Color(0x4D39D2C0);
-  late Color accent3 = const Color(0xFF444444);
-  late Color accent4 = const Color(0xB2262D34);
-  late Color success = const Color(0xFFFFFFFF);
-  late Color warning = const Color(0xFFF9CF58);
-  late Color error = const Color(0xFFFFFFFF);
-  late Color info = const Color(0xFFFFFFFF);
+  late Color primary = AppTheme.darkPrimary;
+  late Color secondary = AppTheme.darkSecondary;
+  late Color tertiary = AppTheme.darkTertiary;
+  late Color alternate = AppTheme.darkSurface;
+  late Color primaryText = AppTheme.darkTextPrimary;
+  late Color secondaryText = AppTheme.darkTextSecondary;
+  late Color primaryBackground = AppTheme.darkBackground;
+  late Color secondaryBackground = AppTheme.darkSurface;
+  late Color accent1 = AppTheme.darkInfo.withOpacity(0.3);
+  late Color accent2 = AppTheme.darkSuccess.withOpacity(0.3);
+  late Color accent3 = AppTheme.darkSecondary.withOpacity(0.4);
+  late Color accent4 = AppTheme.darkSurface.withOpacity(0.7);
+  late Color success = AppTheme.success;
+  late Color warning = AppTheme.warning;
+  late Color error = AppTheme.error;
+  late Color info = AppTheme.info;
 
-  late Color onPrimary = const Color(0xFF000000);
-  late Color onSecondary = const Color(0xFF000000);
-  late Color onSurface = const Color(0xFFFFFFFF);
-  late Color onError = const Color(0xFF000000);
+  late Color onPrimary = AppTheme.darkBackground;
+  late Color onSecondary = AppTheme.darkBackground;
+  late Color onSurface = AppTheme.darkTextPrimary;
+  late Color onError = AppTheme.darkBackground;
   late Color transparent = const Color(0x00000000);
-  late Color onPrimary6 = const Color(0x0F000000);
-  late Color onPrimary3 = const Color(0x08000000);
-  late Color onPrimary70 = const Color(0xB3000000);
-  late Color onPrimary60 = const Color(0x99000000);
-  late Color onPrimary50 = const Color(0x80000000);
-  late Color primary10 = const Color(0x1AFFFFFF);
-  late Color onPrimary13 = const Color(0x21000000);
-  late Color background70 = const Color(0xB3000000);
-  late Color background50 = const Color(0x80000000);
-  late Color background20 = const Color(0x33000000);
-  late Color onPrimary80 = const Color(0xCC000000);
-  late Color primary67 = const Color(0xABFFFFFF);
-  late Color onPrimary90 = const Color(0xE6000000);
+  late Color onPrimary6 = AppTheme.darkBackground.withOpacity(0.06);
+  late Color onPrimary3 = AppTheme.darkBackground.withOpacity(0.03);
+  late Color onPrimary70 = AppTheme.darkBackground.withOpacity(0.7);
+  late Color onPrimary60 = AppTheme.darkBackground.withOpacity(0.6);
+  late Color onPrimary50 = AppTheme.darkBackground.withOpacity(0.5);
+  late Color primary10 = AppTheme.darkTextPrimary.withOpacity(0.1);
+  late Color onPrimary13 = AppTheme.darkBackground.withOpacity(0.13);
+  late Color background70 = AppTheme.darkBackground.withOpacity(0.7);
+  late Color background50 = AppTheme.darkBackground.withOpacity(0.5);
+  late Color background20 = AppTheme.darkBackground.withOpacity(0.2);
+  late Color onPrimary80 = AppTheme.darkBackground.withOpacity(0.8);
+  late Color primary67 = AppTheme.darkTextPrimary.withOpacity(0.67);
+  late Color onPrimary90 = AppTheme.darkBackground.withOpacity(0.9);
 }
 
 class FFDesignTokens {

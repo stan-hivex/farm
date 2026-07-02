@@ -88,7 +88,7 @@ class _ForgotPasswordPageWidgetState extends State<ForgotPasswordPageWidget> {
                               size: 20.0,
                             ),
                             onPressed: () {
-                              print('IconButton pressed ...');
+                              context.goNamed('Dashboard');
                             },
                           ),
                           Container(

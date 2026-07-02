@@ -15,6 +15,7 @@ class ButtonWidget extends StatefulWidget {
     this.icon_end,
     bool? icon_end_present,
     String? on_tap,
+    this.onTapCallback,
     Color? color,
     String? variant,
     String? size,
@@ -38,6 +39,7 @@ class ButtonWidget extends StatefulWidget {
   final Widget? icon_end;
   final bool icon_end_present;
   final String on_tap;
+  final VoidCallback? onTapCallback;
   final Color? color;
   final String variant;
   final String size;
@@ -80,6 +82,11 @@ class _ButtonWidgetState extends State<ButtonWidget> {
         onTap: (widget.disabled || widget.loading)
             ? null
             : () {
+                if (widget.onTapCallback != null) {
+                  widget.onTapCallback!();
+                  return;
+                }
+
                 final action = widget.on_tap;
                 if (action.startsWith('navigate:')) {
                   final route = action.split(':').sublist(1).join(':');

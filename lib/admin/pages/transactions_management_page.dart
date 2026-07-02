@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '/core/theme_extensions.dart';
 import '../services/admin_api_service.dart';
 
 class TransactionsManagementPage extends StatefulWidget {
-  const TransactionsManagementPage({super.key});
+  final VoidCallback? onGoBack;
+
+  const TransactionsManagementPage({super.key, this.onGoBack});
 
   @override
   State<TransactionsManagementPage> createState() =>
@@ -44,11 +47,11 @@ class _TransactionsManagementPageState
 
   Color _statusColor(String? s) {
     switch (s) {
-      case 'completed': return Colors.green;
-      case 'pending': return Colors.orange;
-      case 'failed': return Colors.red;
+      case 'completed': return context.successColor;
+      case 'pending': return context.warningColor;
+      case 'failed': return context.errorColor;
       case 'processing': return Colors.blue;
-      default: return Colors.grey;
+      default: return context.textSecondary;
     }
   }
 
@@ -100,7 +103,7 @@ class _TransactionsManagementPageState
                                     Text('$_page / $last',
                                         style: GoogleFonts.plusJakartaSans(
                                             fontWeight: FontWeight.bold,
-                                            color: Colors.white)),
+                                            color: context.onSurface)),
                                     TextButton(
                                         onPressed: _page < last
                                             ? () {
@@ -124,14 +127,14 @@ class _TransactionsManagementPageState
                             decoration: BoxDecoration(
                               color: cardColor,
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: Colors.white10),
+                              border: Border.all(color: context.onSurface.withOpacity(0.1)),
                             ),
                             child: Row(children: [
                               Container(
                                 width: 40,
                                 height: 40,
                                 decoration: BoxDecoration(
-                                    color: color.withOpacity(0.14),
+                                    color: color.withAlpha((0.14 * 255).round()),
                                     borderRadius:
                                         BorderRadius.circular(10)),
                                 child: Icon(Icons.swap_horiz_rounded,
@@ -153,12 +156,12 @@ class _TransactionsManagementPageState
                                                 fontWeight:
                                                     FontWeight.bold,
                                                 fontSize: 12,
-                                                color: Colors.white)),
+                                                color: context.onSurface)),
                                     Text(
                                         t['transaction_reference'] ?? '',
                                         style: GoogleFonts
                                             .plusJakartaSans(
-                                                color: Colors.white54,
+                                                color: context.onSurface.withOpacity(0.54),
                                                 fontSize: 11),
                                         overflow:
                                             TextOverflow.ellipsis),
@@ -174,13 +177,13 @@ class _TransactionsManagementPageState
                                                 fontWeight:
                                                     FontWeight.bold,
                                                 fontSize: 13,
-                                                color: Colors.white)),
+                                                color: context.onSurface)),
                                     Container(
                                       padding: const EdgeInsets
                                           .symmetric(
                                           horizontal: 8, vertical: 2),
                                       decoration: BoxDecoration(
-                                          color: color.withOpacity(0.16),
+                                          color: color.withAlpha((0.16 * 255).round()),
                                           borderRadius:
                                               BorderRadius.circular(6)),
                                       child: Text(
@@ -229,8 +232,8 @@ class _TransactionsManagementPageState
                             style: GoogleFonts.plusJakartaSans(
                                 fontSize: 11,
                                 color: _typeFilter == f
-                                    ? Colors.black
-                                    : Colors.white70)),
+                                    ? context.background
+                                    : context.onSurface.withOpacity(0.7))),
                         selected: _typeFilter == f,
                         selectedColor:
                             _typeFilter == f ? accent : Colors.transparent,
@@ -238,7 +241,7 @@ class _TransactionsManagementPageState
                         side: BorderSide(
                             color: _typeFilter == f
                                 ? accent
-                                : Colors.white10,
+                                : context.onSurface.withOpacity(0.1),
                             width: 1),
                         onSelected: (_) {
                           setState(() {
@@ -270,8 +273,8 @@ class _TransactionsManagementPageState
                             style: GoogleFonts.plusJakartaSans(
                                 fontSize: 11,
                                 color: _statusFilter == s
-                                    ? Colors.black
-                                    : Colors.white70)),
+                                    ? context.background
+                                    : context.onSurface.withOpacity(0.7))),
                         selected: _statusFilter == s,
                         selectedColor: _statusFilter == s
                             ? accent
@@ -280,7 +283,7 @@ class _TransactionsManagementPageState
                         side: BorderSide(
                             color: _statusFilter == s
                                 ? accent
-                                : Colors.white10,
+                                : context.onSurface.withOpacity(0.1),
                             width: 1),
                         onSelected: (_) {
                           setState(() {

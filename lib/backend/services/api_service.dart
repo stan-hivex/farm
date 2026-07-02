@@ -360,6 +360,7 @@ class ApiService {
     String? bio,
     String? country,
     String? city,
+    String? username,
   }) =>
       _request(
         method: 'PUT',
@@ -370,6 +371,7 @@ class ApiService {
           if (bio != null) 'bio': bio,
           if (country != null) 'country': country,
           if (city != null) 'city': city,
+          if (username != null && username.isNotEmpty) 'username': username,
         },
       );
 

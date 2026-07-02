@@ -1,9 +1,9 @@
-import '/app_state.dart';
 import '/backend/api_requests/user_api_service.dart';
 import '/backend/api_requests/wallet_api_service.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
+import '/core/theme_extensions.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -40,6 +40,9 @@ class _SendReceiveWidgetState
 
   bool isLoading = true;
   bool isSending = false;
+
+  double? _lastSentAmount;
+  DateTime? _lastSentAt;
 
   bool showReceive = false;
 
@@ -148,15 +151,9 @@ class _SendReceiveWidgetState
         0;
   }
 
-  double get fee {
-    return enteredAmount * 0.015;
-  }
-
-  double get total {
-    return enteredAmount + fee;
-  }
-
   Future<void> sendFunds() async {
+    final amount = enteredAmount;
+
     if (recipientController.text.isEmpty ||
         amountController.text.isEmpty ||
         pinController.text.isEmpty) {
@@ -172,6 +169,20 @@ class _SendReceiveWidgetState
       return;
     }
 
+    if (_lastSentAmount != null &&
+        _lastSentAmount == amount &&
+        _lastSentAt != null &&
+        DateTime.now().difference(_lastSentAt!).inSeconds < 60) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'A similar transaction is underway.. please wait',
+          ),
+        ),
+      );
+      return;
+    }
+
     try {
       setState(() {
         isSending = true;
@@ -180,15 +191,20 @@ class _SendReceiveWidgetState
       final token =
           context.read<FFAppState>().accessToken;
 
+      amountController.clear();
+
       await WalletApiService.sendFunds(
         token: token,
         recipient:
             recipientController.text.trim(),
-        amount: enteredAmount,
+        amount: amount,
         pin: pinController.text.trim(),
         description:
             descriptionController.text.trim(),
       );
+
+      _lastSentAmount = amount;
+      _lastSentAt = DateTime.now();
 
       successController.forward();
 
@@ -224,13 +240,13 @@ class _SendReceiveWidgetState
                         width: 90,
                         height: 90,
                         decoration:
-                            const BoxDecoration(
-                          color: Colors.green,
+                            BoxDecoration(
+                          color: context.successColor,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.check,
-                          color: Colors.white,
+                          color: context.onSurface,
                           size: 50,
                         ),
                       ),
@@ -238,7 +254,7 @@ class _SendReceiveWidgetState
 
                     const SizedBox(height: 24),
 
-                    const Text(
+                    Text(
                       'Transfer Successful',
                       style: TextStyle(
                         fontSize: 22,
@@ -250,7 +266,7 @@ class _SendReceiveWidgetState
                     const SizedBox(height: 12),
 
                     Text(
-                      '${enteredAmount.toStringAsFixed(2)} FARM sent successfully',
+                      '${amount.toStringAsFixed(2)} FARM sent successfully',
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -282,7 +298,7 @@ class _SendReceiveWidgetState
           content: Text(
             e.toString().replaceAll('Exception: ', ''),
           ),
-          backgroundColor: Colors.red,
+          backgroundColor: context.errorColor,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -311,7 +327,7 @@ class _SendReceiveWidgetState
         ),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -345,16 +361,16 @@ class _SendReceiveWidgetState
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: outgoing
-                  ? Colors.red.shade100
-                  : Colors.green.shade100,
+                  ? context.errorColor.withOpacity(0.15)
+                  : context.successColor.withOpacity(0.15),
             ),
             child: Icon(
               outgoing
                   ? Icons.arrow_upward
                   : Icons.arrow_downward,
               color: outgoing
-                  ? Colors.red
-                  : Colors.green,
+                  ? context.errorColor
+                  : context.successColor,
             ),
           ),
 
@@ -369,7 +385,7 @@ class _SendReceiveWidgetState
                   outgoing
                       ? 'Sent FARM'
                       : 'Received FARM',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight:
                         FontWeight.bold,
                   ),
@@ -395,8 +411,8 @@ class _SendReceiveWidgetState
             style: TextStyle(
               fontWeight: FontWeight.bold,
               color: outgoing
-                  ? Colors.red
-                  : Colors.green,
+                  ? context.errorColor
+                  : context.successColor,
             ),
           ),
         ],
@@ -442,7 +458,7 @@ class _SendReceiveWidgetState
 
         body: SafeArea(
           child: isLoading
-              ? const Center(
+              ? Center(
                   child:
                       CircularProgressIndicator(),
                 )
@@ -470,9 +486,7 @@ class _SendReceiveWidgetState
                                       .primaryText,
                             ),
                             onPressed: () {
-                              Navigator.pop(
-                                context,
-                              );
+                              context.goNamed('Dashboard');
                             },
                           ),
 
@@ -532,8 +546,9 @@ class _SendReceiveWidgetState
                                         .circular(
                                   28,
                                 ),
-                                color:
-                                    FlutterFlowTheme.of(
+                                color: context.isDarkMode
+                                    ? context.background
+                                    : FlutterFlowTheme.of(
                                             context)
                                         .primaryText,
                                 border: Border.all(
@@ -544,7 +559,7 @@ class _SendReceiveWidgetState
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black
+                                    color: context.background
                                         .withAlpha(20),
                                     blurRadius: 16,
                                     offset:
@@ -561,8 +576,9 @@ class _SendReceiveWidgetState
                                     'Available Balance',
                                     style:
                                         TextStyle(
-                                      color:
-                                          FlutterFlowTheme.of(
+                                      color: context.isDarkMode
+                                          ? context.onSurface
+                                          : FlutterFlowTheme.of(
                                                   context)
                                               .primaryBackground,
                                       fontWeight:
@@ -582,7 +598,7 @@ class _SendReceiveWidgetState
                                             .headlineLarge
                                             .override(
                                               color:
-                                                  Colors.white,
+                                                  context.onSurface,
                                               font:
                                                   GoogleFonts.plusJakartaSans(
                                                 fontWeight:
@@ -640,7 +656,7 @@ class _SendReceiveWidgetState
                                         ),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: Colors.black
+                                            color: context.background
                                                 .withAlpha(13),
                                             blurRadius: 12,
                                             offset:
@@ -657,7 +673,7 @@ class _SendReceiveWidgetState
                                               TextStyle(
                                             color: !showReceive
                                                 ? FlutterFlowTheme.of(context).primaryText
-                                                : Colors.white,
+                                                : context.onSurface,
                                             fontWeight:
                                                 FontWeight.bold,
                                           ),
@@ -711,7 +727,7 @@ class _SendReceiveWidgetState
                                         ),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: Colors.black
+                                            color: context.background
                                                 .withAlpha(13),
                                             blurRadius: 12,
                                             offset:
@@ -728,7 +744,7 @@ class _SendReceiveWidgetState
                                               TextStyle(
                                             color: showReceive
                                                 ? FlutterFlowTheme.of(context).primaryText
-                                                : Colors.white,
+                                                : context.onSurface,
                                             fontWeight:
                                                 FontWeight.bold,
                                           ),
@@ -775,7 +791,7 @@ class _SendReceiveWidgetState
                                         fontSize: 12,
                                       ),
                                       prefixIcon:
-                                          const Icon(
+                                          Icon(
                                         Icons
                                             .person,
                                       ),
@@ -946,7 +962,7 @@ class _SendReceiveWidgetState
                                       hintText:
                                           'Enter PIN',
                                       prefixIcon:
-                                          const Icon(
+                                          Icon(
                                         Icons.lock,
                                       ),
                                       border:
@@ -994,28 +1010,7 @@ class _SendReceiveWidgetState
                                         ),
 
                                         const SizedBox(
-                                          height:
-                                              12,
-                                        ),
-
-                                        buildInfoRow(
-                                          'Fee',
-                                          '${fee.toStringAsFixed(2)} FARM',
-                                        ),
-
-                                        const SizedBox(
-                                          height:
-                                              12,
-                                        ),
-
-                                        buildInfoRow(
-                                          'Total',
-                                          '${total.toStringAsFixed(2)} FARM',
-                                        ),
-
-                                        const SizedBox(
-                                          height:
-                                              12,
+                                          height: 12,
                                         ),
 
                                         buildInfoRow(
@@ -1041,9 +1036,9 @@ class _SendReceiveWidgetState
                                       style:
                                           ElevatedButton.styleFrom(
                                         backgroundColor:
-                                            FlutterFlowTheme.of(
-                                                    context)
-                                                .primaryText,
+                                          FlutterFlowTheme.of(
+                                              context)
+                                            .primary,
                                         shape:
                                             RoundedRectangleBorder(
                                           borderRadius:
@@ -1054,11 +1049,11 @@ class _SendReceiveWidgetState
                                       ),
                                       child:
                                           isSending
-                                              ? const CircularProgressIndicator(
+                                              ? CircularProgressIndicator(
                                                   color:
-                                                      Colors.white,
+                                                      context.onSurface,
                                                 )
-                                              : const Text(
+                                              : Text(
                                                   'Send FARM',
                                                   style:
                                                       TextStyle(
@@ -1066,8 +1061,8 @@ class _SendReceiveWidgetState
                                                         18,
                                                     fontWeight:
                                                         FontWeight.bold,
-                                                    color:
-                                                        Colors.white,
+                                              color:
+                                                FlutterFlowTheme.of(context).onPrimary,
                                                   ),
                                                 ),
                                     ),
@@ -1099,7 +1094,7 @@ class _SendReceiveWidgetState
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black
+                                      color: context.background
                                           .withAlpha(13),
                                       blurRadius: 14,
                                       offset:
@@ -1184,7 +1179,7 @@ class _SendReceiveWidgetState
 
                             if (transactions
                                 .isEmpty)
-                              const Center(
+                              Center(
                                 child: Padding(
                                   padding:
                                       EdgeInsets.all(

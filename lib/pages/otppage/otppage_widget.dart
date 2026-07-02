@@ -5,6 +5,7 @@ import '/core/app_config.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
+import '/core/theme_extensions.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 
 import 'package:flutter/material.dart';
@@ -272,7 +273,7 @@ Future<void> resendOtp() async {
         textAlign: TextAlign.center,
         keyboardType: TextInputType.number,
         maxLength: 1,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 22,
           fontWeight: FontWeight.bold,
         ),
@@ -454,7 +455,7 @@ Future<void> resendOtp() async {
                 /// TIMER
                 Text(
                   formatTime(),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
@@ -479,8 +480,8 @@ Future<void> resendOtp() async {
                     color:
                         FlutterFlowTheme.of(context)
                             .primary,
-                    textStyle: const TextStyle(
-                      color: Colors.white,
+                    textStyle: TextStyle(
+                      color: context.onSurface,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
@@ -507,7 +508,7 @@ Future<void> resendOtp() async {
 
                 const Spacer(),
 
-                const Text(
+                Text(
                   "Secure 256-bit encrypted verification",
                 ),
               ],

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '/core/theme_extensions.dart';
 import '../services/admin_api_service.dart';
 
 class FeeManagementPage extends StatefulWidget {
-  const FeeManagementPage({super.key});
+  final VoidCallback? onGoBack;
+
+  const FeeManagementPage({super.key, this.onGoBack});
 
   @override
   State<FeeManagementPage> createState() => _FeeManagementPageState();
@@ -73,7 +76,7 @@ class _FeeManagementPageState extends State<FeeManagementPage> {
     if (controller == null) return;
     final value = controller.text.trim();
     if (value.isEmpty) {
-      _snack('Enter a value before saving', Colors.orange);
+      _snack('Enter a value before saving', context.warningColor);
       return;
     }
 
@@ -84,9 +87,9 @@ class _FeeManagementPageState extends State<FeeManagementPage> {
       if (index != -1) {
         setState(() => _fees[index]['value'] = value);
       }
-      _snack('Fee updated ✓', Colors.green);
+      _snack('Fee updated ✓', context.successColor);
     } catch (e) {
-      _snack(e.toString().replaceAll('Exception: ', ''), Colors.red);
+      _snack(e.toString().replaceAll('Exception: ', ''), context.errorColor);
     } finally {
       if (mounted) setState(() => _saving[feeId] = false);
     }
@@ -118,10 +121,10 @@ class _FeeManagementPageState extends State<FeeManagementPage> {
               : ListView(padding: const EdgeInsets.all(20), children: [
                   Text('Fee Management',
                       style: GoogleFonts.plusJakartaSans(
-                          fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+                          fontSize: 22, fontWeight: FontWeight.bold, color: context.onSurface)),
                   const SizedBox(height: 6),
                   Text('Review and update platform fee configurations.',
-                      style: GoogleFonts.plusJakartaSans(color: Colors.white70, fontSize: 13)),
+                      style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.7), fontSize: 13)),
                   const SizedBox(height: 24),
 
                   if (_error != null)
@@ -129,15 +132,15 @@ class _FeeManagementPageState extends State<FeeManagementPage> {
                       margin: const EdgeInsets.only(bottom: 18),
                       padding: const EdgeInsets.all(18),
                       decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.14),
+                        color: context.errorColor.withAlpha((0.14 * 255).round()),
                         borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: Colors.red.withOpacity(0.2)),
+                        border: Border.all(color: context.errorColor.withAlpha((0.2 * 255).round())),
                       ),
                       child: Row(children: [
-                        const Icon(Icons.error_outline, color: Colors.redAccent),
+                        Icon(Icons.error_outline, color: context.errorColorAccent),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: Text(_error!, style: GoogleFonts.plusJakartaSans(color: Colors.white70)),
+                          child: Text(_error!, style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.7))),
                         ),
                         TextButton(onPressed: _load, child: Text('Retry', style: TextStyle(color: _accent))),
                       ]),
@@ -149,14 +152,14 @@ class _FeeManagementPageState extends State<FeeManagementPage> {
                       decoration: BoxDecoration(
                         color: _cardColor,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white10),
+                        border: Border.all(color: context.onSurface.withOpacity(0.1)),
                       ),
                       child: Column(children: [
-                        Icon(Icons.percent_rounded, size: 32, color: Colors.white24),
+                        Icon(Icons.percent_rounded, size: 32, color: context.onSurface.withOpacity(0.24)),
                         const SizedBox(height: 14),
                         Text('No fee configurations available',
                             textAlign: TextAlign.center,
-                            style: GoogleFonts.plusJakartaSans(color: Colors.white54, fontSize: 14)),
+                            style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.54), fontSize: 14)),
                       ]),
                     )
                   else
@@ -171,34 +174,34 @@ class _FeeManagementPageState extends State<FeeManagementPage> {
                         decoration: BoxDecoration(
                           color: _cardColor,
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white10),
+                          border: Border.all(color: context.onSurface.withOpacity(0.1)),
                         ),
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Text(_feeLabel(fee),
                               style: GoogleFonts.plusJakartaSans(
-                                  fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white)),
+                                  fontWeight: FontWeight.bold, fontSize: 14, color: context.onSurface)),
                           const SizedBox(height: 8),
                           Text(_feeDescription(fee),
-                              style: GoogleFonts.plusJakartaSans(color: Colors.white60, fontSize: 12)),
+                              style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.6), fontSize: 12)),
                           const SizedBox(height: 16),
                           Row(children: [
                             Expanded(
                               child: TextField(
                                 controller: controller,
                                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                style: GoogleFonts.plusJakartaSans(color: Colors.white),
+                                style: GoogleFonts.plusJakartaSans(color: context.onSurface),
                                 decoration: InputDecoration(
                                   hintText: 'Fee value',
-                                  hintStyle: GoogleFonts.plusJakartaSans(color: Colors.white38),
+                                  hintStyle: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.38)),
                                   filled: true,
                                   fillColor: const Color(0xFF0F1724),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(14),
-                                    borderSide: const BorderSide(color: Colors.white10),
+                                    borderSide: BorderSide(color: context.onSurface.withOpacity(0.1)),
                                   ),
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(14),
-                                    borderSide: const BorderSide(color: Colors.white10),
+                                    borderSide: BorderSide(color: context.onSurface.withOpacity(0.1)),
                                   ),
                                   contentPadding:
                                       const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -215,14 +218,14 @@ class _FeeManagementPageState extends State<FeeManagementPage> {
                                 ),
                                 onPressed: saving ? null : () => _saveFee(id),
                                 child: saving
-                                    ? const SizedBox(
+                                    ? SizedBox(
                                         width: 18,
                                         height: 18,
-                                        child: CircularProgressIndicator(color: Colors.black87, strokeWidth: 2),
+                                        child: CircularProgressIndicator(color: context.onBackground.withOpacity(0.87), strokeWidth: 2),
                                       )
                                     : Text('Save',
                                         style: GoogleFonts.plusJakartaSans(
-                                            fontWeight: FontWeight.bold, color: Colors.black87)),
+                                            fontWeight: FontWeight.bold, color: context.onBackground.withOpacity(0.87))),
                               ),
                             ),
                           ]),

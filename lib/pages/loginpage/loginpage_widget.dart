@@ -1,14 +1,18 @@
+
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '/core/app_config.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
+import '/core/theme_extensions.dart';
+import '/core/responsive.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'loginpage_model.dart';
 export 'loginpage_model.dart';
 import '/admin/pages/admin_shell.dart';
+import '/pages/superadmin/superadmin_dashboard_page.dart';
 
 /// Create a premium black and white fintech login page for FARM App.
 ///
@@ -45,6 +49,8 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
   void initState() {
     super.initState();
     _model = createModel(context, () => LoginpageModel());
+    // Ensure login screen defaults to light theme
+    FFAppState().themeMode = ThemeMode.light;
   }
 
   @override
@@ -62,9 +68,9 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
 
     if (phone.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text("Please fill in all fields"),
-          backgroundColor: Colors.red,
+          backgroundColor: context.errorColor,
         ),
       );
       return;
@@ -74,16 +80,15 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
 
     try {
       final response = await http.post(
-        Uri.parse("$baseUrl/login"),
-        headers: {"Content-Type": "application/json"},
+        Uri.parse('$baseUrl/login'),
+        headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-"identifier": phoneController.text.trim(),
-"password": passwordController.text.trim(),
-"device_name": "Flutter Web",
-"device_os": "web",
-}),
+          'identifier': phone,
+          'password': password,
+          'device_name': 'Flutter Web',
+          'device_os': 'web',
+        }),
       );
-      
 
       final responseData = jsonDecode(response.body);
 
@@ -101,14 +106,37 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
           FFAppState().role = role;
           FFAppState().isLoggedIn = true;
 
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(
+            'accessToken',
+            data['access_token'] ?? '',
+          );
+          await prefs.setString(
+            'refreshToken',
+            data['refresh_token'] ?? '',
+          );
+          await prefs.setString(
+            'userId',
+            data['user']?['id'] ?? '',
+          );
+          await prefs.setString(
+            'role',
+            role,
+          );
+          await prefs.setBool(
+            'isLoggedIn',
+            true,
+          );
+
+          // Ensure app uses light theme on login
+          FFAppState().themeMode = ThemeMode.light;
+
           if (role == 'admin' || role == 'super_admin') {
-            final prefs = await SharedPreferences.getInstance();
             await prefs.setString('adminToken', data['access_token'] ?? '');
             await prefs.setString('adminRefreshToken', data['refresh_token'] ?? '');
             await prefs.setString('adminRole', role);
             await prefs.setString('adminName', data['user']?['first_name'] ?? 'Admin');
           } else {
-            final prefs = await SharedPreferences.getInstance();
             await prefs.remove('adminToken');
             await prefs.remove('adminRefreshToken');
             await prefs.remove('adminRole');
@@ -121,7 +149,7 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
             content: Text(
               responseData['message'] ?? 'Login successful',
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: context.successColor,
           ),
         );
 
@@ -129,13 +157,18 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
           const Duration(seconds: 1),
           () {
             final role = FFAppState().role;
-            if (role == 'admin' || role == 'super_admin') {
+            if (role == 'super_admin') {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const SuperadminDashboardPage()),
+              );
+            } else if (role == 'admin') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(builder: (_) => const AdminShell()),
               );
             } else {
-              context.pushNamed('Dashboard');
+              context.goNamed('Dashboard');
             }
           },
         );
@@ -145,16 +178,24 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
             content: Text(
               responseData['message'] ?? 'Login failed',
             ),
-            backgroundColor: Colors.red,
+            backgroundColor: context.errorColor,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
+        final errorMsg = e.toString();
+        final isNetworkIssue = errorMsg.contains('Connection closed') ||
+            errorMsg.contains('ERR_CONNECTION_CLOSED') ||
+            errorMsg.contains('SocketException') ||
+            errorMsg.contains('Failed host lookup') ||
+            errorMsg.contains('Network');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Login failed. Please check your credentials.'),
-            backgroundColor: Colors.red,
+            content: Text(isNetworkIssue
+                ? 'Unable to connect to backend. Please check your network or backend service.'
+                : 'Login failed. Please check your credentials.'),
+            backgroundColor: context.errorColor,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -192,15 +233,15 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14.0),
-        borderSide: const BorderSide(
-          color: Colors.red,
+        borderSide: BorderSide(
+          color: context.errorColor,
           width: 1.0,
         ),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14.0),
-        borderSide: const BorderSide(
-          color: Colors.red,
+        borderSide: BorderSide(
+          color: context.errorColor,
           width: 1.5,
         ),
       ),
@@ -219,8 +260,7 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
         backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
         body: SingleChildScrollView(
           primary: false,
-          child: Padding(
-            padding: const EdgeInsets.all(32.0),
+          child: context.responsiveBody(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -231,24 +271,24 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Container(
-                      width: 72.0,
-                      height: 72.0,
+                      width: context.responsiveValue(72.0, minValue: 60.0),
+                      height: context.responsiveValue(72.0, minValue: 60.0),
                       decoration: BoxDecoration(
                         color: FlutterFlowTheme.of(context).primaryText,
                         borderRadius: BorderRadius.circular(24.0),
                       ),
                       alignment: const AlignmentDirectional(0.0, 0.0),
                       child: SizedBox(
-                        width: 40.0,
-                        height: 50.0,
+                        width: context.responsiveValue(40.0, minValue: 32.0),
+                        height: context.responsiveValue(50.0, minValue: 40.0),
                         child: Stack(
                           alignment: const AlignmentDirectional(-1.0, -1.0),
                           children: [
                             Align(
                               alignment: const AlignmentDirectional(0.0, 0.0),
                               child: Container(
-                                width: 6.0,
-                                height: 50.0,
+                                width: context.responsiveValue(6.0, minValue: 4.0),
+                                height: context.responsiveValue(50.0, minValue: 40.0),
                                 decoration: BoxDecoration(
                                   color: FlutterFlowTheme.of(context).onPrimary,
                                   borderRadius: BorderRadius.circular(2.0),
@@ -258,8 +298,8 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                             Align(
                               alignment: const AlignmentDirectional(-1.0, -0.6),
                               child: Container(
-                                width: 24.0,
-                                height: 6.0,
+                                width: context.responsiveValue(24.0, minValue: 18.0),
+                                height: context.responsiveValue(6.0, minValue: 4.0),
                                 decoration: BoxDecoration(
                                   color: FlutterFlowTheme.of(context).onPrimary,
                                   borderRadius: BorderRadius.circular(2.0),
@@ -269,8 +309,8 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                             Align(
                               alignment: const AlignmentDirectional(-1.0, 0.0),
                               child: Container(
-                                width: 18.0,
-                                height: 6.0,
+                                width: context.responsiveValue(18.0, minValue: 14.0),
+                                height: context.responsiveValue(6.0, minValue: 4.0),
                                 decoration: BoxDecoration(
                                   color: FlutterFlowTheme.of(context).onPrimary,
                                   borderRadius: BorderRadius.circular(2.0),
@@ -380,10 +420,10 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                         padding: const EdgeInsets.symmetric(vertical: 0.0),
                         color: FlutterFlowTheme.of(context).primary,
                         textStyle: FlutterFlowTheme.of(context).titleSmall.override(
-                          color: Colors.white,
+                          color: FlutterFlowTheme.of(context).onPrimary,
                           fontWeight: FontWeight.w600,
                         ),
-                        borderSide: const BorderSide(
+                        borderSide: BorderSide(
                           color: Colors.transparent,
                           width: 1.0,
                         ),

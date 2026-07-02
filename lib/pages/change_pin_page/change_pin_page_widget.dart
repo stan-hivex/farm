@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import '/core/app_config.dart';
 import 'package:http/http.dart' as http;
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/core/theme_extensions.dart';
 
 import '/app_state.dart';
 
@@ -206,8 +208,8 @@ class _ChangePinPageWidgetState
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: i < value.length
-                ? Colors.black
-                : Colors.grey.shade300,
+                ? context.background
+                : context.borderColor,
           ),
         ),
       ),
@@ -223,15 +225,15 @@ class _ChangePinPageWidgetState
         height: 75,
         margin: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Colors.black,
+          color: context.background,
           borderRadius:
               BorderRadius.circular(18),
         ),
         alignment: Alignment.center,
         child: Text(
           value,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: context.onSurface,
             fontSize: 24,
             fontWeight: FontWeight.bold,
           ),
@@ -271,7 +273,7 @@ class _ChangePinPageWidgetState
               margin: const EdgeInsets.all(8),
               child: IconButton(
                 onPressed: delete,
-                icon: const Icon(
+                icon: Icon(
                   Icons.backspace_outlined,
                   size: 30,
                 ),
@@ -287,15 +289,16 @@ class _ChangePinPageWidgetState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.background,
 
       appBar: AppBar(
         elevation: 0,
         centerTitle: true,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        title: const Text(
+        backgroundColor: context.background,
+        foregroundColor: context.onSurface,
+        title: Text(
           "Change PIN",
+          style: TextStyle(color: context.onSurface),
         ),
       ),
 
@@ -310,15 +313,15 @@ class _ChangePinPageWidgetState
                 width: 90,
                 height: 90,
                 decoration: BoxDecoration(
-                  color: Colors.black,
+                  color: context.background,
                   borderRadius:
                       BorderRadius.circular(
                     24,
                   ),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.lock_reset,
-                  color: Colors.white,
+                  color: context.onSurface,
                   size: 45,
                 ),
               ),
@@ -331,7 +334,8 @@ class _ChangePinPageWidgetState
                     : !step3
                         ? "Enter New PIN"
                         : "Confirm New PIN",
-                style: const TextStyle(
+                style: TextStyle(
+                  color: context.onSurface,
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
@@ -347,7 +351,7 @@ class _ChangePinPageWidgetState
                         : "Confirm your new PIN",
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Colors.grey.shade600,
+                  color: context.textSecondary,
                   fontSize: 15,
                 ),
               ),
@@ -376,8 +380,8 @@ class _ChangePinPageWidgetState
                       : submit,
                   style:
                       ElevatedButton.styleFrom(
-                    backgroundColor:
-                        Colors.black,
+                      backgroundColor:
+                          FlutterFlowTheme.of(context).primary,
                     shape:
                         RoundedRectangleBorder(
                       borderRadius:
@@ -387,19 +391,19 @@ class _ChangePinPageWidgetState
                     ),
                   ),
                   child: isLoading
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 24,
                           height: 24,
                           child:
                               CircularProgressIndicator(
-                            color: Colors.white,
+                            color: context.onSurface,
                             strokeWidth: 2,
                           ),
                         )
-                      : const Text(
+                      : Text(
                           "Save PIN",
                           style: TextStyle(
-                            color: Colors.white,
+                              color: FlutterFlowTheme.of(context).onPrimary,
                             fontSize: 16,
                             fontWeight:
                                 FontWeight.bold,

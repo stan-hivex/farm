@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '/core/theme_extensions.dart';
 import '../services/admin_api_service.dart';
 
 class NotificationsManagementPage extends StatefulWidget {
-  const NotificationsManagementPage({super.key});
+  final VoidCallback? onGoBack;
+
+  const NotificationsManagementPage({super.key, this.onGoBack});
 
   @override
   State<NotificationsManagementPage> createState() =>
@@ -20,7 +23,7 @@ class _NotificationsManagementPageState
 
   Future<void> _send() async {
     if (_titleCtrl.text.isEmpty || _bodyCtrl.text.isEmpty) {
-      _snack('Please fill in title and message', Colors.orange);
+      _snack('Please fill in title and message', context.warningColor);
       return;
     }
     setState(() => _sending = true);
@@ -33,9 +36,9 @@ class _NotificationsManagementPageState
       });
       _titleCtrl.clear();
       _bodyCtrl.clear();
-      _snack('Notification sent ✓', Colors.green);
+      _snack('Notification sent ✓', context.successColor);
     } catch (e) {
-      _snack(e.toString().replaceAll('Exception: ', ''), Colors.red);
+      _snack(e.toString().replaceAll('Exception: ', ''), context.errorColor);
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -64,10 +67,10 @@ class _NotificationsManagementPageState
           padding: const EdgeInsets.all(20),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('Broadcast Notification',
-                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.white)),
+                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 20, color: context.onSurface)),
             const SizedBox(height: 6),
             Text('Send a notification to your users',
-                style: GoogleFonts.plusJakartaSans(color: Colors.white60, fontSize: 13)),
+                style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.6), fontSize: 13)),
             const SizedBox(height: 24),
 
             Container(
@@ -75,14 +78,14 @@ class _NotificationsManagementPageState
               decoration: BoxDecoration(
                 color: cardColor,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white10),
+                border: Border.all(color: context.onSurface.withOpacity(0.1)),
               ),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 _label('Notification Title'),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _titleCtrl,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: context.onSurface),
                   decoration: _inputDec('e.g. System Maintenance Notice'),
                 ),
                 const SizedBox(height: 20),
@@ -92,7 +95,7 @@ class _NotificationsManagementPageState
                 TextField(
                   controller: _bodyCtrl,
                   maxLines: 5,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: context.onSurface),
                   decoration: _inputDec('Write your notification message here...'),
                 ),
                 const SizedBox(height: 20),
@@ -105,11 +108,11 @@ class _NotificationsManagementPageState
                       label: Text(t.toUpperCase(),
                           style: GoogleFonts.plusJakartaSans(
                               fontSize: 11,
-                              color: _type == t ? Colors.black : Colors.white70)),
+                              color: _type == t ? context.background : context.onSurface.withOpacity(0.7))),
                       selected: _type == t,
                       selectedColor: accent,
                       backgroundColor: cardColor,
-                      side: BorderSide(color: _type == t ? accent : Colors.white10),
+                      side: BorderSide(color: _type == t ? accent : context.onSurface.withOpacity(0.1)),
                       onSelected: (_) => setState(() => _type = t),
                     ),
                 ]),
@@ -123,11 +126,11 @@ class _NotificationsManagementPageState
                       label: Text(a.toUpperCase(),
                           style: GoogleFonts.plusJakartaSans(
                               fontSize: 11,
-                              color: _audience == a ? Colors.black : Colors.white70)),
+                              color: _audience == a ? context.background : context.onSurface.withOpacity(0.7))),
                       selected: _audience == a,
                       selectedColor: accent,
                       backgroundColor: cardColor,
-                      side: BorderSide(color: _audience == a ? accent : Colors.white10),
+                      side: BorderSide(color: _audience == a ? accent : context.onSurface.withOpacity(0.1)),
                       onSelected: (_) => setState(() => _audience = a),
                     ),
                 ]),
@@ -143,11 +146,11 @@ class _NotificationsManagementPageState
                     ),
                     onPressed: _sending ? null : _send,
                     icon: _sending
-                        ? const SizedBox(width: 18, height: 18,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : const Icon(Icons.send_rounded, color: Colors.black87),
+                        ? SizedBox(width: 18, height: 18,
+                            child: CircularProgressIndicator(color: context.onSurface, strokeWidth: 2))
+                        : Icon(Icons.send_rounded, color: context.onBackground.withOpacity(0.87)),
                     label: Text(_sending ? 'Sending...' : 'Send Notification',
-                        style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: Colors.black87)),
+                        style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: context.onBackground.withOpacity(0.87))),
                   ),
                 ),
               ]),
@@ -155,7 +158,7 @@ class _NotificationsManagementPageState
 
             const SizedBox(height: 28),
             Text('Quick Templates',
-                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 16, color: context.onSurface)),
             const SizedBox(height: 12),
             ...[
               {'title': 'System Maintenance', 'body': 'FARM platform will undergo scheduled maintenance on [DATE] from [TIME] to [TIME]. Services may be temporarily unavailable.', 'type': 'system'},
@@ -173,19 +176,19 @@ class _NotificationsManagementPageState
                 decoration: BoxDecoration(
                   color: cardColor,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.white10),
+                  border: Border.all(color: context.onSurface.withOpacity(0.1)),
                 ),
                 child: Row(children: [
-                  Icon(Icons.article_rounded, size: 18, color: Colors.white70),
+                  Icon(Icons.article_rounded, size: 18, color: context.onSurface.withOpacity(0.7)),
                   const SizedBox(width: 12),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(t['title']!, style: GoogleFonts.plusJakartaSans(
-                        fontWeight: FontWeight.w600, fontSize: 13, color: Colors.white)),
+                        fontWeight: FontWeight.w600, fontSize: 13, color: context.onSurface)),
                     Text(t['body']!, style: GoogleFonts.plusJakartaSans(
-                        color: Colors.white60, fontSize: 11),
+                        color: context.onSurface.withOpacity(0.6), fontSize: 11),
                         maxLines: 1, overflow: TextOverflow.ellipsis),
                   ])),
-                  Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.white54),
+                  Icon(Icons.arrow_forward_ios_rounded, size: 14, color: context.onSurface.withOpacity(0.54)),
                 ]),
               ),
             )),
@@ -197,16 +200,16 @@ class _NotificationsManagementPageState
 
   Widget _label(String t) => Text(t,
       style: GoogleFonts.plusJakartaSans(
-          fontWeight: FontWeight.w600, fontSize: 13, color: Colors.white70));
+          fontWeight: FontWeight.w600, fontSize: 13, color: context.onSurface.withOpacity(0.7)));
 
   InputDecoration _inputDec(String hint) => InputDecoration(
     hintText: hint,
-    hintStyle: GoogleFonts.plusJakartaSans(color: Colors.white54, fontSize: 13),
+    hintStyle: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.54), fontSize: 13),
     filled: true, fillColor: const Color(0xFF0F1724),
     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.white10)),
+        borderSide: BorderSide(color: context.onSurface.withOpacity(0.1))),
     enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.white10)),
+        borderSide: BorderSide(color: context.onSurface.withOpacity(0.1))),
     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
   );
 }

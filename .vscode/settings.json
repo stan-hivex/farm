@@ -1,3 +1,4 @@
 {
-    "chat.disableAIFeatures": false
+    "chat.disableAIFeatures": false,
+    "inlineChat.defaultModel": "Auto (copilot)"
 }

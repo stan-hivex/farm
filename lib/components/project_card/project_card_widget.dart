@@ -1,6 +1,7 @@
 import '/components/button/button_widget.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
+import '/core/theme_extensions.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -274,7 +275,7 @@ class _ProjectCardWidgetState extends State<ProjectCardWidget> {
                               width: double.infinity,
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: FlutterFlowTheme.of(context).primaryText,
+                                  backgroundColor: FlutterFlowTheme.of(context).primary,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(14.0),
                                   ),
@@ -284,7 +285,7 @@ class _ProjectCardWidgetState extends State<ProjectCardWidget> {
                                   'Invest',
                                   style: FlutterFlowTheme.of(context).titleSmall.override(
                                         fontFamily: 'Plus Jakarta Sans',
-                                        color: Colors.white,
+                                        color: FlutterFlowTheme.of(context).onPrimary,
                                         fontWeight: FontWeight.bold,
                                       ),
                                 ),
@@ -299,7 +300,7 @@ class _ProjectCardWidgetState extends State<ProjectCardWidget> {
                                 icon_present: false,
                                 icon_end_present: false,
                                 on_tap: 'navigate:ProjectDetails',
-                                color: FlutterFlowTheme.of(context).primaryText,
+                                color: FlutterFlowTheme.of(context).primary,
                                 variant: 'primary',
                                 size: 'small',
                                 full_width: false,

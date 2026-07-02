@@ -1,10 +1,11 @@
-import '/backend/api_requests/escrow_api_service.dart';
+﻿import '/backend/api_requests/escrow_api_service.dart';
 import '/backend/models/escrow_model.dart';
 import '/components/escrow_item/escrow_item_widget.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/app_state.dart';
+import '/core/theme_extensions.dart';
+import '/backend/api_requests/wallet_api_service.dart';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -91,7 +92,79 @@ void initState() {
     });
   }
 }
-  Future<void> releaseEscrow(String escrowId) async {
+  Future<void> releaseEscrow(String escrowId, {double? releaseAmount}) async {
+    // Find the escrow to get the amount
+    final escrow = escrows.firstWhere((e) => e.id == escrowId);
+    final releaseFee = escrow.amount * 0.015;
+    final amountAfterFee = escrow.amount - releaseFee;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Confirm Release'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Release breakdown:'),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Escrow Amount:'),
+                  Text('${escrow.amount.toStringAsFixed(2)} FARM'),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Platform Fee (1.5%):'),
+                  Text('-${releaseFee.toStringAsFixed(2)} FARM'),
+                ],
+              ),
+              const Divider(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Seller Receives:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    '${amountAfterFee.toStringAsFixed(2)} FARM',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'The 1.5% fee will be credited to the platform.',
+                style: TextStyle(fontSize: 12, color: context.textSecondary),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context, false);
+              },
+              child: Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context, true);
+              },
+              child: Text('Confirm Release'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
     try {
       final token = context.read<FFAppState>().accessToken;
 
@@ -101,8 +174,8 @@ void initState() {
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Funds released successfully'),
+        SnackBar(
+          content: Text('Funds released successfully. Seller receives ${amountAfterFee.toStringAsFixed(2)} FARM (after 1.5% fee).'),
         ),
       );
 
@@ -116,6 +189,7 @@ void initState() {
     }
   }
 
+
   Future<void> disputeEscrow(String escrowId) async {
     final controller = TextEditingController();
 
@@ -123,7 +197,7 @@ void initState() {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Raise Dispute'),
+          title: Text('Raise Dispute'),
           content: TextField(
             controller: controller,
             maxLines: 4,
@@ -136,13 +210,13 @@ void initState() {
               onPressed: () {
                 Navigator.pop(context);
               },
-              child: const Text('Cancel'),
+              child: Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context, controller.text);
               },
-              child: const Text('Submit'),
+              child: Text('Submit'),
             ),
           ],
         );
@@ -188,103 +262,192 @@ void initState() {
     await showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Create Escrow'),
-          content: SingleChildScrollView(
-            child: Column(
-              children: [
-                TextField(
-                  controller: sellerController,
-                  decoration: const InputDecoration(
-                    labelText: 'Seller Username / Phone',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: amountController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Amount',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: titleController,
-                  decoration: const InputDecoration(
-                    labelText: 'Title',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: descriptionController,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Description',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: pinController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'PIN',
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                try {
-                  final token =
-                      context.read<FFAppState>().accessToken;
+        return StatefulBuilder(
+          builder: (context, setState) {
+            double amount = 0;
+            double fee = 0;
+            double totalRequired = 0;
 
-                  await EscrowApiService.createEscrow(
-                    token: token,
-                    sellerIdentifier: sellerController.text.trim(),
-                    amount:
-                        double.parse(amountController.text.trim()),
-                    title: titleController.text.trim(),
-                    description:
-                        descriptionController.text.trim(),
-                    pin: pinController.text.trim(),
-                  );
+            // Update values if amount is valid
+            try {
+              if (amountController.text.isNotEmpty) {
+                amount = double.parse(amountController.text.trim());
+                fee = double.parse((amount * 0.015).toStringAsFixed(2));
+                totalRequired = amount + fee;
+              }
+            } catch (_) {}
 
-                  if (mounted) {
-                    Navigator.pop(context);
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Escrow created successfully',
+            return AlertDialog(
+              title: Text('Create Escrow'),
+              content: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: sellerController,
+                      decoration: const InputDecoration(
+                        labelText: 'Seller Username / Phone',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: amountController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Amount (FARM)',
+                      ),
+                      onChanged: (value) {
+                        setState(() {});
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    // Fee breakdown section
+                    if (amount > 0)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: context.surface,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: context.borderColor),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Fee Breakdown',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Escrow Amount:'),
+                                Text('${amount.toStringAsFixed(2)} FARM'),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Platform Fee (1.5%):'),
+                                Text('${fee.toStringAsFixed(2)} FARM'),
+                              ],
+                            ),
+                            const Divider(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Total Required:',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                Text(
+                                  '${totalRequired.toStringAsFixed(2)} FARM',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
-                    );
-
-                    fetchEscrows();
-                  }
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('$e'),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: titleController,
+                      decoration: const InputDecoration(
+                        labelText: 'Title',
+                      ),
                     ),
-                  );
-                }
-              },
-              child: const Text('Create'),
-            ),
-          ],
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: descriptionController,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        labelText: 'Description',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: pinController,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        labelText: 'PIN',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    try {
+                      final token =
+                          context.read<FFAppState>().accessToken;
+
+                      final amount = double.parse(amountController.text.trim());
+                      final fee = double.parse((amount * 0.015).toStringAsFixed(2));
+
+                      // Check wallet balance
+                      final wallet = await WalletApiService.getWallet(token: token);
+                      final available = double.parse(wallet['available_balance'].toString());
+
+                      if (available < amount + fee) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Insufficient balance. You need at least ${(amount + fee).toStringAsFixed(2)} FARM to create this escrow (including ${fee.toStringAsFixed(2)} FARM fee).'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      // Create escrow (backend handles fee deduction)
+                      await EscrowApiService.createEscrow(
+                        token: token,
+                        sellerIdentifier: sellerController.text.trim(),
+                        amount: amount,
+                        title: titleController.text.trim(),
+                        description: descriptionController.text.trim(),
+                        pin: pinController.text.trim(),
+                      );
+
+                      if (mounted) {
+                        Navigator.pop(context);
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Escrow created successfully. Fee deducted and credited to platform.',
+                            ),
+                          ),
+                        );
+
+                        fetchEscrows();
+                      }
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('$e'),
+                        ),
+                      );
+                    }
+                  },
+                  child: Text('Create'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
   }
+
 
   List<EscrowModel> get filteredEscrows {
     if (selectedFilter == 'all') {
@@ -359,8 +522,9 @@ void initState() {
             status:
                 escrow.status[0].toUpperCase() +
                     escrow.status.substring(1),
-            username:
-                '@${escrow.sellerUsername ?? 'seller'}',
+            username: escrow.sellerUsername?.trim().isNotEmpty == true
+                ? escrow.sellerUsername!.replaceFirst(RegExp(r'^@'), '')
+                : (escrow.sellerName?.trim().isNotEmpty == true ? escrow.sellerName! : 'Seller'),
           ),
 
           if (isPending)
@@ -377,7 +541,7 @@ void initState() {
                       onPressed: () {
                         releaseEscrow(escrow.id);
                       },
-                      child: const Text(
+                      child: Text(
                         'Release Funds',
                       ),
                     ),
@@ -390,7 +554,7 @@ void initState() {
                       onPressed: () {
                         disputeEscrow(escrow.id);
                       },
-                      child: const Text(
+                      child: Text(
                         'Dispute',
                       ),
                     ),
@@ -454,7 +618,7 @@ void initState() {
                                 .primaryText,
                       ),
                       onPressed: () {
-                        Navigator.pop(context);
+                        context.goNamed('Dashboard');
                       },
                     ),
 
@@ -652,7 +816,7 @@ void initState() {
                         const SizedBox(height: 24),
 
                         if (isLoading)
-                          const Center(
+                          Center(
                             child:
                                 CircularProgressIndicator(),
                           )
@@ -661,7 +825,7 @@ void initState() {
                             padding:
                                 const EdgeInsets.all(32),
                             alignment: Alignment.center,
-                            child: const Text(
+                            child: Text(
                               'No escrows found',
                             ),
                           )

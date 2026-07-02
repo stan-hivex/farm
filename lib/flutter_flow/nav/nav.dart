@@ -4,10 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '/pages/change_pin_page/change_pin_page_widget.dart';
 import '/pages/forgot_pin_page/forgot_pin_page_widget.dart';
+import '/pages/splash_page.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/support/faq_page_widget.dart';
 import '/pages/support/live_chat_page_widget.dart';
 import '/pages/support/email_support_page_widget.dart';
+import '/pages/notifications/user_notifications_page_widget.dart';
+import '/pages/growth_tracking_page/growth_tracking_page_widget.dart';
 import '/index.dart';
 
 export 'package:go_router/go_router.dart';
@@ -32,13 +35,18 @@ class AppStateNotifier extends ChangeNotifier {
 }
 
 GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
-      initialLocation: '/',
+      initialLocation: LoginpageWidget.routePath,
       debugLogDiagnostics: true,
       refreshListenable: appStateNotifier,
       navigatorKey: appNavigatorKey,
       errorBuilder: (context, state) => const OnboardingWidget(),
       routes: [
         
+        FFRoute(
+          name: SplashPage.routeName,
+          path: SplashPage.routePath,
+          builder: (context, _) => const SplashPage(),
+        ),
         FFRoute(
           name: '_initialize',
           path: '/',
@@ -53,6 +61,11 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           name: DashboardWidget.routeName,
           path: DashboardWidget.routePath,
           builder: (context, params) => const DashboardWidget(),
+        ),
+        FFRoute(
+          name: GrowthTrackingPageWidget.routeName,
+          path: GrowthTrackingPageWidget.routePath,
+          builder: (context, params) => const GrowthTrackingPageWidget(),
         ),
         FFRoute(
           name: SendReceiveWidget.routeName,
@@ -110,6 +123,11 @@ FFRoute(
           name: MerchantDashboardWidget.routeName,
           path: MerchantDashboardWidget.routePath,
           builder: (context, params) => const MerchantDashboardWidget(),
+        ),
+        FFRoute(
+          name: AllTransactionsWidget.routeName,
+          path: AllTransactionsWidget.routePath,
+          builder: (context, params) => const AllTransactionsWidget(),
         ),
         FFRoute(
           name: ProfileSettingsWidget.routeName,
@@ -179,6 +197,11 @@ FFRoute(
           builder: (context, params) => const NotificationSettingsPageWidget(),
         ),
         FFRoute(
+          name: UserNotificationsPageWidget.routeName,
+          path: UserNotificationsPageWidget.routePath,
+          builder: (context, params) => const UserNotificationsPageWidget(),
+        ),
+        FFRoute(
           name: LanguageSettingsPageWidget.routeName,
           path: LanguageSettingsPageWidget.routePath,
           builder: (context, params) => const LanguageSettingsPageWidget(),
@@ -187,6 +210,16 @@ FFRoute(
           name: SupportHelpCenterPageWidget.routeName,
           path: SupportHelpCenterPageWidget.routePath,
           builder: (context, params) => const SupportHelpCenterPageWidget(),
+        ),
+        FFRoute(
+          name: SuperadminDashboardPage.routeName,
+          path: SuperadminDashboardPage.routePath,
+          builder: (context, params) => const SuperadminDashboardPage(),
+        ),
+        FFRoute(
+          name: SuperadminWalletPage.routeName,
+          path: SuperadminWalletPage.routePath,
+          builder: (context, params) => const SuperadminWalletPage(),
         ),
       ].map((r) => r.toRoute(appStateNotifier)).toList(),
     );

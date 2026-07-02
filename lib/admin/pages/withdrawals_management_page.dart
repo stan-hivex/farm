@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '/core/theme_extensions.dart';
 import '../services/admin_api_service.dart';
 
 class WithdrawalsManagementPage extends StatefulWidget {
-  const WithdrawalsManagementPage({super.key});
+  final VoidCallback? onGoBack;
+
+  const WithdrawalsManagementPage({super.key, this.onGoBack});
 
   @override
   State<WithdrawalsManagementPage> createState() =>
@@ -40,11 +43,11 @@ class _WithdrawalsManagementPageState
       await AdminApiService.processWithdrawal(txId, action);
       debugPrint('Withdrawal processed successfully');
       _snack(action == 'completed' ? 'Withdrawal approved ✓' : 'Withdrawal rejected',
-             action == 'completed' ? Colors.green : Colors.red);
+             action == 'completed' ? context.successColor : context.errorColor);
       _load();
     } catch (e) {
       debugPrint('Error processing withdrawal: ${e.toString()}');
-      _snack(e.toString(), Colors.red);
+      _snack(e.toString(), context.errorColor);
     }
   }
 
@@ -53,10 +56,10 @@ class _WithdrawalsManagementPageState
 
   Color _sc(String? s) {
     switch (s) {
-      case 'completed': return Colors.green;
-      case 'pending': return Colors.orange;
-      case 'failed': return Colors.red;
-      default: return Colors.grey;
+      case 'completed': return context.successColor;
+      case 'pending': return context.warningColor;
+      case 'failed': return context.errorColor;
+      default: return context.textSecondary;
     }
   }
 
@@ -101,7 +104,7 @@ class _WithdrawalsManagementPageState
                           ? Center(
                               child: Text('No withdrawal requests',
                                   style: GoogleFonts.plusJakartaSans(
-                                      color: Colors.white60)))
+                                      color: context.onSurface.withOpacity(0.6))))
                           : ListView.builder(
                               padding: const EdgeInsets.all(20),
                               itemCount: _withdrawals.length,
@@ -117,7 +120,7 @@ class _WithdrawalsManagementPageState
                                   decoration: BoxDecoration(
                                     color: cardColor,
                                     borderRadius: BorderRadius.circular(18),
-                                    border: Border.all(color: Colors.white10),
+                                    border: Border.all(color: context.onSurface.withOpacity(0.1)),
                                   ),
                                   child: Column(
                                       crossAxisAlignment:
@@ -133,14 +136,14 @@ class _WithdrawalsManagementPageState
                                                   width: 40,
                                                   height: 40,
                                                   decoration: BoxDecoration(
-                                                      color: Colors.red
-                                                          .withOpacity(0.14),
+                                                      color: context.errorColor
+                                                          .withAlpha((0.14 * 255).round()),
                                                       borderRadius:
                                                           BorderRadius
                                                               .circular(10)),
-                                                  child: const Icon(
+                                                  child: Icon(
                                                       Icons.north_east_rounded,
-                                                      color: Colors.red,
+                                                      color: context.errorColor,
                                                       size: 20),
                                                 ),
                                                 const SizedBox(width: 12),
@@ -176,8 +179,7 @@ class _WithdrawalsManagementPageState
                                                     horizontal: 10,
                                                     vertical: 4),
                                                 decoration: BoxDecoration(
-                                                    color: color.withOpacity(
-                                                        0.16),
+                                                    color: color.withAlpha((0.16 * 255).round()),
                                                     borderRadius:
                                                         BorderRadius.circular(
                                                             8)),
@@ -198,13 +200,13 @@ class _WithdrawalsManagementPageState
                                             'Destination: ${meta['destination'] ?? '-'}',
                                             style: GoogleFonts
                                                 .plusJakartaSans(
-                                                    color: Colors.white70,
+                                                    color: context.onSurface.withOpacity(0.7),
                                                     fontSize: 12)),
                                         Text(
                                             'Ref: ${w['transaction_reference'] ?? '-'}',
                                             style: GoogleFonts
                                                 .plusJakartaSans(
-                                                    color: Colors.white54,
+                                                    color: context.onSurface.withOpacity(0.54),
                                                     fontSize: 11),
                                             overflow: TextOverflow.ellipsis),
                                         if (isPending) ...[
@@ -213,8 +215,8 @@ class _WithdrawalsManagementPageState
                                             Expanded(
                                               child: OutlinedButton(
                                                 style: OutlinedButton.styleFrom(
-                                                    side: const BorderSide(
-                                                        color: Colors.red),
+                                                    side: BorderSide(
+                                                        color: context.errorColor),
                                                     shape:
                                                         RoundedRectangleBorder(
                                                             borderRadius:
@@ -227,7 +229,7 @@ class _WithdrawalsManagementPageState
                                                     style: GoogleFonts
                                                         .plusJakartaSans(
                                                             color:
-                                                                Colors.red)),
+                                                                context.errorColor)),
                                               ),
                                             ),
                                             const SizedBox(width: 10),
@@ -235,7 +237,7 @@ class _WithdrawalsManagementPageState
                                               child: ElevatedButton(
                                                 style: ElevatedButton.styleFrom(
                                                     backgroundColor:
-                                                        Colors.green,
+                                                        context.successColor,
                                                     shape:
                                                         RoundedRectangleBorder(
                                                             borderRadius:
@@ -275,8 +277,8 @@ class _WithdrawalsManagementPageState
                         style: GoogleFonts.plusJakartaSans(
                             fontSize: 11,
                             color: _statusFilter == s
-                                ? Colors.black
-                                : Colors.white70)),
+                                ? context.background
+                                : context.onSurface.withOpacity(0.7))),
                     selected: _statusFilter == s,
                     selectedColor:
                         _statusFilter == s ? accent : Colors.transparent,
@@ -284,7 +286,7 @@ class _WithdrawalsManagementPageState
                     side: BorderSide(
                         color: _statusFilter == s
                             ? accent
-                            : Colors.white10,
+                            : context.onSurface.withOpacity(0.1),
                         width: 1),
                     onSelected: (_) {
                       setState(() {

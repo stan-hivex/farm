@@ -1,9 +1,13 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:async';
+
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import '/core/app_config.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
+import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
+import '/core/theme_extensions.dart';
 
 class WithdrawpageWidget extends StatefulWidget {
   const WithdrawpageWidget({super.key});
@@ -18,9 +22,9 @@ class WithdrawpageWidget extends StatefulWidget {
 class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   final scaffoldKey = GlobalKey<ScaffoldState>();
   final _amountCtrl = TextEditingController();
-  final _bankNameCtrl = TextEditingController();
   final _accountCtrl = TextEditingController();
   final _cryptoCtrl = TextEditingController();
+  final _networkCtrl = TextEditingController();
   final _mobileCtrl = TextEditingController();
   final _pinCtrl = TextEditingController();
 
@@ -30,14 +34,36 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   bool loadingWallet = true;
   bool loadingHistory = true;
 
+  String? _selectedBank; // For bank dropdown selection
+
   double walletBalance = 0;
   List<dynamic> history = [];
+  Timer? _historyTimer;
+
+  // Kenyan banks
+  final List<String> kenyaBanks = [
+    'ABSA Bank Kenya',
+    'Barclays Bank Kenya',
+    'CFC Stanbic Bank',
+    'Co-operative Bank',
+    'Equity Bank',
+    'I&M Bank',
+    'KCB Bank',
+    'Kenya Commercial Bank',
+    'Kinetic Bank',
+    'National Bank of Kenya',
+    'Safaricom (M-Pesa)',
+    'Standard Chartered Bank',
+    'The One Finance Bank',
+    'Transnational Bank',
+    'UBA Kenya',
+  ];
 
   // Fee rates per method
   final Map<String, double> _fees = {
-    'BANK': 0.015,
-    'MOBILE_MONEY': 0.020,
-    'CRYPTO': 0.005,
+    'BANK': 0.0,
+    'MOBILE_MONEY': 0.0,
+    'CRYPTO': 0.0,
   };
 
   double get amount => double.tryParse(_amountCtrl.text.trim()) ?? 0;
@@ -50,17 +76,28 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
     super.initState();
     _fetchWallet();
     _fetchHistory();
+    _startHistoryPolling();
   }
 
   @override
   void dispose() {
+    _historyTimer?.cancel();
     _amountCtrl.dispose();
-    _bankNameCtrl.dispose();
     _accountCtrl.dispose();
     _cryptoCtrl.dispose();
+    _networkCtrl.dispose();
     _mobileCtrl.dispose();
     _pinCtrl.dispose();
     super.dispose();
+  }
+
+  void _startHistoryPolling() {
+    _historyTimer?.cancel();
+    _historyTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (!mounted) return;
+      _fetchWallet();
+      _fetchHistory();
+    });
   }
 
   // ── Fetch wallet ─────────────────────────────────────────────────────────
@@ -73,8 +110,14 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
       if (!mounted) return;
       if (res.statusCode == 200) {
         final body = jsonDecode(res.body);
-        setState(() => walletBalance =
-            (body['data']?['available_balance'] ?? 0).toDouble());
+        // Support different backend shapes: { data: { available_balance } } or { balance }
+        double bal = 0;
+        if (body is Map<String, dynamic>) {
+          bal = (body['data']?['available_balance'] ?? body['data']?['balance'] ?? body['available_balance'] ?? body['balance'] ?? 0).toDouble();
+        } else {
+          bal = 0;
+        }
+        setState(() => walletBalance = bal);
       }
     } catch (_) {
     } finally {
@@ -86,14 +129,18 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   Future<void> _fetchHistory() async {
     try {
       final res = await http.get(
-        // Correct backend endpoint
-        Uri.parse('${AppConfig.api}/payments/withdrawals'),
+        // Backend withdraw history endpoint
+        Uri.parse('${AppConfig.api}/withdraw/history'),
         headers: {'Authorization': 'Bearer ${FFAppState().accessToken}'},
       );
       if (!mounted) return;
       if (res.statusCode == 200) {
         final body = jsonDecode(res.body);
-        setState(() => history = body['data'] ?? []);
+        if (body is List) {
+          setState(() => history = body);
+        } else if (body is Map<String, dynamic>) {
+          setState(() => history = body['data'] ?? body['withdrawals'] ?? []);
+        }
       }
     } catch (_) {
     } finally {
@@ -101,29 +148,15 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
     }
   }
 
-  // ── Get destination string from fields ───────────────────────────────────
-  String get _destination {
-    switch (selectedMethod) {
-      case 'BANK':
-        return '${_bankNameCtrl.text.trim()} — ${_accountCtrl.text.trim()}';
-      case 'MOBILE_MONEY':
-        return _mobileCtrl.text.trim();
-      case 'CRYPTO':
-        return _cryptoCtrl.text.trim();
-      default:
-        return '';
-    }
-  }
-
   // ── Validate destination fields ──────────────────────────────────────────
   bool get _destinationValid {
     switch (selectedMethod) {
       case 'BANK':
-        return _bankNameCtrl.text.isNotEmpty && _accountCtrl.text.isNotEmpty;
+        return _selectedBank != null && _accountCtrl.text.isNotEmpty;
       case 'MOBILE_MONEY':
         return _mobileCtrl.text.isNotEmpty;
       case 'CRYPTO':
-        return _cryptoCtrl.text.isNotEmpty;
+        return _cryptoCtrl.text.isNotEmpty && _networkCtrl.text.isNotEmpty;
       default:
         return false;
     }
@@ -154,9 +187,24 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
       return;
     }
 
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text('Confirm Withdrawal'),
+        content: Text('Withdraw ${amount.toStringAsFixed(4)} FARM via ${selectedMethod.replaceAll('_', ' ')}?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(c).pop(false), child: Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.of(c).pop(true), child: Text('Confirm')),
+        ],
+      ),
+    );
+    if (confirm != true) return;
     setState(() => isLoading = true);
 
     try {
+      // Debug: Log submission
+      print('[WITHDRAW] Submitting withdrawal request...');
+
       // Build request body with backend-expected field names
       final requestBody = {
         'amount': amount,
@@ -167,16 +215,16 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
       // Add method-specific fields
       switch (selectedMethod) {
         case 'BANK':
-          requestBody['accountName'] = _bankNameCtrl.text.trim();
+          requestBody['accountName'] = _selectedBank ?? '';
           requestBody['accountNumber'] = _accountCtrl.text.trim();
-          requestBody['bankName'] = _bankNameCtrl.text.trim();
+          requestBody['bankName'] = _selectedBank ?? '';
           break;
         case 'MOBILE_MONEY':
           requestBody['phoneNumber'] = _mobileCtrl.text.trim();
           break;
         case 'CRYPTO':
           requestBody['cryptoAddress'] = _cryptoCtrl.text.trim();
-          requestBody['network'] = 'ALGORAND';
+          requestBody['network'] = _networkCtrl.text.trim();
           break;
       }
 
@@ -193,16 +241,20 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
       if (!mounted) return;
       final data = jsonDecode(res.body);
 
+      print('[WITHDRAW] Response Status: ${res.statusCode}');
+      print('[WITHDRAW] Response: ${res.body}');
+
       if (res.statusCode == 200 || res.statusCode == 201) {
         _snack(
-          'Withdrawal request submitted. Final success depends on payment confirmation via webhook. '
-          'Please monitor withdrawal history for the final status.',
+          'Withdrawal request submitted successfully. Final processing will continue via Paystack webhook.',
         );
         _clearFields();
         await _fetchWallet();
         await _fetchHistory();
       } else {
-        _snack(data['message'] ?? 'Withdrawal failed. Please try again.');
+        final errorMsg = data['message'] ?? data['error'] ?? 'Withdrawal failed. Please try again.';
+        print('[WITHDRAW] Backend Error: $errorMsg');
+        _snack(errorMsg);
       }
     } catch (e) {
       if (mounted) _snack('Network error: $e');
@@ -213,11 +265,11 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
 
   void _clearFields() {
     _amountCtrl.clear();
-    _bankNameCtrl.clear();
     _accountCtrl.clear();
     _cryptoCtrl.clear();
     _mobileCtrl.clear();
     _pinCtrl.clear();
+    setState(() => _selectedBank = null);
   }
 
   void _snack(String msg) => ScaffoldMessenger.of(context).showSnackBar(
@@ -253,14 +305,14 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: selected ? Colors.black : Colors.white,
+          color: selected ? context.background : context.surface,
           borderRadius: BorderRadius.circular(18),
           border:
-              Border.all(color: selected ? Colors.black : Colors.grey.shade300),
+              Border.all(color: selected ? context.background : context.borderColor),
         ),
         child: Row(
           children: [
-            Icon(icon, color: selected ? Colors.white : Colors.black),
+            Icon(icon, color: selected ? context.onSurface : context.onSurface.withOpacity(0.7)),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -269,28 +321,56 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                   Text(title,
                       style: GoogleFonts.plusJakartaSans(
                           fontWeight: FontWeight.bold,
-                          color: selected ? Colors.white : Colors.black)),
+                          color: context.onSurface)),
                   const SizedBox(height: 4),
                   Text(subtitle,
                       style: GoogleFonts.plusJakartaSans(
                           fontSize: 12,
-                          color: selected ? Colors.white70 : Colors.grey)),
+                          color: context.onSurface.withOpacity(selected ? 0.7 : 0.6))),
                 ],
               ),
             ),
-            if (selected) const Icon(Icons.check_circle, color: Colors.white),
+            if (selected) Icon(Icons.check_circle, color: context.onSurface),
           ],
         ),
       ),
     );
   }
 
+  // ── Notification settings ───────────────────────────────────────────────
+  
+
   // ── Destination fields ────────────────────────────────────────────────────
   Widget _buildDestinationFields() {
     switch (selectedMethod) {
       case 'BANK':
         return Column(children: [
-          _inputField(controller: _bankNameCtrl, hint: 'Bank Name'),
+          // Bank dropdown
+          Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: context.borderColor),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: DropdownButton<String>(
+              value: _selectedBank,
+              hint: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Text('Select Bank'),
+              ),
+              isExpanded: true,
+              underline: const SizedBox(),
+              items: kenyaBanks.map((bank) {
+                return DropdownMenuItem(
+                  value: bank,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(bank, style: GoogleFonts.plusJakartaSans()),
+                  ),
+                );
+              }).toList(),
+              onChanged: (value) => setState(() => _selectedBank = value),
+            ),
+          ),
           const SizedBox(height: 12),
           _inputField(
               controller: _accountCtrl,
@@ -303,8 +383,13 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
             hint: 'Phone Number (e.g. +254700...)',
             type: TextInputType.phone);
       case 'CRYPTO':
-        return _inputField(
-            controller: _cryptoCtrl, hint: 'Algorand Wallet Address');
+        return Column(
+          children: [
+            _inputField(controller: _cryptoCtrl, hint: 'Wallet Address'),
+            const SizedBox(height: 12),
+            _inputField(controller: _networkCtrl, hint: 'Network (e.g. TRON, BSC, ETH)'),
+          ],
+        );
       default:
         return const SizedBox();
     }
@@ -318,9 +403,10 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
     return TextField(
       controller: controller,
       keyboardType: type,
-      style: GoogleFonts.plusJakartaSans(),
+      style: GoogleFonts.plusJakartaSans(color: context.onSurface),
       decoration: InputDecoration(
         hintText: hint,
+        hintStyle: GoogleFonts.plusJakartaSans(color: context.textSecondary),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -343,7 +429,7 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: scaffoldKey,
-      backgroundColor: Colors.white,
+      backgroundColor: context.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -355,14 +441,16 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   FlutterFlowIconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new),
-                    onPressed: () => context.pop(),
+                    icon: Icon(Icons.arrow_back_ios_new),
+                    onPressed: () => context.goNamed('Dashboard'),
                   ),
                   Text('Withdraw Funds',
                       style: GoogleFonts.plusJakartaSans(
-                          fontSize: 18, fontWeight: FontWeight.bold)),
+                          color: context.onSurface,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold)),
                   FlutterFlowIconButton(
-                    icon: const Icon(Icons.info_outline),
+                    icon: Icon(Icons.info_outline, color: context.onSurface),
                     onPressed: () =>
                         _snack('Withdrawals are processed instantly.'),
                   ),
@@ -372,194 +460,189 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
               const SizedBox(height: 28),
 
               // Balance card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: loadingWallet
-                    ? const Center(
-                        child: CircularProgressIndicator(color: Colors.white))
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: context.background,
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: loadingWallet
+                          ? Center(
+                              child:
+                                  CircularProgressIndicator(color: context.onSurface))
+                          : Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('AVAILABLE BALANCE',
+                                    style: GoogleFonts.plusJakartaSans(
+                                        color: context.onSurface.withOpacity(0.7),
+                                        fontSize: 11,
+                                        letterSpacing: 1)),
+                                const SizedBox(height: 8),
+                                Text(
+                                  '${walletBalance.toStringAsFixed(4)} FARM',
+                                  style: GoogleFonts.plusJakartaSans(
+                                      color: context.onSurface,
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                    ),
+
+                    const SizedBox(height: 28),
+
+                    // Amount input card
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: context.borderColor),
+                      ),
+                      child: Column(
                         children: [
-                          Text('AVAILABLE BALANCE',
+                          Text('Withdrawal Amount',
                               style: GoogleFonts.plusJakartaSans(
-                                  color: Colors.white70,
-                                  fontSize: 11,
-                                  letterSpacing: 1)),
-                          const SizedBox(height: 8),
-                          Text(
-                            '${walletBalance.toStringAsFixed(4)} FARM',
+                                  color: context.textSecondary, fontSize: 13)),
+                          const SizedBox(height: 16),
+                          TextField(
+                            controller: _amountCtrl,
+                            keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true),
+                            textAlign: TextAlign.center,
+                            onChanged: (_) => setState(() {}),
                             style: GoogleFonts.plusJakartaSans(
-                                color: Colors.white,
-                                fontSize: 28,
+                                color: context.onSurface,
+                                fontSize: 36,
                                 fontWeight: FontWeight.bold),
+                            decoration: InputDecoration(
+                                border: InputBorder.none,
+                                hintText: '0.00',
+                                hintStyle: GoogleFonts.plusJakartaSans(
+                                    color: context.textSecondary)),
+                          ),
+                          const Divider(),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Min: FARM 10',
+                                  style: GoogleFonts.plusJakartaSans(
+                                      color: context.textSecondary, fontSize: 12)),
+                              Text('Max: FARM 70,000',
+                                  style: GoogleFonts.plusJakartaSans(
+                                      color: context.textSecondary, fontSize: 12)),
+                            ],
                           ),
                         ],
                       ),
-              ),
+                    ),
 
-              const SizedBox(height: 28),
+                    const SizedBox(height: 28),
 
-              // Amount input card
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: Colors.grey.shade200),
-                ),
-                child: Column(
-                  children: [
-                    Text('Withdrawal Amount',
+                    // Method selection
+                    Text('Select Method',
                         style: GoogleFonts.plusJakartaSans(
-                            color: Colors.grey, fontSize: 13)),
+                            color: context.onSurface,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16)),
+                    const SizedBox(height: 14),
+
+                    _methodCard(
+                        method: 'BANK',
+                        icon: Icons.account_balance,
+                        title: 'Bank Transfer',
+                        subtitle: 'Instant • No fee'),
+                    _methodCard(
+                        method: 'MOBILE_MONEY',
+                        icon: Icons.phone_android,
+                        title: 'Mobile Money',
+                        subtitle: 'Instant • No fee'),
+                    _methodCard(
+                        method: 'CRYPTO',
+                        icon: Icons.currency_bitcoin,
+                        title: 'Crypto Wallet',
+                        subtitle: 'Near instant • No fee — via Ivorypay'),
+
+                    const SizedBox(height: 20),
+
+                    // Destination inputs
+                    _buildDestinationFields(),
+
                     const SizedBox(height: 16),
+
                     TextField(
-                      controller: _amountCtrl,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      textAlign: TextAlign.center,
-                      onChanged: (_) => setState(() {}),
-                      style: GoogleFonts.plusJakartaSans(
-                          fontSize: 36, fontWeight: FontWeight.bold),
-                      decoration: const InputDecoration(
-                          border: InputBorder.none, hintText: '0.00'),
+                      controller: _pinCtrl,
+                      keyboardType: TextInputType.number,
+                      obscureText: true,
+                      maxLength: 6,
+                      style: GoogleFonts.plusJakartaSans(color: context.onSurface),
+                      decoration: InputDecoration(
+                        hintText: 'Transaction PIN',
+                        hintStyle: GoogleFonts.plusJakartaSans(color: context.textSecondary),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        counterText: '',
+                      ),
                     ),
-                    const Divider(),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Min: FARM 10',
-                            style: GoogleFonts.plusJakartaSans(
-                                color: Colors.grey, fontSize: 12)),
-                        Text('Max: FARM 70,000',
-                            style: GoogleFonts.plusJakartaSans(
-                                color: Colors.grey, fontSize: 12)),
-                      ],
+
+                    const SizedBox(height: 24),
+
+                    // Fee breakdown
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: context.borderColor),
+                      ),
+                      child: Column(
+                        children: [
+                          _feeRow('FARM Amount',
+                              '${amount.toStringAsFixed(4)} FARM'),
+                          const SizedBox(height: 12),
+                          _feeRow(
+                              'Fee (${(feeRate * 100).toStringAsFixed(1)}%)',
+                              '${fee.toStringAsFixed(4)} FARM'),
+                          const Divider(height: 24),
+                          _feeRow(
+                              'You Receive',
+                              '${settlement.toStringAsFixed(4)} FARM',
+                              bold: true),
+                        ],
+                      ),
                     ),
-                  ],
-                ),
-              ),
 
-              const SizedBox(height: 28),
+                    const SizedBox(height: 20),
 
-              // Method selection
-              Text('Select Method',
-                  style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.bold, fontSize: 16)),
-              const SizedBox(height: 14),
-
-              _methodCard(
-                  method: 'BANK',
-                  icon: Icons.account_balance,
-                  title: 'Bank Transfer',
-                  subtitle: 'instant • 1.5% fee'),
-              _methodCard(
-                  method: 'MOBILE_MONEY',
-                  icon: Icons.phone_android,
-                  title: 'Mobile Money',
-                  subtitle: 'Instant • 2% fee'),
-              _methodCard(
-                  method: 'CRYPTO',
-                  icon: Icons.currency_bitcoin,
-                  title: 'Crypto Wallet (Algorand)',
-                  subtitle: 'Near instant • 0.5% fee — via Ivorypay'),
-
-              const SizedBox(height: 20),
-
-              // Destination inputs
-              _buildDestinationFields(),
-
-              const SizedBox(height: 16),
-
-              TextField(
-                controller: _pinCtrl,
-                keyboardType: TextInputType.number,
-                obscureText: true,
-                maxLength: 6,
-                decoration: InputDecoration(
-                  hintText: 'Transaction PIN',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  counterText: '',
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Fee breakdown
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.grey.shade200),
-                ),
-                child: Column(
-                  children: [
-                    _feeRow('FARM Amount', '${amount.toStringAsFixed(4)} FARM'),
-                    const SizedBox(height: 12),
-                    _feeRow('Fee (${(feeRate * 100).toStringAsFixed(1)}%)',
-                        '${fee.toStringAsFixed(4)} FARM'),
-                    const Divider(height: 24),
-                    _feeRow(
-                        'You Receive', '${settlement.toStringAsFixed(4)} FARM',
-                        bold: true),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Security note
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.verified_user_outlined, size: 18),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Withdrawal is secured by FARM multi-layer verification. '
-                        'Funds are locked until processed.',
-                        style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12, color: Colors.grey.shade700),
+                    const SizedBox(height: 28),
+                    // Submit button
+                    SizedBox(
+                                        width: double.infinity,
+                                        height: 58,
+                                        child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                        backgroundColor: FlutterFlowTheme.of(context).primary,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                        ),
+                        onPressed:
+                            (isLoading || amount <= 0) ? null : _createWithdraw,
+                        child: isLoading
+                            ? CircularProgressIndicator(
+                                color: context.onSurface)
+                            : Text('Withdraw Funds',
+                                style: GoogleFonts.plusJakartaSans(
+                            color: FlutterFlowTheme.of(context).onPrimary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16)),
                       ),
                     ),
                   ],
                 ),
-              ),
-
-              const SizedBox(height: 28),
-
-              // Submit button
-              SizedBox(
-                width: double.infinity,
-                height: 58,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                  ),
-                  onPressed:
-                      (isLoading || amount <= 0) ? null : _createWithdraw,
-                  child: isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : Text('Withdraw Funds',
-                          style: GoogleFonts.plusJakartaSans(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16)),
-                ),
-              ),
 
               const SizedBox(height: 32),
 
@@ -571,38 +654,39 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                       style: GoogleFonts.plusJakartaSans(
                           fontWeight: FontWeight.bold, fontSize: 16)),
                   TextButton(
-                      onPressed: _fetchHistory, child: const Text('Refresh')),
+                      onPressed: _fetchHistory, child: Text('Refresh')),
                 ],
               ),
 
               const SizedBox(height: 14),
 
               if (loadingHistory)
-                const Center(child: CircularProgressIndicator())
+                Center(child: CircularProgressIndicator())
               else if (history.isEmpty)
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: Colors.grey.shade200),
+                    border: Border.all(color: context.borderColor),
                   ),
                   child: Center(
                       child: Text('No withdrawal history',
                           style:
-                              GoogleFonts.plusJakartaSans(color: Colors.grey))),
+                              GoogleFonts.plusJakartaSans(color: context.textSecondary))),
                 )
               else
                 ...history.map((w) {
                   final meta = w['metadata'] as Map<String, dynamic>? ?? {};
-                  final status = w['status'] ?? 'pending';
-                  final isComplete = status == 'completed';
+                  final statusRaw = (w['status'] ?? 'pending').toString();
+                  final status = statusRaw.toLowerCase();
+                  final isComplete = status == 'completed' || status == 'success';
                   return Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey.shade200),
+                      border: Border.all(color: context.borderColor),
                     ),
                     child: Row(
                       children: [
@@ -611,15 +695,15 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                           height: 42,
                           decoration: BoxDecoration(
                             color: isComplete
-                                ? Colors.green.shade50
-                                : Colors.orange.shade50,
+                                ? context.successColor.withOpacity(0.2)
+                                : context.warningColor.withOpacity(0.2),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
                             isComplete
                                 ? Icons.check_circle_outline
                                 : Icons.hourglass_top,
-                            color: isComplete ? Colors.green : Colors.orange,
+                            color: isComplete ? context.successColor : context.warningColor,
                             size: 20,
                           ),
                         ),
@@ -635,16 +719,16 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                                 style: GoogleFonts.plusJakartaSans(
                                     fontWeight: FontWeight.bold),
                               ),
-                              Text(status,
-                                  style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 12, color: Colors.grey)),
+                              Text(status.toUpperCase(),
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 12, color: context.textSecondary)),
                             ],
                           ),
                         ),
                         Text(
                           '-${w['amount']} FARM',
                           style: GoogleFonts.plusJakartaSans(
-                              fontWeight: FontWeight.bold, color: Colors.red),
+                              fontWeight: FontWeight.bold, color: context.errorColor),
                         ),
                       ],
                     ),

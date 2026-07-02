@@ -1,10 +1,13 @@
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '/core/theme_extensions.dart';
 import '../services/admin_api_service.dart';
 
 class UserManagementPage extends StatefulWidget {
-  const UserManagementPage({super.key});
+  final VoidCallback? onGoBack;
+
+  const UserManagementPage({super.key, this.onGoBack});
 
   @override
   State<UserManagementPage> createState() => _UserManagementPageState();
@@ -57,9 +60,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
     try {
       await AdminApiService.updateUserStatus(userId, {'is_suspended': suspend});
       _load();
-      _snack(suspend ? 'User suspended' : 'User activated', suspend ? Colors.orange : Colors.green);
+      _snack(suspend ? 'User suspended' : 'User activated', suspend ? context.warningColor : context.successColor);
     } catch (e) {
-      _snack(e.toString(), Colors.red);
+      _snack(e.toString(), context.errorColor);
     }
   }
 
@@ -103,26 +106,26 @@ class _UserManagementPageState extends State<UserManagementPage> {
                 child: Container(
                   width: 40,
                   height: 4,
-                  decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
+                  decoration: BoxDecoration(color: context.onSurface.withOpacity(0.24), borderRadius: BorderRadius.circular(2)),
                 ),
               ),
               const SizedBox(height: 20),
               Row(children: [
                 CircleAvatar(
-                  backgroundColor: Colors.white,
+                  backgroundColor: context.onSurface,
                   radius: 28,
                   child: Text(
                     (user['first_name'] ?? 'U')[0].toUpperCase(),
-                    style: const TextStyle(color: Colors.black, fontSize: 22, fontWeight: FontWeight.bold),
+                    style: TextStyle(color: context.background, fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                 ),
                 const SizedBox(width: 16),
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('${user['first_name']} ${user['last_name']}',
-                      style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
+                      style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 18, color: context.onSurface)),
                   const SizedBox(height: 4),
                   Text('@${user['username']}',
-                      style: GoogleFonts.plusJakartaSans(color: Colors.white60, fontSize: 13)),
+                      style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.6), fontSize: 13)),
                 ]),
               ]),
               const SizedBox(height: 24),
@@ -138,7 +141,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                 Expanded(
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: user['is_suspended'] == true ? Colors.green : Colors.orange,
+                      backgroundColor: user['is_suspended'] == true ? context.successColor : context.warningColor,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
@@ -185,10 +188,10 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       children: [
                         Text('Users Management',
                             style: GoogleFonts.plusJakartaSans(
-                                color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                                color: context.onSurface, fontSize: 24, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 6),
                         Text('Browse users, review KYC and manage account status.',
-                            style: GoogleFonts.plusJakartaSans(color: Colors.white60, fontSize: 13)),
+                            style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.6), fontSize: 13)),
                       ],
                     ),
                   ),
@@ -196,19 +199,19 @@ class _UserManagementPageState extends State<UserManagementPage> {
                     decoration: BoxDecoration(
                       color: cardColor,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white12),
+                      border: Border.all(color: context.onSurface.withOpacity(0.12)),
                     ),
                     padding: const EdgeInsets.all(12),
-                    child: const Icon(Icons.filter_list_rounded, color: Colors.white),
+                    child: Icon(Icons.filter_list_rounded, color: context.onSurface),
                   ),
                 ],
               ),
             ),
             Expanded(
               child: _loading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? Center(child: CircularProgressIndicator())
                   : _error != null
-                      ? Center(child: Text(_error!, style: const TextStyle(color: Colors.white)))
+                      ? Center(child: Text(_error!, style: TextStyle(color: context.onSurface)))
                       : RefreshIndicator(
                           onRefresh: _load,
                           child: ListView(
@@ -238,18 +241,18 @@ class _UserManagementPageState extends State<UserManagementPage> {
         decoration: BoxDecoration(
           color: cardColor,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white10),
+          border: Border.all(color: context.onSurface.withOpacity(0.1)),
         ),
         child: TextField(
           controller: _searchCtrl,
-          style: const TextStyle(color: Colors.white),
+          style: TextStyle(color: context.onSurface),
           decoration: InputDecoration(
             hintText: 'Search users by name, phone, email...',
-            hintStyle: const TextStyle(color: Colors.white54),
-            prefixIcon: const Icon(Icons.search_rounded, color: Colors.white70),
+            hintStyle: TextStyle(color: context.onSurface.withOpacity(0.54)),
+            prefixIcon: Icon(Icons.search_rounded, color: context.onSurface.withOpacity(0.7)),
             suffixIcon: _search.isNotEmpty
                 ? IconButton(
-                    icon: const Icon(Icons.clear_rounded, color: Colors.white70),
+                    icon: Icon(Icons.clear_rounded, color: context.onSurface.withOpacity(0.7)),
                     onPressed: () {
                       _searchCtrl.clear();
                       setState(() {
@@ -288,9 +291,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       style: GoogleFonts.plusJakartaSans(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: _filter == f ? Colors.white : Colors.white70)),
+                          color: _filter == f ? context.onSurface : context.onSurface.withOpacity(0.7))),
                   selected: _filter == f,
-                  selectedColor: Colors.white12,
+                  selectedColor: context.onSurface.withOpacity(0.12),
                   backgroundColor: cardColor,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   onSelected: (_) {
@@ -362,19 +365,19 @@ class _UserManagementPageState extends State<UserManagementPage> {
           decoration: BoxDecoration(
             color: cardColor,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white10),
+            border: Border.all(color: context.onSurface.withOpacity(0.1)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(title,
-                  style: GoogleFonts.plusJakartaSans(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w500)),
+                  style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.54), fontSize: 12, fontWeight: FontWeight.w500)),
               const SizedBox(height: 10),
               Text(value,
-                  style: GoogleFonts.plusJakartaSans(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
+                  style: GoogleFonts.plusJakartaSans(color: context.onSurface, fontSize: 22, fontWeight: FontWeight.w800)),
               const SizedBox(height: 6),
               Text('Compared to last month',
-                  style: GoogleFonts.plusJakartaSans(color: Colors.white38, fontSize: 11)),
+                  style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.38), fontSize: 11)),
             ],
           ),
         ),
@@ -387,7 +390,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
         decoration: BoxDecoration(
           color: cardColor,
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: Colors.white10),
+          border: Border.all(color: context.onSurface.withOpacity(0.1)),
         ),
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -395,22 +398,22 @@ class _UserManagementPageState extends State<UserManagementPage> {
             radius: 26,
             backgroundColor: accent,
             child: Text((u['first_name'] ?? 'U')[0].toUpperCase(),
-                style: GoogleFonts.plusJakartaSans(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold)),
+                style: GoogleFonts.plusJakartaSans(color: context.background, fontSize: 18, fontWeight: FontWeight.bold)),
           ),
           title: Text('${u['first_name']} ${u['last_name']}',
-              style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+              style: GoogleFonts.plusJakartaSans(color: context.onSurface, fontWeight: FontWeight.bold, fontSize: 15)),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 6),
-              Text(u['email'] ?? '-', style: GoogleFonts.plusJakartaSans(color: Colors.white70, fontSize: 12)),
+              Text(u['email'] ?? '-', style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.7), fontSize: 12)),
               const SizedBox(height: 6),
               Wrap(
                 runSpacing: 6,
                 spacing: 6,
                 children: [
                   _tag(u['kyc_status'] ?? 'none', _kycColor(u['kyc_status'])),
-                  if (u['is_suspended'] == true) _tag('SUSPENDED', Colors.red),
+                  if (u['is_suspended'] == true) _tag('SUSPENDED', context.errorColor),
                 ],
               ),
             ],
@@ -420,14 +423,14 @@ class _UserManagementPageState extends State<UserManagementPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('FARM ${double.tryParse(u['balance']?.toString() ?? '0')?.toStringAsFixed(2) ?? '0'}',
-                  style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                  style: GoogleFonts.plusJakartaSans(color: context.onSurface, fontWeight: FontWeight.bold, fontSize: 12)),
               const SizedBox(height: 8),
               GestureDetector(
                 onTap: () => _viewUser(u),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: accent.withOpacity(0.18),
+                    color: accent.withAlpha((0.18 * 255).round()),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Text('View',
@@ -447,20 +450,20 @@ class _UserManagementPageState extends State<UserManagementPage> {
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: context.onSurface.withOpacity(0.1)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           TextButton(
             onPressed: _page > 1 ? () { setState(() => _page--); _load(); } : null,
-            child: const Text('← Prev'),
+            child: Text('← Prev'),
           ),
           Text('$_page / $lastPage',
-              style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold)),
+              style: GoogleFonts.plusJakartaSans(color: context.onSurface, fontWeight: FontWeight.bold)),
           TextButton(
             onPressed: _page < lastPage ? () { setState(() => _page++); _load(); } : null,
-            child: const Text('Next →'),
+            child: Text('Next →'),
           ),
         ],
       ),
@@ -469,7 +472,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
 
   Widget _tag(String text, Color color) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(color: color.withOpacity(0.14), borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(color: color.withAlpha((0.14 * 255).round()), borderRadius: BorderRadius.circular(12)),
         child: Text(text.toUpperCase(),
             style: GoogleFonts.plusJakartaSans(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
       );
@@ -477,21 +480,21 @@ class _UserManagementPageState extends State<UserManagementPage> {
   Widget _detailRow(String label, String value) => Padding(
         padding: const EdgeInsets.only(bottom: 14),
         child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text(label, style: GoogleFonts.plusJakartaSans(color: Colors.white54, fontSize: 13)),
-          Text(value, style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
+          Text(label, style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.54), fontSize: 13)),
+          Text(value, style: GoogleFonts.plusJakartaSans(color: context.onSurface, fontWeight: FontWeight.w600, fontSize: 13)),
         ]),
       );
 
   Color _kycColor(String? s) {
     switch (s) {
       case 'verified':
-        return Colors.green;
+        return context.successColor;
       case 'pending':
-        return Colors.orange;
+        return context.warningColor;
       case 'rejected':
-        return Colors.red;
+        return context.errorColor;
       default:
-        return Colors.grey;
+        return context.textSecondary;
     }
   }
 }

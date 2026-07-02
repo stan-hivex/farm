@@ -1,4 +1,5 @@
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '/core/app_config.dart';
 import '/components/button/button_widget.dart';
 import '/components/profile_info_tile/profile_info_tile_widget.dart';
@@ -6,6 +7,7 @@ import '/components/settings_action_tile/settings_action_tile_widget.dart';
 import '/backend/services/api_service.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
+import '/core/theme_extensions.dart';
 import 'package:flutter/material.dart';
 import '/pages/change_pin_page/change_pin_page_widget.dart';
 import '/pages/forgot_pin_page/forgot_pin_page_widget.dart';
@@ -212,7 +214,7 @@ Future<void> fetchSecuritySettings() async {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -246,7 +248,67 @@ Future<void> fetchSecuritySettings() async {
                   );
                 }
               },
-              child: const Text('Save'),
+              child: Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _showEditUsernameDialog() async {
+    final formKey = GlobalKey<FormState>();
+    final usernameController = TextEditingController(text: username);
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Edit Username'),
+          content: Form(
+            key: formKey,
+            child: TextFormField(
+              controller: usernameController,
+              decoration: const InputDecoration(labelText: 'Username'),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter a username';
+                }
+                final trimmed = value.trim();
+                if (trimmed.length < 3) {
+                  return 'Username must be at least 3 characters';
+                }
+                if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(trimmed)) {
+                  return 'Use letters, numbers, or underscore only';
+                }
+                return null;
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (!formKey.currentState!.validate()) return;
+
+                final newUsername = usernameController.text.trim();
+                try {
+                  await ApiService.updateProfile(username: newUsername);
+                  await fetchProfile();
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Username updated successfully')),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Update failed: $e')),
+                  );
+                }
+              },
+              child: Text('Save'),
             ),
           ],
         );
@@ -255,10 +317,34 @@ Future<void> fetchSecuritySettings() async {
   }
 
 Future<void> logoutUser() async {
+  try {
+    await ApiService.logout();
+  } catch (e) {
+    print('LOGOUT CALL FAILED: $e');
+  }
+
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.remove('accessToken');
+  await prefs.remove('refreshToken');
+  await prefs.remove('userId');
+  await prefs.remove('role');
+  await prefs.remove('isLoggedIn');
+
   FFAppState().accessToken = '';
+  FFAppState().refreshToken = '';
   FFAppState().userId = '';
-  
-  context.goNamed('Login');
+  FFAppState().firstName = '';
+  FFAppState().userName = '';
+  FFAppState().phone = '';
+  FFAppState().role = '';
+  FFAppState().isLoggedIn = false;
+
+  // Reset theme to light on logout so next login/visitor sees light theme
+  FFAppState().themeMode = ThemeMode.light;
+
+  if (mounted) {
+    context.goNamed('loginpage');
+  }
 }
 
   @override
@@ -341,26 +427,29 @@ Future<void> logoutUser() async {
 
                               Align(
                                 alignment: const AlignmentDirectional(1.0, 1.0),
-                                child: Container(
-                                  width: 28.0,
-                                  height: 28.0,
-                                  decoration: BoxDecoration(
-                                    color: FlutterFlowTheme.of(context)
-                                        .secondaryBackground,
-                                    borderRadius: BorderRadius.circular(9999.0),
-                                    shape: BoxShape.rectangle,
-                                    border: Border.all(
+                                child: GestureDetector(
+                                  onTap: _showEditUsernameDialog,
+                                  child: Container(
+                                    width: 28.0,
+                                    height: 28.0,
+                                    decoration: BoxDecoration(
                                       color: FlutterFlowTheme.of(context)
-                                          .primaryBackground,
-                                      width: 2.0,
+                                          .secondaryBackground,
+                                      borderRadius: BorderRadius.circular(9999.0),
+                                      shape: BoxShape.rectangle,
+                                      border: Border.all(
+                                        color: FlutterFlowTheme.of(context)
+                                            .primaryBackground,
+                                        width: 2.0,
+                                      ),
                                     ),
-                                  ),
-                                  alignment: const AlignmentDirectional(0.0, 0.0),
-                                  child: Icon(
-                                    Icons.edit_rounded,
-                                    color: FlutterFlowTheme.of(context)
-                                        .primaryText,
-                                    size: 16.0,
+                                    alignment: const AlignmentDirectional(0.0, 0.0),
+                                    child: Icon(
+                                      Icons.edit_rounded,
+                                      color: FlutterFlowTheme.of(context)
+                                          .primaryText,
+                                      size: 16.0,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -715,12 +804,12 @@ GestureDetector(
                       : hasPin
                           ? biometricsEnabled
                               ? 'PIN + Biometrics Enabled'
-                              : 'PIN Protection Active'
+                              : 'PIN is set'
                           : 'No PIN Configured',
                   style: TextStyle(
                     color: accountLocked
-                        ? Colors.red
-                        : Colors.green,
+                        ? context.errorColor
+                        : context.successColor,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
@@ -752,19 +841,19 @@ GestureDetector(
   child: Container(
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: Colors.black,
+      color: context.primaryColor,
       borderRadius: BorderRadius.circular(16),
     ),
     child: Row(
-      children: const [
-        Icon(Icons.lock_reset, color: Colors.white),
-        SizedBox(width: 12),
+      children: [
+        Icon(Icons.lock_reset, color: context.background),
+        const SizedBox(width: 12),
         Text(
           'Change PIN',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: context.background),
         ),
-        Spacer(),
-        Icon(Icons.chevron_right, color: Colors.white),
+        const Spacer(),
+        Icon(Icons.chevron_right, color: context.background),
       ],
     ),
   ),
@@ -782,19 +871,19 @@ GestureDetector(
   child: Container(
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: Colors.black,
+      color: context.primaryColor,
       borderRadius: BorderRadius.circular(16),
     ),
     child: Row(
-      children: const [
-        Icon(Icons.help_outline, color: Colors.white),
-        SizedBox(width: 12),
+      children: [
+        Icon(Icons.help_outline, color: context.background),
+        const SizedBox(width: 12),
         Text(
           'Forgot PIN',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: context.background),
         ),
-        Spacer(),
-        Icon(Icons.chevron_right, color: Colors.white),
+        const Spacer(),
+        Icon(Icons.chevron_right, color: context.background),
       ],
     ),
   ),
@@ -846,12 +935,29 @@ SwitchListTile(
     }
   },
 
-  title: const Text('Enable Biometrics'),
+  title: Text('Enable Biometrics'),
 
   subtitle: Text(
     biometricsEnabled
         ? 'Face ID / Fingerprint active'
         : 'Biometric authentication disabled',
+  ),
+),
+
+// THEME MODE
+SwitchListTile(
+  contentPadding: EdgeInsets.zero,
+  value: FFAppState().themeMode == ThemeMode.dark,
+  onChanged: (value) {
+    setState(() {
+      FFAppState().themeMode = value ? ThemeMode.dark : ThemeMode.light;
+    });
+  },
+  title: Text('Dark Theme'),
+  subtitle: Text(
+    FFAppState().themeMode == ThemeMode.dark
+        ? 'Dark theme active'
+        : 'Light theme active',
   ),
 ),
                               // NOTIFICATIONS
@@ -922,7 +1028,8 @@ GestureDetector(
                             ),
                             icon_present: true,
                             icon_end_present: false,
-                            on_tap: 'nvigate:Dashboard',
+                            on_tap: '',
+                            onTapCallback: logoutUser,
                             color: FlutterFlowTheme.of(context).primaryText,
                             variant: 'outline',
                             size: 'medium',

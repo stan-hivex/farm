@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '/core/theme_extensions.dart';
 import '../services/admin_api_service.dart';
 
 class MerchantKybManagementPage extends StatefulWidget {
-  const MerchantKybManagementPage({super.key});
+  final VoidCallback? onGoBack;
+
+  const MerchantKybManagementPage({super.key, this.onGoBack});
 
   @override
   State<MerchantKybManagementPage> createState() => _MerchantKybManagementPageState();
@@ -50,10 +53,10 @@ class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
       await AdminApiService.decideMerchant(merchantId, status);
       _snack(
           status == 'approved' ? 'Merchant KYB approved ✓' : 'Merchant KYB rejected',
-          status == 'approved' ? Colors.green : Colors.red);
+          status == 'approved' ? context.successColor : context.errorColor);
       _load();
     } catch (e) {
-      _snack(e.toString().replaceAll('Exception: ', ''), Colors.red);
+      _snack(e.toString().replaceAll('Exception: ', ''), context.errorColor);
     } finally {
       if (mounted) setState(() => _processing[merchantId] = false);
     }
@@ -65,13 +68,13 @@ class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: _cardColor,
-        title: Text('Reject Merchant KYB', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: Colors.white)),
+        title: Text('Reject Merchant KYB', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: context.onSurface)),
         content: TextField(
           controller: controller,
-          style: const TextStyle(color: Colors.white),
+          style: TextStyle(color: context.onSurface),
           decoration: InputDecoration(
             hintText: 'Reason for rejection',
-            hintStyle: TextStyle(color: Colors.white38),
+            hintStyle: TextStyle(color: context.onSurface.withOpacity(0.38)),
             filled: true,
             fillColor: const Color(0xFF0F1724),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -84,12 +87,12 @@ class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
             child: Text('Cancel', style: TextStyle(color: _accent)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: context.errorColor),
             onPressed: () {
               Navigator.pop(context);
               _reviewMerchant(merchantId, 'rejected');
             },
-            child: const Text('Reject'),
+            child: Text('Reject'),
           ),
         ],
       ),
@@ -122,10 +125,10 @@ class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
               : ListView(padding: const EdgeInsets.all(20), children: [
                   Text('Merchant KYB',
                       style: GoogleFonts.plusJakartaSans(
-                          fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+                          fontSize: 22, fontWeight: FontWeight.bold, color: context.onSurface)),
                   const SizedBox(height: 6),
                   Text('Review merchant KYB applications and decide onboarding status.',
-                      style: GoogleFonts.plusJakartaSans(color: Colors.white70, fontSize: 13)),
+                      style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.7), fontSize: 13)),
                   const SizedBox(height: 20),
 
                   Wrap(
@@ -134,11 +137,11 @@ class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
                     children: [
                       for (final status in ['all', 'pending', 'approved', 'rejected', 'active'])
                         ChoiceChip(
-                          label: Text(status.toUpperCase(), style: GoogleFonts.plusJakartaSans(color: _statusFilter == status ? Colors.black : Colors.white70, fontSize: 12)),
+                          label: Text(status.toUpperCase(), style: GoogleFonts.plusJakartaSans(color: _statusFilter == status ? context.background : context.onSurface.withOpacity(0.7), fontSize: 12)),
                           selected: _statusFilter == status,
                           selectedColor: _accent,
                           backgroundColor: _cardColor,
-                          side: BorderSide(color: _statusFilter == status ? _accent : Colors.white10),
+                          side: BorderSide(color: _statusFilter == status ? _accent : context.onSurface.withOpacity(0.1)),
                           onSelected: (_) {
                             setState(() => _statusFilter = status);
                             _load();
@@ -153,15 +156,15 @@ class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
                       margin: const EdgeInsets.only(bottom: 18),
                       padding: const EdgeInsets.all(18),
                       decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.14),
+                        color: context.errorColor.withAlpha((0.14 * 255).round()),
                         borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: Colors.red.withOpacity(0.2)),
+                        border: Border.all(color: context.errorColor.withAlpha((0.2 * 255).round())),
                       ),
                       child: Row(children: [
-                        const Icon(Icons.error_outline, color: Colors.redAccent),
+                        Icon(Icons.error_outline, color: context.errorColorAccent),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: Text(_error!, style: GoogleFonts.plusJakartaSans(color: Colors.white70)),
+                          child: Text(_error!, style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.7))),
                         ),
                         TextButton(onPressed: _load, child: Text('Retry', style: TextStyle(color: _accent))),
                       ]),
@@ -173,14 +176,14 @@ class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
                       decoration: BoxDecoration(
                         color: _cardColor,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white10),
+                        border: Border.all(color: context.onSurface.withOpacity(0.1)),
                       ),
                       child: Column(children: [
-                        Icon(Icons.badge_rounded, size: 32, color: Colors.white24),
+                        Icon(Icons.badge_rounded, size: 32, color: context.onSurface.withOpacity(0.24)),
                         const SizedBox(height: 14),
                         Text('No merchant KYB records found',
                             textAlign: TextAlign.center,
-                            style: GoogleFonts.plusJakartaSans(color: Colors.white54, fontSize: 14)),
+                            style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.54), fontSize: 14)),
                       ]),
                     )
                   else
@@ -199,44 +202,44 @@ class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
                         decoration: BoxDecoration(
                           color: _cardColor,
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white10),
+                          border: Border.all(color: context.onSurface.withOpacity(0.1)),
                         ),
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Row(children: [
                             Expanded(
                               child: Text(business,
                                   style: GoogleFonts.plusJakartaSans(
-                                      fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white)),
+                                      fontWeight: FontWeight.bold, fontSize: 15, color: context.onSurface)),
                             ),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               decoration: BoxDecoration(
                                 color: status == 'approved'
-                                    ? Colors.green.withOpacity(0.15)
+                                    ? context.successColor.withAlpha((0.15 * 255).round())
                                     : status == 'rejected'
-                                        ? Colors.red.withOpacity(0.15)
-                                        : Colors.orange.withOpacity(0.14),
+                                        ? context.errorColor.withAlpha((0.15 * 255).round())
+                                        : context.warningColor.withAlpha((0.14 * 255).round()),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Text(status.toUpperCase(),
                                   style: GoogleFonts.plusJakartaSans(
                                       color: status == 'approved'
-                                          ? Colors.greenAccent
+                                          ? context.successColorAccent
                                           : status == 'rejected'
-                                              ? Colors.redAccent
-                                              : Colors.orangeAccent,
+                                              ? context.errorColorAccent
+                                              : context.warningColorAccent,
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold)),
                             )
                           ]),
                           const SizedBox(height: 10),
-                          Text(email, style: GoogleFonts.plusJakartaSans(color: Colors.white60, fontSize: 12)),
+                          Text(email, style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.6), fontSize: 12)),
                           const SizedBox(height: 4),
-                          Text(phone, style: GoogleFonts.plusJakartaSans(color: Colors.white60, fontSize: 12)),
+                          Text(phone, style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.6), fontSize: 12)),
                           if (created.isNotEmpty) ...[
                             const SizedBox(height: 4),
                             Text('Applied: $created',
-                                style: GoogleFonts.plusJakartaSans(color: Colors.white38, fontSize: 11)),
+                                style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.38), fontSize: 11)),
                           ],
                           const SizedBox(height: 18),
                           if (status == 'pending')
@@ -244,12 +247,12 @@ class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
                               Expanded(
                                 child: OutlinedButton(
                                   style: OutlinedButton.styleFrom(
-                                    side: const BorderSide(color: Colors.red),
+                                    side: BorderSide(color: context.errorColor),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                    foregroundColor: Colors.red,
+                                    foregroundColor: context.errorColor,
                                   ),
                                   onPressed: processing ? null : () => _showRejectDialog(id),
-                                  child: const Text('Reject'),
+                                  child: Text('Reject'),
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -261,12 +264,12 @@ class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
                                   ),
                                   onPressed: processing ? null : () => _reviewMerchant(id, 'approved'),
                                   child: processing
-                                      ? const SizedBox(
+                                      ? SizedBox(
                                           width: 18,
                                           height: 18,
-                                          child: CircularProgressIndicator(color: Colors.black87, strokeWidth: 2),
+                                          child: CircularProgressIndicator(color: context.onBackground.withOpacity(0.87), strokeWidth: 2),
                                         )
-                                      : Text('Approve', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: Colors.black87)),
+                                      : Text('Approve', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: context.onBackground.withOpacity(0.87))),
                                 ),
                               ),
                             ])
@@ -275,13 +278,13 @@ class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
                               Expanded(
                                 child: ElevatedButton(
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: status == 'approved' ? Colors.green : Colors.red,
+                                    backgroundColor: status == 'approved' ? context.successColor : context.errorColor,
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                                   ),
                                   onPressed: processing ? null : () => _reviewMerchant(id, status == 'approved' ? 'rejected' : 'approved'),
                                   child: Text(
                                     status == 'approved' ? 'Mark Rejected' : 'Mark Approved',
-                                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: Colors.black87),
+                                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: context.onBackground.withOpacity(0.87)),
                                   ),
                                 ),
                               ),

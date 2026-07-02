@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '/core/theme_extensions.dart';
 import '../services/admin_api_service.dart';
 
 class EscrowManagementPage extends StatefulWidget {
-  const EscrowManagementPage({super.key});
+  final VoidCallback? onGoBack;
+
+  const EscrowManagementPage({super.key, this.onGoBack});
 
   @override
   State<EscrowManagementPage> createState() => _EscrowManagementPageState();
@@ -40,34 +43,34 @@ class _EscrowManagementPageState extends State<EscrowManagementPage> {
         backgroundColor: const Color(0xFF111B2A),
         title: Text('Resolve Dispute — Award to $winner',
             style: GoogleFonts.plusJakartaSans(
-                fontWeight: FontWeight.bold, color: Colors.white)),
+                fontWeight: FontWeight.bold, color: context.onSurface)),
         content: TextField(
           controller: ctrl,
-          style: const TextStyle(color: Colors.white),
+          style: TextStyle(color: context.onSurface),
           decoration: InputDecoration(
               hintText: 'Resolution note...',
-              hintStyle: const TextStyle(color: Colors.white54),
-              border: OutlineInputBorder(borderSide: const BorderSide(color: Colors.white10)),
-              enabledBorder: OutlineInputBorder(borderSide: const BorderSide(color: Colors.white10))),
+              hintStyle: TextStyle(color: context.onSurface.withOpacity(0.54)),
+              border: OutlineInputBorder(borderSide: BorderSide(color: context.onSurface.withOpacity(0.1))),
+              enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: context.onSurface.withOpacity(0.1)))),
           maxLines: 3,
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: Colors.white70))),
+              child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.7)))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37)),
             onPressed: () async {
               Navigator.pop(context);
               try {
                 await AdminApiService.resolveDispute(escrowId, winner, ctrl.text.trim());
-                _snack('Dispute resolved — $winner wins', Colors.green);
+                _snack('Dispute resolved — $winner wins', context.successColor);
                 _load();
               } catch (e) {
-                _snack(e.toString(), Colors.red);
+                _snack(e.toString(), context.errorColor);
               }
             },
-            child: Text('Confirm', style: GoogleFonts.plusJakartaSans(color: Colors.black87)),
+            child: Text('Confirm', style: GoogleFonts.plusJakartaSans(color: context.onBackground.withOpacity(0.87))),
           ),
         ],
       ),
@@ -80,10 +83,10 @@ class _EscrowManagementPageState extends State<EscrowManagementPage> {
   Color _escrowColor(String? s) {
     switch (s) {
       case 'active': return Colors.blue;
-      case 'completed': return Colors.green;
-      case 'disputed': return Colors.red;
-      case 'refunded': return Colors.orange;
-      default: return Colors.grey;
+      case 'completed': return context.successColor;
+      case 'disputed': return context.errorColor;
+      case 'refunded': return context.warningColor;
+      default: return context.textSecondary;
     }
   }
 
@@ -112,7 +115,7 @@ class _EscrowManagementPageState extends State<EscrowManagementPage> {
                           ? Center(
                               child: Text('No escrow contracts',
                                   style: GoogleFonts.plusJakartaSans(
-                                      color: Colors.white60)))
+                                      color: context.onSurface.withOpacity(0.6))))
                           : ListView.builder(
                               padding: const EdgeInsets.all(20),
                               itemCount: _escrows.length,
@@ -138,14 +141,14 @@ class _EscrowManagementPageState extends State<EscrowManagementPage> {
                         style: GoogleFonts.plusJakartaSans(
                             fontSize: 11,
                             color: _filter == f
-                                ? Colors.black
-                                : Colors.white70)),
+                                ? context.background
+                                : context.onSurface.withOpacity(0.7))),
                     selected: _filter == f,
                     selectedColor:
                         _filter == f ? accent : Colors.transparent,
                     backgroundColor: const Color(0xFF111B2A),
                     side: BorderSide(
-                        color: _filter == f ? accent : Colors.white10,
+                        color: _filter == f ? accent : context.onSurface.withOpacity(0.1),
                         width: 1),
                     onSelected: (_) {
                       setState(() {
@@ -171,8 +174,8 @@ class _EscrowManagementPageState extends State<EscrowManagementPage> {
         color: cardColor,
         borderRadius: BorderRadius.circular(18),
         border: isDisputed
-            ? Border.all(color: Colors.red.withOpacity(0.4), width: 1.5)
-            : Border.all(color: Colors.white10),
+            ? Border.all(color: context.errorColor.withAlpha((0.4 * 255).round()), width: 1.5)
+            : Border.all(color: context.onSurface.withOpacity(0.1)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
@@ -182,7 +185,7 @@ class _EscrowManagementPageState extends State<EscrowManagementPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-                color: color.withOpacity(0.16),
+                color: color.withAlpha((0.16 * 255).round()),
                 borderRadius: BorderRadius.circular(8)),
             child: Text((e['status'] ?? '').toUpperCase(),
                 style: GoogleFonts.plusJakartaSans(
@@ -201,7 +204,7 @@ class _EscrowManagementPageState extends State<EscrowManagementPage> {
             Expanded(
               child: OutlinedButton(
                 style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.blue),
+                    side: BorderSide(color: Colors.blue),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10))),
                 onPressed: () => _resolve(e['id'], 'buyer'),
@@ -213,12 +216,12 @@ class _EscrowManagementPageState extends State<EscrowManagementPage> {
             Expanded(
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
+                    backgroundColor: context.successColor,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10))),
                 onPressed: () => _resolve(e['id'], 'seller'),
                 child: Text('Award Seller',
-                    style: GoogleFonts.plusJakartaSans(color: Colors.black87)),
+                    style: GoogleFonts.plusJakartaSans(color: context.onBackground.withOpacity(0.87))),
               ),
             ),
           ]),
@@ -234,10 +237,10 @@ class _EscrowManagementPageState extends State<EscrowManagementPage> {
               width: 70,
               child: Text(label,
                   style: GoogleFonts.plusJakartaSans(
-                      color: Colors.white54, fontSize: 12))),
+                      color: context.onSurface.withOpacity(0.54), fontSize: 12))),
           Text(value,
               style: GoogleFonts.plusJakartaSans(
-                  color: Colors.white,
+                  color: context.onSurface,
                   fontWeight: FontWeight.w600,
                   fontSize: 12)),
         ]),

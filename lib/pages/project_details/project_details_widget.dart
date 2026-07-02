@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:percent_indicator/percent_indicator.dart';
+import '/core/theme_extensions.dart';
 
 class ProjectDetailsWidget extends StatefulWidget {
   final String projectId;
@@ -182,7 +183,7 @@ class _ProjectDetailsWidgetState extends State<ProjectDetailsWidget> {
                           begin: Alignment.bottomCenter,
                           end: Alignment.topCenter,
                           colors: [
-                            Colors.black.withOpacity(.7),
+                            context.background.withAlpha((.7 * 255).round()),
                             Colors.transparent,
                           ],
                         ),
@@ -197,17 +198,17 @@ class _ProjectDetailsWidgetState extends State<ProjectDetailsWidget> {
                               MainAxisAlignment.spaceBetween,
                           children: [
                             CircleAvatar(
-                              backgroundColor: Colors.white,
+                              backgroundColor: context.onSurface,
                               child: IconButton(
-                                icon: const Icon(Icons.arrow_back),
+                                icon: Icon(Icons.arrow_back),
                                 onPressed: () => Navigator.pop(context),
                               ),
                             ),
 
                             CircleAvatar(
-                              backgroundColor: Colors.white,
+                              backgroundColor: context.onSurface,
                               child: IconButton(
-                                icon: const Icon(Icons.favorite_border),
+                                icon: Icon(Icons.favorite_border),
                                 onPressed: () {},
                               ),
                             ),
@@ -223,7 +224,7 @@ class _ProjectDetailsWidgetState extends State<ProjectDetailsWidget> {
                       child: Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: context.onSurface,
                           borderRadius: BorderRadius.circular(24),
                         ),
                         child: Column(
@@ -238,7 +239,7 @@ class _ProjectDetailsWidgetState extends State<ProjectDetailsWidget> {
                                     vertical: 6,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Colors.green.shade100,
+                                    color: context.successColor.withOpacity(0.4),
                                     borderRadius:
                                         BorderRadius.circular(50),
                                   ),
@@ -259,7 +260,7 @@ class _ProjectDetailsWidgetState extends State<ProjectDetailsWidget> {
                                     borderRadius:
                                         BorderRadius.circular(50),
                                   ),
-                                  child: const Text('Verified'),
+                                  child: Text('Verified'),
                                 ),
                               ],
                             ),
@@ -268,7 +269,7 @@ class _ProjectDetailsWidgetState extends State<ProjectDetailsWidget> {
 
                             Text(
                               project!['title'] ?? '',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -278,10 +279,10 @@ class _ProjectDetailsWidgetState extends State<ProjectDetailsWidget> {
 
                             Row(
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.location_on,
                                   size: 16,
-                                  color: Colors.grey,
+                                  color: context.textSecondary,
                                 ),
 
                                 const SizedBox(width: 4),
@@ -289,8 +290,8 @@ class _ProjectDetailsWidgetState extends State<ProjectDetailsWidget> {
                                 Text(
                                   project!['location'] ??
                                       'Kenya',
-                                  style: const TextStyle(
-                                    color: Colors.grey,
+                                  style: TextStyle(
+                                    color: context.textSecondary,
                                   ),
                                 ),
                               ],
@@ -312,7 +313,7 @@ class _ProjectDetailsWidgetState extends State<ProjectDetailsWidget> {
                   child: Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: context.onSurface,
                       borderRadius:
                           BorderRadius.circular(24),
                     ),
@@ -324,7 +325,7 @@ class _ProjectDetailsWidgetState extends State<ProjectDetailsWidget> {
                           mainAxisAlignment:
                               MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
+                            Text(
                               'Growth Projection',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
@@ -334,9 +335,9 @@ class _ProjectDetailsWidgetState extends State<ProjectDetailsWidget> {
 
                             Text(
                               '${project!['roi_percentage']}% ROI',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color: Colors.green,
+                                color: context.successColor,
                               ),
                             ),
                           ],
@@ -411,7 +412,7 @@ class _ProjectDetailsWidgetState extends State<ProjectDetailsWidget> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: context.onSurface,
                       borderRadius:
                           BorderRadius.circular(24),
                     ),
@@ -419,7 +420,7 @@ class _ProjectDetailsWidgetState extends State<ProjectDetailsWidget> {
                       crossAxisAlignment:
                           CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'About the Project',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
@@ -431,9 +432,9 @@ class _ProjectDetailsWidgetState extends State<ProjectDetailsWidget> {
 
                         Text(
                           project!['description'] ?? '',
-                          style: const TextStyle(
+                          style: TextStyle(
                             height: 1.6,
-                            color: Colors.grey,
+                            color: context.textSecondary,
                           ),
                         ),
                       ],
@@ -451,7 +452,7 @@ class _ProjectDetailsWidgetState extends State<ProjectDetailsWidget> {
                   child: Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: context.onSurface,
                       borderRadius:
                           BorderRadius.circular(24),
                     ),
@@ -463,7 +464,7 @@ class _ProjectDetailsWidgetState extends State<ProjectDetailsWidget> {
                           mainAxisAlignment:
                               MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
+                            Text(
                               'Funding Progress',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
@@ -473,7 +474,7 @@ class _ProjectDetailsWidgetState extends State<ProjectDetailsWidget> {
 
                             Text(
                               '${(fundingPercent * 100).toStringAsFixed(0)}%',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -485,9 +486,9 @@ class _ProjectDetailsWidgetState extends State<ProjectDetailsWidget> {
                         LinearPercentIndicator(
                           lineHeight: 10,
                           percent: fundingPercent,
-                          progressColor: Colors.green,
+                          progressColor: context.successColor,
                           backgroundColor:
-                              Colors.grey.shade300,
+                              context.borderColor,
                           barRadius:
                               const Radius.circular(50),
                         ),
@@ -524,8 +525,8 @@ class _ProjectDetailsWidgetState extends State<ProjectDetailsWidget> {
             bottom: 0,
             child: Container(
               padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                color: Colors.white,
+              decoration: BoxDecoration(
+                color: context.onSurface,
               ),
               child: SafeArea(
                 child: Row(
@@ -555,7 +556,7 @@ class _ProjectDetailsWidgetState extends State<ProjectDetailsWidget> {
                               investing ? null : investNow,
                           style: ElevatedButton.styleFrom(
                             backgroundColor:
-                                Colors.black,
+                                context.background,
                             shape: RoundedRectangleBorder(
                               borderRadius:
                                   BorderRadius.circular(
@@ -563,13 +564,13 @@ class _ProjectDetailsWidgetState extends State<ProjectDetailsWidget> {
                             ),
                           ),
                           child: investing
-                              ? const CircularProgressIndicator(
-                                  color: Colors.white,
+                              ? CircularProgressIndicator(
+                                  color: context.onSurface,
                                 )
-                              : const Text(
+                              : Text(
                                   'Invest Now',
                                   style: TextStyle(
-                                    color: Colors.white,
+                                    color: context.onSurface,
                                     fontWeight:
                                         FontWeight.bold,
                                   ),
@@ -591,7 +592,7 @@ class _ProjectDetailsWidgetState extends State<ProjectDetailsWidget> {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.onSurface,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -602,8 +603,8 @@ class _ProjectDetailsWidgetState extends State<ProjectDetailsWidget> {
         children: [
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.grey,
+            style: TextStyle(
+              color: context.textSecondary,
             ),
           ),
 
@@ -611,7 +612,7 @@ class _ProjectDetailsWidgetState extends State<ProjectDetailsWidget> {
 
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 18,
             ),

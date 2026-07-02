@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '/core/theme_extensions.dart';
 import 'admin_dashboard_page.dart';
+import 'superadmins_management_page.dart';
 import 'user_management_page.dart';
 import 'kyc_management_page.dart';
 import 'transactions_management_page.dart';
@@ -39,6 +41,7 @@ class _AdminShellState extends State<AdminShell> {
 
   final List<_NavItem> _navItems = [
     _NavItem(icon: Icons.dashboard_rounded,     label: 'Dashboard'),
+    _NavItem(icon: Icons.admin_panel_settings_rounded, label: 'Superadmins'),
     _NavItem(icon: Icons.people_rounded,         label: 'Users'),
     _NavItem(icon: Icons.verified_user_rounded,  label: 'KYC'),
     _NavItem(icon: Icons.swap_horiz_rounded,     label: 'Transactions'),
@@ -51,18 +54,19 @@ class _AdminShellState extends State<AdminShell> {
     _NavItem(icon: Icons.badge_rounded,          label: 'Merchant KYB'),
   ];
 
-  final List<Widget> _pages = const [
-    AdminDashboardPage(),
-    UserManagementPage(),
-    KycManagementPage(),
-    TransactionsManagementPage(),
-    EscrowManagementPage(),
-    DepositsManagementPage(),
-    WithdrawalsManagementPage(),
-    NotificationsManagementPage(),
-    SettingsManagementPage(),
-    FeeManagementPage(),
-    MerchantKybManagementPage(),
+  List<Widget> get _pages => [
+    const AdminDashboardPage(),
+    SuperadminsManagementPage(onGoBack: () => setState(() => _selectedIndex = 0)),
+    UserManagementPage(onGoBack: () => setState(() => _selectedIndex = 0)),
+    KycManagementPage(onGoBack: () => setState(() => _selectedIndex = 0)),
+    TransactionsManagementPage(onGoBack: () => setState(() => _selectedIndex = 0)),
+    EscrowManagementPage(onGoBack: () => setState(() => _selectedIndex = 0)),
+    DepositsManagementPage(onGoBack: () => setState(() => _selectedIndex = 0)),
+    WithdrawalsManagementPage(onGoBack: () => setState(() => _selectedIndex = 0)),
+    NotificationsManagementPage(onGoBack: () => setState(() => _selectedIndex = 0)),
+    SettingsManagementPage(onGoBack: () => setState(() => _selectedIndex = 0)),
+    FeeManagementPage(onGoBack: () => setState(() => _selectedIndex = 0)),
+    MerchantKybManagementPage(onGoBack: () => setState(() => _selectedIndex = 0)),
   ];
 
   Future<void> _logout() async {
@@ -112,7 +116,7 @@ class _AdminShellState extends State<AdminShell> {
             margin: const EdgeInsets.symmetric(horizontal: 20),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.onSurface,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
@@ -121,7 +125,7 @@ class _AdminShellState extends State<AdminShell> {
                     fontWeight: FontWeight.w900, fontSize: 18)),
                 const SizedBox(width: 8),
                 Text('Admin', style: GoogleFonts.plusJakartaSans(
-                    color: Colors.black54, fontSize: 13)),
+                    color: context.onBackground.withOpacity(0.54), fontSize: 13)),
               ],
             ),
           ),
@@ -143,19 +147,19 @@ class _AdminShellState extends State<AdminShell> {
                         const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     decoration: BoxDecoration(
                       color: selected
-                          ? Colors.white.withOpacity(0.12)
+                          ? context.onSurface.withOpacity(0.12)
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       children: [
                         Icon(item.icon,
-                            color: selected ? Colors.white : Colors.white38,
+                            color: selected ? context.onSurface : context.onSurface.withOpacity(0.38),
                             size: 20),
                         const SizedBox(width: 12),
                         Text(item.label,
                             style: GoogleFonts.plusJakartaSans(
-                              color: selected ? Colors.white : Colors.white54,
+                              color: selected ? context.onSurface : context.onSurface.withOpacity(0.54),
                               fontWeight: selected
                                   ? FontWeight.w600
                                   : FontWeight.normal,
@@ -178,16 +182,16 @@ class _AdminShellState extends State<AdminShell> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.white12),
+                  border: Border.all(color: context.onSurface.withOpacity(0.12)),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(children: [
-                  const Icon(Icons.logout_rounded,
-                      color: Colors.white38, size: 20),
+                  Icon(Icons.logout_rounded,
+                      color: context.onSurface.withOpacity(0.38), size: 20),
                   const SizedBox(width: 12),
                   Text('Logout',
                       style: GoogleFonts.plusJakartaSans(
-                          color: Colors.white38, fontSize: 14)),
+                          color: context.onSurface.withOpacity(0.38), fontSize: 14)),
                 ]),
               ),
             ),
@@ -211,23 +215,23 @@ class _AdminShellState extends State<AdminShell> {
           if (!isWide)
             Text('FARM Admin',
                 style: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+                    fontWeight: FontWeight.bold, fontSize: 16, color: context.onSurface)),
           if (isWide)
             Text(_navItems[_selectedIndex].label,
                 style: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
+                    fontWeight: FontWeight.bold, fontSize: 18, color: context.onSurface)),
           Row(children: [
-            Icon(Icons.notifications_none_rounded, color: Colors.white70),
+            Icon(Icons.notifications_none_rounded, color: context.onSurface.withOpacity(0.7)),
             const SizedBox(width: 16),
             Container(
               width: 36,
               height: 36,
               decoration: const BoxDecoration(
                   color: Color(0xFF0A0F18), shape: BoxShape.circle),
-              child: const Center(
+              child: Center(
                   child: Text('AD',
                       style: TextStyle(
-                          color: Colors.white,
+                          color: context.onSurface,
                           fontSize: 12,
                           fontWeight: FontWeight.bold))),
             ),
@@ -242,8 +246,8 @@ class _AdminShellState extends State<AdminShell> {
       backgroundColor: const Color(0xFF111B2A),
       currentIndex: _selectedIndex > 4 ? 0 : _selectedIndex,
       onTap: (i) => setState(() => _selectedIndex = i),
-      selectedItemColor: Colors.white,
-      unselectedItemColor: Colors.white54,
+      selectedItemColor: context.onSurface,
+      unselectedItemColor: context.onSurface.withOpacity(0.54),
       type: BottomNavigationBarType.fixed,
       items: _navItems.take(5).map((n) => BottomNavigationBarItem(
             icon: Icon(n.icon),

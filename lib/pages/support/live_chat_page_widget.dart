@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
+import '/core/theme_extensions.dart';
 
 class LiveChatPageWidget extends StatefulWidget {
   const LiveChatPageWidget({super.key});
@@ -36,12 +37,10 @@ class _LiveChatPageWidgetState extends State<LiveChatPageWidget> {
       final body = Uri.encodeComponent(msg);
 
       await launchURL('mailto:support@farmapp.africa?subject=$subject&body=$body');
-
-      // Optionally clear the message after opening mail client
       _messageController.clear();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open mail app')), 
+        const SnackBar(content: Text('Could not open mail app')),
       );
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -50,15 +49,36 @@ class _LiveChatPageWidgetState extends State<LiveChatPageWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Live Chat')),
+      backgroundColor: theme.primaryBackground,
+      appBar: AppBar(
+        backgroundColor: theme.primaryBackground,
+        elevation: 0,
+        title: Text('Live Chat'),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            Text(
-              'Send a message to our support team. This will open your mail app.',
-              style: FlutterFlowTheme.of(context).bodyMedium,
+            Card(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    Icon(Icons.support_agent_rounded, color: theme.primary),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Send a message to our support team. This will open your mail app.',
+                        style: theme.bodyMedium,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 12),
             Expanded(
@@ -84,8 +104,8 @@ class _LiveChatPageWidgetState extends State<LiveChatPageWidget> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 child: _sending
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Send to Support'),
+                    ? CircularProgressIndicator(color: context.onSurface)
+                    : Text('Send to Support'),
               ),
             ),
           ],

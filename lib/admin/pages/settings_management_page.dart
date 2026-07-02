@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '/core/theme_extensions.dart';
 import '../services/admin_api_service.dart';
 
 class SettingsManagementPage extends StatefulWidget {
-  const SettingsManagementPage({super.key});
+  final VoidCallback? onGoBack;
+
+  const SettingsManagementPage({super.key, this.onGoBack});
 
   @override
   State<SettingsManagementPage> createState() => _SettingsManagementPageState();
@@ -54,9 +57,9 @@ class _SettingsManagementPageState extends State<SettingsManagementPage> {
   Future<void> _save(String key) async {
     try {
       await AdminApiService.updateSetting(key, _ctrls[key]?.text ?? '');
-      _snack('Setting updated ✓', Colors.green);
+      _snack('Setting updated ✓', context.successColor);
     } catch (e) {
-      _snack(e.toString().replaceAll('Exception: ', ''), Colors.red);
+      _snack(e.toString().replaceAll('Exception: ', ''), context.errorColor);
     }
   }
 
@@ -91,13 +94,13 @@ class _SettingsManagementPageState extends State<SettingsManagementPage> {
                       style: GoogleFonts.plusJakartaSans(
                         fontWeight: FontWeight.bold,
                         fontSize: 22,
-                        color: Colors.white,
+                        color: context.onSurface,
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       'Configure platform-wide behaviour for FARM',
-                      style: GoogleFonts.plusJakartaSans(color: Colors.white70, fontSize: 13),
+                      style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.7), fontSize: 13),
                     ),
                     const SizedBox(height: 24),
 
@@ -106,15 +109,15 @@ class _SettingsManagementPageState extends State<SettingsManagementPage> {
                         margin: const EdgeInsets.only(bottom: 18),
                         padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.14),
+                          color: context.errorColor.withAlpha((0.14 * 255).round()),
                           borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: Colors.red.withOpacity(0.2)),
+                          border: Border.all(color: context.errorColor.withAlpha((0.2 * 255).round())),
                         ),
                         child: Row(children: [
-                          const Icon(Icons.error_outline, color: Colors.redAccent),
+                          Icon(Icons.error_outline, color: context.errorColorAccent),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: Text(_error!, style: GoogleFonts.plusJakartaSans(color: Colors.white70)),
+                            child: Text(_error!, style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.7))),
                           ),
                           TextButton(onPressed: _load, child: Text('Retry', style: TextStyle(color: _accent))),
                         ]),
@@ -126,15 +129,15 @@ class _SettingsManagementPageState extends State<SettingsManagementPage> {
                         decoration: BoxDecoration(
                           color: _cardColor,
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white10),
+                          border: Border.all(color: context.onSurface.withOpacity(0.1)),
                         ),
                         child: Column(children: [
-                          Icon(Icons.settings_suggest_rounded, size: 32, color: Colors.white24),
+                          Icon(Icons.settings_suggest_rounded, size: 32, color: context.onSurface.withOpacity(0.24)),
                           const SizedBox(height: 14),
                           Text(
                             'No platform settings available',
                             textAlign: TextAlign.center,
-                            style: GoogleFonts.plusJakartaSans(color: Colors.white54, fontSize: 14),
+                            style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.54), fontSize: 14),
                           ),
                         ]),
                       )
@@ -152,7 +155,7 @@ class _SettingsManagementPageState extends State<SettingsManagementPage> {
                           decoration: BoxDecoration(
                             color: _cardColor,
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white10),
+                            border: Border.all(color: context.onSurface.withOpacity(0.1)),
                           ),
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Text(
@@ -160,14 +163,14 @@ class _SettingsManagementPageState extends State<SettingsManagementPage> {
                               style: GoogleFonts.plusJakartaSans(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
-                                color: Colors.white,
+                                color: context.onSurface,
                               ),
                             ),
                             if (desc.isNotEmpty) ...[
                               const SizedBox(height: 6),
                               Text(
                                 desc,
-                                style: GoogleFonts.plusJakartaSans(color: Colors.white60, fontSize: 12),
+                                style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.6), fontSize: 12),
                               ),
                             ],
                             const SizedBox(height: 16),
@@ -178,16 +181,16 @@ class _SettingsManagementPageState extends State<SettingsManagementPage> {
                                   Text(
                                     controller.text == 'true' ? 'Enabled' : 'Disabled',
                                     style: GoogleFonts.plusJakartaSans(
-                                      color: Colors.white70,
+                                      color: context.onSurface.withOpacity(0.7),
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                   Switch(
                                     value: controller.text == 'true',
                                     activeThumbColor: _accent,
-                                    activeTrackColor: _accent.withOpacity(0.35),
-                                    inactiveThumbColor: Colors.white,
-                                    inactiveTrackColor: Colors.white12,
+                                    activeTrackColor: _accent.withAlpha((0.35 * 255).round()),
+                                    inactiveThumbColor: context.onSurface,
+                                    inactiveTrackColor: context.onSurface.withOpacity(0.12),
                                     onChanged: (v) {
                                       setState(() => controller.text = v ? 'true' : 'false');
                                       _save(key);
@@ -199,19 +202,19 @@ class _SettingsManagementPageState extends State<SettingsManagementPage> {
                               Column(children: [
                                 TextField(
                                   controller: controller,
-                                  style: GoogleFonts.plusJakartaSans(color: Colors.white),
+                                  style: GoogleFonts.plusJakartaSans(color: context.onSurface),
                                   decoration: InputDecoration(
                                     hintText: 'Enter value',
-                                    hintStyle: GoogleFonts.plusJakartaSans(color: Colors.white38),
+                                    hintStyle: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.38)),
                                     filled: true,
                                     fillColor: const Color(0xFF0F1724),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(14),
-                                      borderSide: const BorderSide(color: Colors.white10),
+                                      borderSide: BorderSide(color: context.onSurface.withOpacity(0.1)),
                                     ),
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(14),
-                                      borderSide: const BorderSide(color: Colors.white10),
+                                      borderSide: BorderSide(color: context.onSurface.withOpacity(0.1)),
                                     ),
                                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                                   ),
@@ -230,7 +233,7 @@ class _SettingsManagementPageState extends State<SettingsManagementPage> {
                                       'Save Setting',
                                       style: GoogleFonts.plusJakartaSans(
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.black87,
+                                        color: context.onBackground.withOpacity(0.87),
                                       ),
                                     ),
                                   ),

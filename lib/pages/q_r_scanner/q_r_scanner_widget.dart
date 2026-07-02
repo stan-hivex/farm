@@ -6,6 +6,7 @@ import '/components/scan_overlay_corner/scan_overlay_corner_widget.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
+import '/core/theme_extensions.dart';
 import '/backend/api_requests/wallet_api_service.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -183,25 +184,42 @@ void scanByUsername() {
     context: context,
     builder: (_) {
       return AlertDialog(
-        title: const Text("Scan by Username"),
+        title: Text("Scan by Username / Phone"),
         content: TextField(
           controller: controller,
           decoration: const InputDecoration(
-            hintText: "@username or wallet",
+            hintText: "@username or phone number",
           ),
+          keyboardType: TextInputType.text,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) async {
+            final input = controller.text.trim();
+            if (input.isEmpty) return;
+            Navigator.pop(context);
+            await validateQr(input);
+          },
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
+            child: Text("Cancel"),
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
+              final input = controller.text.trim();
+              if (input.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Enter a username or phone number to scan'),
+                  ),
+                );
+                return;
+              }
 
-              await validateQr(controller.text.trim());
+              Navigator.pop(context);
+              await validateQr(input);
             },
-            child: const Text("Scan"),
+            child: Text("Scan"),
           ),
         ],
       );
@@ -214,7 +232,7 @@ void showMyQrCode() {
     context: context,
     builder: (_) {
       return AlertDialog(
-        title: const Text("My QR Code"),
+        title: Text("My QR Code"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -228,7 +246,7 @@ void showMyQrCode() {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Close"),
+            child: Text("Close"),
           ),
         ],
       );
@@ -263,7 +281,7 @@ void showMyQrCode() {
 
             /// DARK OVERLAY
             Container(
-              color: Colors.black.withOpacity(0.45),
+              color: context.background.withAlpha((0.45 * 255).round()),
             ),
 
             SafeArea(
@@ -290,7 +308,7 @@ void showMyQrCode() {
                             size: 24,
                           ),
                           onPressed: () {
-                            Navigator.pop(context);
+                            context.goNamed('Dashboard');
                           },
                         ),
 
@@ -532,7 +550,7 @@ void showMyQrCode() {
                                         .onPrimary,
                                 size: 24,
                               ),
-                              label: 'Username',
+                              label: 'Username / Phone',
                             ),
                           ),
                         ),

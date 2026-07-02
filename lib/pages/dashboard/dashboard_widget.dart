@@ -7,12 +7,15 @@ import '/flutter_flow/flutter_flow_charts.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
+import '/core/theme_extensions.dart';
+import '/core/responsive.dart';
 import '/pages/q_r_scanner/q_r_scanner_widget.dart';
 import '/pages/depositpage/depositpage_widget.dart';
 import '/pages/withdrawpage/withdrawpage_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dashboard_model.dart';
 export 'dashboard_model.dart';
 
@@ -41,103 +44,169 @@ String? profileImageUrl;
 List transactions = [];
 bool isTransactionsLoading = true;
 
+double? _lastSentAmount;
+DateTime? _lastSentAt;
+bool _isSendingTransaction = false;
+
 List<double> growthYValues = [];
 List<String> growthXLabels = [];
 
+double growthPercentage = 12.5;
 bool isGrowthLoading = true;
 
+// Notification variables
+int notificationCount = 0;
+bool isNotificationCountLoading = true;
+
+// KYC Status Variables
+String kycStatus = ''; // pending, level1_pending, level2_pending, level3_pending, level1_approved, level2_approved, level3_approved, rejected
+String kycLevel = ''; // 1, 2, 3 (highest level completed)
+bool isKycLoading = true;
+
   @override
-void initState() {
-  super.initState();
+  void initState() {
+    super.initState();
 
-  _model = createModel(context, () => DashboardModel());
+    _model = createModel(context, () => DashboardModel());
 
-  fetchWalletBalance();
-  fetchUserProfile();
-  fetchTransactions();
-  fetchGrowthHistory();
-}
+    fetchWalletBalance();
+    fetchUserProfile();
+    fetchKycStatus();
+    fetchTransactions();
+    fetchGrowthHistory();
+    fetchNotificationCount();
+  }
  
- Future<void> logoutUser() async {
-  try {
-    final response = await http.post(
-      Uri.parse('${AppConfig.api}/auth/logout'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${FFAppState().accessToken}',
-      },
-    );
+  Future<void> fetchNotificationCount() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConfig.api}/users/notifications'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${FFAppState().accessToken}',
+        },
+      );
 
-    print('LOGOUT STATUS: ${response.statusCode}');
-    print('LOGOUT BODY: ${response.body}');
+      if (response.statusCode != 200) {
+        setState(() {
+          notificationCount = 0;
+          isNotificationCountLoading = false;
+        });
+        return;
+      }
 
-    // Clear local session ALWAYS (even if backend fails)
-    FFAppState().accessToken = '';
-    FFAppState().userName = '';
-    FFAppState().isLoggedIn = false;
-
-    if (mounted) {
-      context.goNamed('loginpage');
-    }
-  } catch (e) {
-    print('LOGOUT ERROR: $e');
-
-    // still force logout locally
-    FFAppState().accessToken = '';
-    FFAppState().userName = '';
-    FFAppState().isLoggedIn = false;
-
-    if (mounted) {
-      context.goNamed('loginpage');
-    }
-  }
-}
-
-  @override
-  void dispose() {
-    _model.dispose();
-
-    super.dispose();
-  }
-  
-  Future<void> fetchWalletBalance() async {
-  try {
-    final response = await http.get(
-      Uri.parse('${AppConfig.api}/wallet'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${FFAppState().accessToken}',
-      },
-    );
-
-    print('BALANCE STATUS: ${response.statusCode}');
-    print('BALANCE BODY: ${response.body}');
-
-    if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
+      final items = List<dynamic>.from(data['data'] ?? []);
+      final unreadCount = items.where((item) {
+        if (item is Map<String, dynamic>) {
+          final read = item['read'] ?? item['is_read'] ?? item['isRead'];
+          if (read is bool) return !read;
+        }
+        return true;
+      }).length;
 
       setState(() {
-        walletBalance =
-            double.tryParse(data['data']['balance'].toString()) ?? 0.0;
-
-        kesEquivalent =
-            double.tryParse(data['data']['kes_equivalent'].toString()) ?? 0.0;
-
-        isBalanceLoading = false;
+        notificationCount = unreadCount;
+        isNotificationCountLoading = false;
       });
-    } else {
+    } catch (e) {
+      print('NOTIFICATION COUNT ERROR: $e');
+      setState(() {
+        notificationCount = 0;
+        isNotificationCountLoading = false;
+      });
+    }
+  }
+
+  Future<void> fetchWalletBalance() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConfig.api}/wallet'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${FFAppState().accessToken}',
+        },
+      );
+
+      print('BALANCE STATUS: ${response.statusCode}');
+      print('BALANCE BODY: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        setState(() {
+          walletBalance =
+              double.tryParse(data['data']['balance'].toString()) ?? 0.0;
+
+          kesEquivalent =
+              double.tryParse(data['data']['kes_equivalent'].toString()) ?? 0.0;
+
+          isBalanceLoading = false;
+        });
+      } else {
+        setState(() {
+          isBalanceLoading = false;
+        });
+      }
+    } catch (e) {
+      print('BALANCE ERROR: $e');
+
       setState(() {
         isBalanceLoading = false;
       });
     }
-  } catch (e) {
-    print('BALANCE ERROR: $e');
-
-    setState(() {
-      isBalanceLoading = false;
-    });
   }
-  } 
+
+  Future<void> logoutUser() async {
+    try {
+      final response = await http.post(
+        Uri.parse('${AppConfig.api}/auth/logout'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${FFAppState().accessToken}',
+        },
+      );
+
+      print('LOGOUT STATUS: ${response.statusCode}');
+      print('LOGOUT BODY: ${response.body}');
+
+      // Clear local session ALWAYS (even if backend fails)
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('accessToken');
+      await prefs.remove('refreshToken');
+      await prefs.remove('userId');
+      await prefs.remove('role');
+      await prefs.remove('isLoggedIn');
+      await prefs.remove('adminToken');
+      await prefs.remove('adminRefreshToken');
+      await prefs.remove('adminRole');
+      await prefs.remove('adminName');
+
+      FFAppState().accessToken = '';
+      FFAppState().refreshToken = '';
+      FFAppState().userId = '';
+      FFAppState().firstName = '';
+      FFAppState().userName = '';
+      FFAppState().phone = '';
+      FFAppState().role = '';
+      FFAppState().isLoggedIn = false;
+
+      if (mounted) {
+        context.goNamed('loginpage');
+      }
+    } catch (e) {
+      print('LOGOUT ERROR: $e');
+
+      // still force logout locally
+      FFAppState().accessToken = '';
+      FFAppState().userName = '';
+      FFAppState().isLoggedIn = false;
+
+      if (mounted) {
+        context.goNamed('loginpage');
+      }
+    }
+  }
   Future<void> fetchUserProfile() async {
   try {
     final response = await http.get(
@@ -150,15 +219,70 @@ void initState() {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
+      final user = data['data'];
 
       setState(() {
-        profileImageUrl = data['data']['profile_image'];
+        profileImageUrl = user['profile_image'];
+        // Fallback: some deployments store KYC status on the user profile
+        final profileKycStatus = (user['kyc_status'] ?? user['status'] ?? '')?.toString();
+        final profileKycLevel = (user['kyc_level'] ?? user['kyc_level_completed'] ?? user['level'])?.toString();
+
+        // Only set if we don't already have a KYC status from /kyc/my
+        if (kycStatus.isEmpty && profileKycStatus != null) {
+          kycStatus = profileKycStatus;
+        }
+        if ((kycLevel.isEmpty || kycLevel == '0') && profileKycLevel != null) {
+          kycLevel = profileKycLevel;
+        }
       });
     }
   } catch (e) {
     print('PROFILE ERROR: $e');
   }
 }
+
+  Future<void> fetchKycStatus() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConfig.api}/kyc/my'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${FFAppState().accessToken}',
+        },
+      );
+
+      print('KYC STATUS: ${response.statusCode}');
+      print('KYC BODY: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final kycData = data['data'] ?? data;
+
+        // Try multiple field name possibilities
+        final status = kycData['status'] ?? kycData['kyc_status'] ?? kycData['verification_status'] ?? '';
+        final level = (kycData['level'] ?? kycData['kyc_level'] ?? kycData['completed_level'] ?? kycData['current_level'])?.toString() ?? '';
+        final verified = kycData['verified'] ?? kycData['is_verified'] ?? false;
+
+        print('[KYC DEBUG] Status: $status, Level: $level, Verified: $verified');
+
+        setState(() {
+          kycStatus = status;
+          kycLevel = level;
+          isKycLoading = false;
+        });
+      } else {
+        print('[KYC DEBUG] Fetch failed with status ${response.statusCode}');
+        setState(() {
+          isKycLoading = false;
+        });
+      }
+    } catch (e) {
+      print('KYC ERROR: $e');
+      setState(() {
+        isKycLoading = false;
+      });
+    }
+  }
 
 Future<void> fetchTransactions() async {
   try {
@@ -196,12 +320,51 @@ Future<void> fetchTransactions() async {
   }
 }
 
-Future<void> sendTransaction({
+// Helper method to check if user can transact
+bool canUserTransact() {
+  // User needs at least Level 2 KYC approved to transact.
+  // Be permissive: accept "approved" or "verified" status, and allow if level >= 2.
+  final status = kycStatus.toLowerCase();
+  final level = int.tryParse(kycLevel) ?? 0;
+
+  print('[TRANSACT CHECK] KYC Status: $kycStatus, Level: $kycLevel, Level int: $level');
+
+  // If level is provided and >=2, allow
+  if (level >= 2) {
+    print('[TRANSACT CHECK] ✓ Allowed (level >= 2)');
+    return true;
+  }
+
+  // If status suggests verification/approval, allow (covers older users)
+  if (status.contains('ver') || status.contains('approv')) {
+    print('[TRANSACT CHECK] ✓ Allowed (status contains verified/approved)');
+    return true;
+  }
+
+  // Otherwise deny
+  print('[TRANSACT CHECK] ✗ Denied (insufficient KYC)');
+  return false;
+}
+
+Future<bool> sendTransaction({
   required String recipient,
   required double amount,
   required String pin,
   String? description,
 }) async {
+  // Check if user has required KYC level to transact
+  if (!canUserTransact()) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Complete Level 2 KYC to send transactions'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+    return false;
+  }
+
   try {
     final response = await http.post(
       Uri.parse('${AppConfig.api}/wallet/send'),
@@ -229,77 +392,82 @@ Future<void> sendTransaction({
           const SnackBar(content: Text("Transaction successful")),
         );
       }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed: ${response.body}")),
-        );
-      }
+      return true;
     }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed: ${response.body}")),
+      );
+    }
+    return false;
   } catch (e) {
     print('SEND ERROR: $e');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Error sending transaction")),
+      );
+    }
+    return false;
   }
 }
 
-Future<void> fetchGrowthHistory() async {
-try {
-final response = await http.get(
-Uri.parse(
-'${AppConfig.api}/analytics/growth-history?days=7',
-),
-headers: {
-'Content-Type': 'application/json',
-'Authorization':
-'Bearer ${FFAppState().accessToken}',
-},
-);
+Future<void> fetchGrowthHistory({String period = 'daily'}) async {
+  try {
+    final response = await http.get(
+      Uri.parse(
+        '${AppConfig.api}/analytics/growth-history?period=$period',
+      ),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${FFAppState().accessToken}',
+      },
+    );
 
+    print('GROWTH STATUS: ${response.statusCode}');
+    print('GROWTH BODY: ${response.body}');
 
-print('GROWTH STATUS: ${response.statusCode}');
-print('GROWTH BODY: ${response.body}');
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final payload = data['data'] ?? data['history'] ?? [];
+      final List history = payload is List ? payload : [];
 
-if (response.statusCode == 200) {
-  final data = jsonDecode(response.body);
+      final values = history
+          .map<double>((e) {
+            final raw = e['total'] ?? e['value'] ?? e['amount'] ?? 0;
+            return double.tryParse(raw.toString()) ?? 0.0;
+          })
+          .toList();
 
-  final List history = data['data'];
+      final labels = history
+          .map<String>((e) =>
+              e['date']?.toString() ?? e['day']?.toString() ?? e['label']?.toString() ?? '')
+          .toList();
 
-  setState(() {
-    growthYValues = history
-        .map<double>(
-          (e) => double.parse(
-            e['total'].toString(),
-          ),
-        )
-        .toList();
+      double parsedGrowth = 12.5;
+      if (data['growth_percentage'] != null) {
+        parsedGrowth = double.tryParse(data['growth_percentage'].toString()) ?? parsedGrowth;
+      } else if (values.length > 1 && values.first > 0) {
+        parsedGrowth = ((values.last - values.first) / values.first) * 100;
+      }
 
-    growthXLabels = history
-        .map<String>(
-          (e) =>
-              e['date']
-                  .toString()
-                  .substring(5),
-        )
-        .toList();
-
-    isGrowthLoading = false;
-  });
-} else {
-  setState(() {
-    isGrowthLoading = false;
-  });
-}
-
-
-} catch (e) {
-print('GROWTH ERROR: $e');
-
-
-setState(() {
-  isGrowthLoading = false;
-});
-
-
-}
+      setState(() {
+        growthYValues = values;
+        growthXLabels = labels;
+        growthPercentage = parsedGrowth;
+        isGrowthLoading = false;
+      });
+    } else {
+      setState(() {
+        isGrowthLoading = false;
+      });
+    }
+  } catch (e) {
+    print('GROWTH ERROR: $e');
+    setState(() {
+      isGrowthLoading = false;
+    });
+  }
 }
 void openNewTransactionSheet() {
   final recipientController = TextEditingController();
@@ -349,17 +517,69 @@ void openNewTransactionSheet() {
             const SizedBox(height: 20),
 
             ElevatedButton(
-              onPressed: () async {
-                await sendTransaction(
-                  recipient: recipientController.text.trim(),
-                  amount: double.tryParse(amountController.text) ?? 0,
-                  pin: pinController.text.trim(),
-                  description: descController.text,
-                );
+              onPressed: _isSendingTransaction
+                  ? null
+                  : () async {
+                      final recipient = recipientController.text.trim();
+                      final amount = double.tryParse(amountController.text) ?? 0;
+                      final pin = pinController.text.trim();
+                      final description = descController.text;
 
-                Navigator.pop(context);
-              },
-              child: const Text("Send"),
+                      if (recipient.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Enter recipient identifier')),
+                        );
+                        return;
+                      }
+
+                      if (amount <= 0) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Enter a valid amount')),
+                        );
+                        return;
+                      }
+
+                      if (_lastSentAmount != null &&
+                          amount == _lastSentAmount &&
+                          _lastSentAt != null &&
+                          DateTime.now().difference(_lastSentAt!).inSeconds < 60) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                                'You already sent $amount FARM within the last minute. Send a different amount or wait.'),
+                          ),
+                        );
+                        amountController.clear();
+                        return;
+                      }
+
+                      setState(() {
+                        _isSendingTransaction = true;
+                      });
+
+                      amountController.clear();
+
+                      final success = await sendTransaction(
+                        recipient: recipient,
+                        amount: amount,
+                        pin: pin,
+                        description: description,
+                      );
+
+                      if (success) {
+                        _lastSentAmount = amount;
+                        _lastSentAt = DateTime.now();
+                      }
+
+                      if (mounted) {
+                        setState(() {
+                          _isSendingTransaction = false;
+                        });
+                      }
+
+                      Navigator.pop(context);
+                    },
+              child: Text("Send"),
             ),
           ],
         ),
@@ -378,32 +598,83 @@ void openNewTransactionSheet() {
       child: Scaffold(
         key: scaffoldKey,
         backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: openNewTransactionSheet,
-          backgroundColor: FlutterFlowTheme.of(context).primary,
-          icon: Icon(
-            Icons.add_rounded,
-            color: FlutterFlowTheme.of(context).onPrimary,
-            size: 24.0,
-          ),
-          elevation: 0.0,
-          label: Text(
-            'New Transaction',
-            style: FlutterFlowTheme.of(context).labelLarge.override(
-                  font: GoogleFonts.plusJakartaSans(
-                    fontWeight:
-                        FlutterFlowTheme.of(context).labelLarge.fontWeight,
-                    fontStyle:
-                        FlutterFlowTheme.of(context).labelLarge.fontStyle,
-                  ),
+        floatingActionButton: Stack(
+          children: [
+            Positioned(
+              bottom: 80.0,
+              right: 0.0,
+              child: FloatingActionButton.extended(
+                onPressed: () {
+                  // Gate merchants dashboard - requires Level 3 KYC approval
+                  if (kycStatus == 'approved' && kycLevel == '3') {
+                    context.goNamed('MerchantDashboard');
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Complete all KYC levels to access Merchants Dashboard'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                },
+                backgroundColor: context.textSecondary,
+                icon: Icon(
+                  Icons.store_outlined,
                   color: FlutterFlowTheme.of(context).onPrimary,
-                  letterSpacing: 0.0,
-                  fontWeight:
-                      FlutterFlowTheme.of(context).labelLarge.fontWeight,
-                  fontStyle: FlutterFlowTheme.of(context).labelLarge.fontStyle,
-                  lineHeight: 1.3,
+                  size: 24.0,
                 ),
-          ),
+                elevation: 0.0,
+                label: Text(
+                  'Merchants',
+                  style: FlutterFlowTheme.of(context).labelLarge.override(
+                        font: GoogleFonts.plusJakartaSans(
+                          fontWeight:
+                              FlutterFlowTheme.of(context).labelLarge.fontWeight,
+                          fontStyle:
+                              FlutterFlowTheme.of(context).labelLarge.fontStyle,
+                        ),
+                        color: FlutterFlowTheme.of(context).onPrimary,
+                        letterSpacing: 0.0,
+                        fontWeight:
+                            FlutterFlowTheme.of(context).labelLarge.fontWeight,
+                        fontStyle: FlutterFlowTheme.of(context).labelLarge.fontStyle,
+                        lineHeight: 1.3,
+                      ),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: 0.0,
+              right: 0.0,
+              child: FloatingActionButton.extended(
+                onPressed: openNewTransactionSheet,
+                backgroundColor: FlutterFlowTheme.of(context).primary,
+                icon: Icon(
+                  Icons.add_rounded,
+                  color: FlutterFlowTheme.of(context).onPrimary,
+                  size: 24.0,
+                ),
+                elevation: 0.0,
+                label: Text(
+                  'New Transaction',
+                  style: FlutterFlowTheme.of(context).labelLarge.override(
+                        font: GoogleFonts.plusJakartaSans(
+                          fontWeight:
+                              FlutterFlowTheme.of(context).labelLarge.fontWeight,
+                          fontStyle:
+                              FlutterFlowTheme.of(context).labelLarge.fontStyle,
+                        ),
+                        color: FlutterFlowTheme.of(context).onPrimary,
+                        letterSpacing: 0.0,
+                        fontWeight:
+                            FlutterFlowTheme.of(context).labelLarge.fontWeight,
+                        fontStyle: FlutterFlowTheme.of(context).labelLarge.fontStyle,
+                        lineHeight: 1.3,
+                      ),
+                ),
+              ),
+            ),
+          ],
         ),
         body: SingleChildScrollView(
           primary: false,
@@ -426,7 +697,7 @@ void openNewTransactionSheet() {
                           shape: BoxShape.rectangle,
                         ),
                         child: Padding(
-                          padding: const EdgeInsets.all(24.0),
+                          padding: EdgeInsets.all(context.responsiveValue(24.0, minValue: 16.0)),
                           child: Container(
                             child: Row(
                               mainAxisSize: MainAxisSize.max,
@@ -467,54 +738,118 @@ void openNewTransactionSheet() {
                                             lineHeight: 1.5,
                                           ),
                                     ),
-                                    Row(
-  mainAxisSize: MainAxisSize.max,
+                                    Column(
+  mainAxisSize: MainAxisSize.min,
   mainAxisAlignment: MainAxisAlignment.start,
-  crossAxisAlignment: CrossAxisAlignment.center,
+  crossAxisAlignment: CrossAxisAlignment.start,
   children: [
-    Text(
-      FFAppState().userName.isNotEmpty
-          ? '@${FFAppState().userName}'
-          : 'User',
-      style: FlutterFlowTheme.of(context)
-          .titleLarge
-          .override(
-            font: GoogleFonts.plusJakartaSans(
-              fontWeight: FontWeight.w800,
-            ),
-            color: FlutterFlowTheme.of(context).primaryText,
-            letterSpacing: 0.0,
-            fontWeight: FontWeight.w800,
-            lineHeight: 1.3,
-          ),
-    ),
-    Icon(
-      Icons.verified_rounded,
-      color: FlutterFlowTheme.of(context).primaryText,
-      size: 18.0,
-    ),
-  ].divide(const SizedBox(width: 4.0)),
-),
-const SizedBox(height: 8.0),
-ElevatedButton(
-  onPressed: () {
-    context.pushNamed('KYCPAGE');
-  },
-  style: ElevatedButton.styleFrom(
-    backgroundColor: FlutterFlowTheme.of(context).primary,
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-  ),
-  child: Text(
-    'Verify KYC',
-    style: FlutterFlowTheme.of(context).labelLarge.override(
-          font: GoogleFonts.plusJakartaSans(),
-          color: FlutterFlowTheme.of(context).onPrimary,
-          fontWeight: FontWeight.bold,
+    Row(
+      mainAxisSize: MainAxisSize.max,
+      mainAxisAlignment: MainAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          FFAppState().userName.isNotEmpty
+              ? '@${FFAppState().userName}'
+              : 'User',
+          style: FlutterFlowTheme.of(context)
+              .titleLarge
+              .override(
+                font: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w800,
+                ),
+                color: FlutterFlowTheme.of(context).primaryText,
+                letterSpacing: 0.0,
+                fontWeight: FontWeight.w800,
+                lineHeight: 1.3,
+              ),
         ),
-  ),
+        const SizedBox(width: 6.0),
+        Icon(
+          Icons.verified_rounded,
+          color: FlutterFlowTheme.of(context).primaryText,
+          size: 18.0,
+        ),
+      ],
+    ),
+    const SizedBox(height: 8.0),
+    // Show KYC button only if not fully approved (Level 3)
+    if (kycStatus != 'approved' || kycLevel != '3')
+      ElevatedButton(
+        onPressed: () => context.pushNamed('KYCPAGE'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: context.primaryColor,
+          foregroundColor: context.background,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          textStyle: TextStyle(fontSize: 13),
+        ),
+        child: Text('Verify KYC'),
+      ),
+    if (kycStatus == 'approved' && kycLevel == '3')
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: context.successColor,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.check_circle, color: context.textPrimary, size: 16),
+            const SizedBox(width: 4),
+            Text(
+              'KYC Verified',
+              style: TextStyle(color: context.textPrimary, fontSize: 13),
+            ),
+          ],
+        ),
+      ),
+  ],
 ),
+                                  
                                   ],
+                                ),
+                                FlutterFlowIconButton(
+                                  borderRadius: 8.0,
+                                  buttonSize: 44.0,
+                                  fillColor: context.surface,
+                                  icon: Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.notifications_none,
+                                        color: FlutterFlowTheme.of(context).primaryText,
+                                        size: 28.0,
+                                      ),
+                                      if (!isNotificationCountLoading && notificationCount > 0)
+                                        Positioned(
+                                          right: 2,
+                                          top: 2,
+                                          child: Container(
+                                            height: 18,
+                                            padding: const EdgeInsets.symmetric(horizontal: 5),
+                                            decoration: BoxDecoration(
+                                              color: context.errorColor,
+                                              borderRadius: BorderRadius.circular(10),
+                                            ),
+                                            child: Text(
+                                              notificationCount.toString(),
+                                              style: TextStyle(
+                                                color: context.onSurface,
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  onPressed: () async {
+                                    await context.pushNamed('UserNotificationsPage');
+                                    if (mounted) {
+                                      fetchNotificationCount();
+                                    }
+                                  },
                                 ),
                                 FlutterFlowIconButton(
                                   borderRadius: 8.0,
@@ -545,16 +880,16 @@ ElevatedButton(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.person),
-              title: const Text('Profile'),
+              leading: Icon(Icons.person),
+              title: Text('Profile'),
               onTap: () {
                 Navigator.pop(context);
                 context.pushNamed('ProfileSettings');
               },
             ),
             ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Logout'),
+              leading: Icon(Icons.logout),
+              title: Text('Logout'),
               onTap: () {
                 Navigator.pop(context);
                 logoutUser();
@@ -573,13 +908,13 @@ ElevatedButton(
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsetsDirectional.fromSTEB(
-                            24.0, 0.0, 24.0, 0.0),
+                        padding: EdgeInsetsDirectional.fromSTEB(
+                            context.responsiveValue(24.0, minValue: 16.0), 0.0, context.responsiveValue(24.0, minValue: 16.0), 0.0),
                         child: Container(
                           child: ClipRRect(
-                            borderRadius: BorderRadius.circular(24.0),
+                            borderRadius: BorderRadius.circular(context.responsiveValue(24.0, minValue: 18.0)),
                             child: Container(
-                              height: 200.0,
+                              height: context.responsiveValue(200.0, minValue: 160.0, maxValue: 260.0),
                               decoration: BoxDecoration(
                                 color: FlutterFlowTheme.of(context).primary,
                                 borderRadius: BorderRadius.circular(24.0),
@@ -591,8 +926,8 @@ ElevatedButton(
                                   Container(
                                     alignment: const AlignmentDirectional(1.0, -1.0),
                                     child: Container(
-                                      width: 150.0,
-                                      height: 150.0,
+                                      width: context.responsiveValue(150.0, minValue: 110.0, maxValue: 180.0),
+                                      height: context.responsiveValue(150.0, minValue: 110.0, maxValue: 180.0),
                                       decoration: BoxDecoration(
                                         color: FlutterFlowTheme.of(context)
                                             .onPrimary6,
@@ -605,8 +940,8 @@ ElevatedButton(
                                   Container(
                                     alignment: const AlignmentDirectional(-1.0, 1.0),
                                     child: Container(
-                                      width: 100.0,
-                                      height: 100.0,
+                                      width: context.responsiveValue(100.0, minValue: 80.0, maxValue: 120.0),
+                                      height: context.responsiveValue(100.0, minValue: 80.0, maxValue: 120.0),
                                       decoration: BoxDecoration(
                                         color: FlutterFlowTheme.of(context)
                                             .onPrimary3,
@@ -694,19 +1029,6 @@ ElevatedButton(
         lineHeight: 1.2,
       ),
 ),
-                                           Text(
-  isBalanceLoading
-      ? 'Fetching balance...'
-      : '≈ ${kesEquivalent.toStringAsFixed(2)} KES',
-  style: FlutterFlowTheme.of(context)
-      .bodySmall
-      .override(
-        font: GoogleFonts.inter(),
-        color: FlutterFlowTheme.of(context).onPrimary60,
-        letterSpacing: 0.0,
-        lineHeight: 1.4,
-      ),
-),
                                           ].divide(const SizedBox(height: 4.0)),
                                         ),
                                         Row(
@@ -746,55 +1068,73 @@ ElevatedButton(
     ),
     Container(
       decoration: BoxDecoration(
-        color: FlutterFlowTheme.of(context).onPrimary,
-                                                borderRadius:
-                                                    BorderRadius.circular(14.0),
-                                                shape: BoxShape.rectangle,
-                                              ),
-                                              child: Padding(
-                                                padding: const EdgeInsetsDirectional
-                                                    .fromSTEB(
-                                                        16.0, 8.0, 16.0, 8.0),
-                                                child: Row(
-                                                  mainAxisSize: MainAxisSize.min,
-                                                  children: [
-                                                    ElevatedButton.icon(
-                                                      onPressed: () {
-                                                        context.pushNamed(DepositpageWidget.routeName);
-                                                      },
-                                                      icon: const Icon(Icons.arrow_downward_rounded, size: 18),
-                                                      label: const Text('Deposit'),
-                                                      style: ElevatedButton.styleFrom(
-                                                        backgroundColor: Colors.green,
-                                                        foregroundColor: Colors.white,
-                                                        padding: const EdgeInsets.symmetric(
-                                                          horizontal: 12,
-                                                          vertical: 8,
-                                                        ),
-                                                        textStyle: const TextStyle(fontSize: 12),
-                                                      ),
-                                                    ),
-                                                    const SizedBox(width: 10),
-                                                    ElevatedButton.icon(
-                                                      onPressed: () {
-                                                        context.pushNamed(WithdrawpageWidget.routeName);
-                                                      },
-                                                      icon: const Icon(Icons.arrow_upward_rounded, size: 18),
-                                                      label: const Text('Withdraw'),
-                                                      style: ElevatedButton.styleFrom(
-                                                        backgroundColor: Colors.orange,
-                                                        foregroundColor: Colors.white,
-                                                        padding: const EdgeInsets.symmetric(
-                                                          horizontal: 12,
-                                                          vertical: 8,
-                                                        ),
-                                                        textStyle: const TextStyle(fontSize: 12),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14.0),
+      ),
+      child: Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(8.0, 4.0, 8.0, 4.0),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ElevatedButton.icon(
+              onPressed: () {
+                // Gate deposit - requires Level 2 KYC approval
+                if (canUserTransact()) {
+                  context.pushNamed(DepositpageWidget.routeName);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Complete Level 2 KYC to deposit'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              },
+              icon: Icon(Icons.arrow_downward_rounded, size: 16),
+              label: Text('Deposit'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: context.successColor,
+                foregroundColor: context.background,
+                minimumSize: const Size(88, 34),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                textStyle: TextStyle(fontSize: 11),
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton.icon(
+              onPressed: () {
+                // Gate withdraw - requires Level 2 KYC approval
+                if (canUserTransact()) {
+                  context.pushNamed(WithdrawpageWidget.routeName);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Complete Level 2 KYC to withdraw'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              },
+              icon: Icon(Icons.arrow_upward_rounded, size: 16),
+              label: Text('Withdraw'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: context.warningColor,
+                foregroundColor: context.background,
+                minimumSize: const Size(96, 34),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                textStyle: TextStyle(fontSize: 11),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
                                           ],
                                         ),
                                       ],
@@ -821,48 +1161,117 @@ ElevatedButton(
                                       MainAxisAlignment.spaceBetween,
                                   crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
-                                    wrapWithModel(
-                                      model: _model.quickActionModel1,
-                                      updateCallback: () => safeSetState(() {}),
-                                      child: QuickActionWidget(
-                                        action: 'navigate:SendReceive',
-                                        icon: Icon(
-                                          Icons.north_east_rounded,
-                                          color: FlutterFlowTheme.of(context)
-                                              .primaryText,
-                                          size: 24.0,
-                                        ),
-                                        label: 'Send',
+                                    GestureDetector(
+                                      onTap: () {
+                                        // Gate Send - requires Level 2 KYC approval
+                                        if (canUserTransact()) {
+                                          context.goNamed('SendReceive');
+                                        } else {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Complete Level 2 KYC to send'),
+                                              behavior: SnackBarBehavior.floating,
+                                            ),
+                                          );
+                                        }
+                                      },
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        crossAxisAlignment: CrossAxisAlignment.center,
+                                        children: [
+                                          Container(
+                                            width: 56.0,
+                                            height: 56.0,
+                                            decoration: BoxDecoration(
+                                              color: FlutterFlowTheme.of(context).secondaryBackground,
+                                              borderRadius: BorderRadius.circular(20.0),
+                                              shape: BoxShape.rectangle,
+                                              border: Border.all(
+                                                color: FlutterFlowTheme.of(context).alternate,
+                                                width: 1.0,
+                                              ),
+                                            ),
+                                            alignment: const AlignmentDirectional(0.0, 0.0),
+                                            child: Icon(
+                                              Icons.north_east_rounded,
+                                              color: FlutterFlowTheme.of(context).primaryText,
+                                              size: 24.0,
+                                            ),
+                                          ),
+                                          Text(
+                                            'Send',
+                                            style: FlutterFlowTheme.of(context).labelMedium.override(
+                                                  font: GoogleFonts.plusJakartaSans(
+                                                    fontWeight: FlutterFlowTheme.of(context).labelMedium.fontWeight,
+                                                    fontStyle: FlutterFlowTheme.of(context).labelMedium.fontStyle,
+                                                  ),
+                                                  color: FlutterFlowTheme.of(context).secondaryText,
+                                                  letterSpacing: 0.0,
+                                                  fontWeight: FlutterFlowTheme.of(context).labelMedium.fontWeight,
+                                                  fontStyle: FlutterFlowTheme.of(context).labelMedium.fontStyle,
+                                                  lineHeight: 1.3,
+                                                ),
+                                          ),
+                                        ].divide(const SizedBox(height: 4.0)),
                                       ),
                                     ),
-                                    wrapWithModel(
-  model: _model.quickActionModel2,
-  updateCallback: () => safeSetState(() {}),
-  child: QuickActionWidget(
-    action: 'navigate:${QRScannerWidget.routeName}',
-    icon: Icon(
-      Icons.qr_code_scanner_rounded,
-      color: FlutterFlowTheme.of(context).primaryText,
-      size: 24.0,
-    ),
-    label: 'Scan',
-  ),
-),
-                                    // KYC quick action inserted between Scan and Escrow
-                                    wrapWithModel(
-                                      model: _model.quickActionModel5,
-                                      updateCallback: () => safeSetState(() {}),
-                                      child: QuickActionWidget(
-                                        action: 'navigate:KYCPAGE',
-                                        icon: Icon(
-                                          Icons.verified_user_rounded,
-                                          color: FlutterFlowTheme.of(context)
-                                              .primaryText,
-                                          size: 24.0,
-                                        ),
-                                        label: 'KYC',
+                                    GestureDetector(
+                                      onTap: () {
+                                        // Gate Scan - requires Level 2 KYC approval
+                                        if (canUserTransact()) {
+                                          context.goNamed(QRScannerWidget.routeName);
+                                        } else {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Complete Level 2 KYC to scan QR'),
+                                              behavior: SnackBarBehavior.floating,
+                                            ),
+                                          );
+                                        }
+                                      },
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        crossAxisAlignment: CrossAxisAlignment.center,
+                                        children: [
+                                          Container(
+                                            width: 56.0,
+                                            height: 56.0,
+                                            decoration: BoxDecoration(
+                                              color: FlutterFlowTheme.of(context).secondaryBackground,
+                                              borderRadius: BorderRadius.circular(20.0),
+                                              shape: BoxShape.rectangle,
+                                              border: Border.all(
+                                                color: FlutterFlowTheme.of(context).alternate,
+                                                width: 1.0,
+                                              ),
+                                            ),
+                                            alignment: const AlignmentDirectional(0.0, 0.0),
+                                            child: Icon(
+                                              Icons.qr_code_scanner_rounded,
+                                              color: FlutterFlowTheme.of(context).primaryText,
+                                              size: 24.0,
+                                            ),
+                                          ),
+                                          Text(
+                                            'Scan',
+                                            style: FlutterFlowTheme.of(context).labelMedium.override(
+                                                  font: GoogleFonts.plusJakartaSans(
+                                                    fontWeight: FlutterFlowTheme.of(context).labelMedium.fontWeight,
+                                                    fontStyle: FlutterFlowTheme.of(context).labelMedium.fontStyle,
+                                                  ),
+                                                  color: FlutterFlowTheme.of(context).secondaryText,
+                                                  letterSpacing: 0.0,
+                                                  fontWeight: FlutterFlowTheme.of(context).labelMedium.fontWeight,
+                                                  fontStyle: FlutterFlowTheme.of(context).labelMedium.fontStyle,
+                                                  lineHeight: 1.3,
+                                                ),
+                                          ),
+                                        ].divide(const SizedBox(height: 4.0)),
                                       ),
                                     ),
+                                    // KYC quick action removed per request
                                     wrapWithModel(
                                       model: _model.quickActionModel3,
                                       updateCallback: () => safeSetState(() {}),
@@ -937,14 +1346,24 @@ ElevatedButton(
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.center,
                                             children: [
-                                              Text(
-                                                'Growth History',
-                                                style:
-                                                    FlutterFlowTheme.of(context)
-                                                        .titleMedium
-                                                        .override(
-                                                          font: GoogleFonts
-                                                              .plusJakartaSans(
+                                              Expanded(
+                                                child: Text(
+                                                  'Growth History',
+                                                  style:
+                                                      FlutterFlowTheme.of(context)
+                                                          .titleMedium
+                                                          .override(
+                                                            font: GoogleFonts
+                                                                .plusJakartaSans(
+                                                              fontWeight:
+                                                                  FontWeight.bold,
+                                                              fontStyle:
+                                                                  FlutterFlowTheme.of(
+                                                                          context)
+                                                                      .titleMedium
+                                                                      .fontStyle,
+                                                            ),
+                                                            letterSpacing: 0.0,
                                                             fontWeight:
                                                                 FontWeight.bold,
                                                             fontStyle:
@@ -952,142 +1371,137 @@ ElevatedButton(
                                                                         context)
                                                                     .titleMedium
                                                                     .fontStyle,
+                                                            lineHeight: 1.4,
                                                           ),
-                                                          letterSpacing: 0.0,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          fontStyle:
-                                                              FlutterFlowTheme.of(
-                                                                      context)
-                                                                  .titleMedium
-                                                                  .fontStyle,
-                                                          lineHeight: 1.4,
-                                                        ),
+                                                ),
                                               ),
-                                              Text(
-                                                '+12.5%',
-                                                style:
-                                                    FlutterFlowTheme.of(context)
-                                                        .labelLarge
-                                                        .override(
-                                                          font: GoogleFonts
-                                                              .plusJakartaSans(
-                                                            fontWeight:
-                                                                FontWeight.w600,
-                                                            fontStyle:
-                                                                FlutterFlowTheme.of(
-                                                                        context)
-                                                                    .labelLarge
-                                                                    .fontStyle,
-                                                          ),
-                                                          color: FlutterFlowTheme
-                                                                  .of(context)
-                                                              .success,
-                                                          letterSpacing: 0.0,
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          fontStyle:
-                                                              FlutterFlowTheme.of(
-                                                                      context)
-                                                                  .labelLarge
-                                                                  .fontStyle,
-                                                          lineHeight: 1.3,
-                                                        ),
+                                              Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.end,
+                                                children: [
+                                                  Text(
+                                                    '+${growthPercentage.toStringAsFixed(1)}%',
+                                                    style:
+                                                        FlutterFlowTheme.of(context)
+                                                            .labelLarge
+                                                            .override(
+                                                              font: GoogleFonts
+                                                                  .plusJakartaSans(
+                                                                fontWeight:
+                                                                    FontWeight.w600,
+                                                                fontStyle:
+                                                                    FlutterFlowTheme.of(
+                                                                            context)
+                                                                        .labelLarge
+                                                                        .fontStyle,
+                                                              ),
+                                                              color: FlutterFlowTheme
+                                                                      .of(context)
+                                                                  .success,
+                                                              letterSpacing: 0.0,
+                                                              fontWeight:
+                                                                  FontWeight.w600,
+                                                              fontStyle:
+                                                                  FlutterFlowTheme.of(
+                                                                          context)
+                                                                      .labelLarge
+                                                                      .fontStyle,
+                                                              lineHeight: 1.3,
+                                                            ),
+                                                  ),
+                                                  TextButton(
+                                                    onPressed: () => context.goNamed('GrowthTrackingPage'),
+                                                    child: Text(
+                                                      'Track weekly/monthly/yearly',
+                                                      style:
+                                                          FlutterFlowTheme.of(context)
+                                                              .bodySmall
+                                                              .override(
+                                                                font: GoogleFonts
+                                                                    .plusJakartaSans(),
+                                                                fontWeight:
+                                                                    FontWeight.w600,
+                                                              ),
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ],
                                           ),
                                           SizedBox(
-                                            height: 120.0,
+                                            height: 140.0,
                                             child: isGrowthLoading
-                                                ? const Center(
+                                                ? Center(
                                                     child: CircularProgressIndicator(),
                                                   )
-                                                : FlutterFlowLineChart(
-                                                data: [
-                                                  FFLineChartData(
-                                                    xData: List.generate(
-growthYValues.length,
-(index) => index.toDouble(),
-),
+                                                : ClipRRect(
+                                                    borderRadius: BorderRadius.circular(12.0),
+                                                    child: LayoutBuilder(
+                                                      builder: (context, constraints) {
+                                                        final double maxX = growthYValues.isNotEmpty
+                                                            ? (growthYValues.length - 1).toDouble()
+                                                            : 6.0;
+                                                        final double maxY = growthYValues.isNotEmpty
+                                                            ? growthYValues.reduce((a, b) => a > b ? a : b) * 1.2
+                                                            : 72.0;
 
-yData: growthYValues,
-
-                                                    settings: LineChartBarData(
-                                                      color:
-                                                          FlutterFlowTheme.of(
-                                                                  context)
-                                                              .primary,
-                                                      barWidth: 2.0,
-                                                      isCurved: true,
-                                                      dotData: const FlDotData(
-                                                          show: false),
-                                                      belowBarData: BarAreaData(
-                                                        show: true,
-                                                        color:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .primary10,
-                                                      ),
-                                                    ),
-                                                  )
-                                                ],
-                                                chartStylingInfo:
-                                                    const ChartStylingInfo(
-                                                  backgroundColor:
-                                                      Colors.transparent,
-                                                  showBorder: false,
-                                                ),
-                                                axisBounds: const AxisBounds(
-                                                  minX: 0.0,
-                                                  minY: 0.0,
-                                                  maxX: 6.0,
-                                                  maxY: 72.0,
-                                                ),
-                                                xLabels: growthXLabels,
-
-                                                xAxisLabelInfo: AxisLabelInfo(
-                                                  showLabels: true,
-                                                  labelTextStyle:
-                                                      FlutterFlowTheme.of(
-                                                              context)
-                                                          .bodySmall
-                                                          .override(
-                                                            font: GoogleFonts
-                                                                .inter(
-                                                              fontWeight:
-                                                                  FlutterFlowTheme.of(
-                                                                          context)
-                                                                      .bodySmall
-                                                                      .fontWeight,
-                                                              fontStyle:
-                                                                  FlutterFlowTheme.of(
-                                                                          context)
-                                                                      .bodySmall
-                                                                      .fontStyle,
+                                                        return Container(
+                                                          width: constraints.maxWidth,
+                                                          height: constraints.maxHeight,
+                                                          color: Colors.transparent,
+                                                          child: FlutterFlowLineChart(
+                                                            data: [
+                                                              FFLineChartData(
+                                                                xData: List.generate(
+                                                                  growthYValues.length,
+                                                                  (index) => index.toDouble(),
+                                                                ),
+                                                                yData: growthYValues,
+                                                                settings: LineChartBarData(
+                                                                  color: FlutterFlowTheme.of(context).primary,
+                                                                  barWidth: 2.0,
+                                                                  isCurved: true,
+                                                                  dotData: const FlDotData(show: false),
+                                                                  belowBarData: BarAreaData(
+                                                                    show: true,
+                                                                    color: FlutterFlowTheme.of(context).primary10,
+                                                                  ),
+                                                                ),
+                                                              )
+                                                            ],
+                                                            chartStylingInfo: const ChartStylingInfo(
+                                                              backgroundColor: Colors.transparent,
+                                                              showBorder: false,
                                                             ),
-                                                            color: FlutterFlowTheme
-                                                                    .of(context)
-                                                                .secondaryText,
-                                                            fontSize: 10.0,
-                                                            letterSpacing: 0.0,
-                                                            fontWeight:
-                                                                FlutterFlowTheme.of(
-                                                                        context)
-                                                                    .bodySmall
-                                                                    .fontWeight,
-                                                            fontStyle:
-                                                                FlutterFlowTheme.of(
-                                                                        context)
-                                                                    .bodySmall
-                                                                    .fontStyle,
-                                                            lineHeight: 1.0,
+                                                            axisBounds: AxisBounds(
+                                                              minX: 0.0,
+                                                              minY: 0.0,
+                                                              maxX: maxX,
+                                                              maxY: maxY,
+                                                            ),
+                                                            xLabels: growthXLabels,
+                                                            xAxisLabelInfo: AxisLabelInfo(
+                                                              showLabels: true,
+                                                              labelTextStyle: FlutterFlowTheme.of(context).bodySmall.override(
+                                                                font: GoogleFonts.inter(
+                                                                  fontWeight: FlutterFlowTheme.of(context).bodySmall.fontWeight,
+                                                                  fontStyle: FlutterFlowTheme.of(context).bodySmall.fontStyle,
+                                                                ),
+                                                                color: FlutterFlowTheme.of(context).secondaryText,
+                                                                fontSize: 10.0,
+                                                                letterSpacing: 0.0,
+                                                                fontWeight: FlutterFlowTheme.of(context).bodySmall.fontWeight,
+                                                                fontStyle: FlutterFlowTheme.of(context).bodySmall.fontStyle,
+                                                                lineHeight: 1.0,
+                                                              ),
+                                                              reservedSize: 28.0,
+                                                            ),
+                                                            yAxisLabelInfo: const AxisLabelInfo(reservedSize: 0.0),
                                                           ),
-                                                  reservedSize: 28.0,
-                                                ),
-                                                yAxisLabelInfo: const AxisLabelInfo(
-                                                  reservedSize: 0.0,
-                                                ),
-                                              ),
+                                                        );
+                                                      },
+                                                    ),
+                                                  ),
                                             ),
                                         ].divide(const SizedBox(height: 16.0)),
                                       ),
@@ -1132,7 +1546,7 @@ yData: growthYValues,
               content: 'See All',
               icon_present: false,
               icon_end_present: false,
-              on_tap: 'navigate:MerchantDashboard',
+              on_tap: 'navigate:AllTransactions',
               color: FlutterFlowTheme.of(context).primaryText,
               variant: 'ghost',
               size: 'small',
@@ -1147,7 +1561,7 @@ yData: growthYValues,
       const SizedBox(height: 16.0),
 
       if (isTransactionsLoading)
-        const Center(
+        Center(
           child: Padding(
             padding: EdgeInsets.all(20),
             child: CircularProgressIndicator(),

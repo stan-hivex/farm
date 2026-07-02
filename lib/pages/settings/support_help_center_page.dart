@@ -41,7 +41,7 @@ class _SupportHelpCenterPageWidgetState
       appBar: AppBar(
         backgroundColor:
             FlutterFlowTheme.of(context).primaryBackground,
-        title: const Text('Support & Help Center'),
+        title: Text('Support & Help Center'),
         elevation: 0,
       ),
 
@@ -65,11 +65,11 @@ class _SupportHelpCenterPageWidgetState
                 Icons.question_answer_rounded,
                 color: FlutterFlowTheme.of(context).primary,
               ),
-              title: const Text('FAQs'),
-              subtitle: const Text(
+              title: Text('FAQs'),
+              subtitle: Text(
                 'Browse frequently asked questions',
               ),
-              trailing: const Icon(
+              trailing: Icon(
                 Icons.chevron_right_rounded,
               ),
               onTap: () {
@@ -85,11 +85,11 @@ class _SupportHelpCenterPageWidgetState
                 Icons.chat_rounded,
                 color: FlutterFlowTheme.of(context).primary,
               ),
-              title: const Text('Live Chat'),
-              subtitle: const Text(
+              title: Text('Live Chat'),
+              subtitle: Text(
                 'Chat with support team',
               ),
-              trailing: const Icon(
+              trailing: Icon(
                 Icons.chevron_right_rounded,
               ),
               onTap: () {
@@ -105,11 +105,11 @@ class _SupportHelpCenterPageWidgetState
                 Icons.email_rounded,
                 color: FlutterFlowTheme.of(context).primary,
               ),
-              title: const Text('Email Support'),
-              subtitle: const Text(
+              title: Text('Email Support'),
+              subtitle: Text(
                 'Send a support request',
               ),
-              trailing: const Icon(
+              trailing: Icon(
                 Icons.chevron_right_rounded,
               ),
               onTap: () {
