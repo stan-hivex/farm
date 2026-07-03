@@ -7,7 +7,7 @@ import '/core/app_config.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/core/theme_extensions.dart';
+import '/components/kyc_required_widget.dart';
 
 class DepositpageWidget extends StatefulWidget {
   const DepositpageWidget({super.key});
@@ -58,7 +58,12 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
     super.dispose();
   }
 
-  // ── Fetch wallet balance ─────────────────────────────────────────────────
+  bool get isKycApproved {
+    final status = FFAppState().kycStatus.trim().toLowerCase();
+    return ['verified', 'approved', 'complete', 'success'].contains(status);
+  }
+
+  // ── Fetch wallet balance ─────────────────────────────────────────────────────────────────
   Future<void> _fetchWallet() async {
     try {
       final res = await http.get(
@@ -265,36 +270,27 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
     );
   }
 
-  // ── Delete failed deposit ────────────────────────────────────────────────
-  Future<void> _deleteFailedDeposit(dynamic depositIdOrRef) async {
-    try {
-      final res = await http.delete(
-        Uri.parse('${AppConfig.api}/deposit/$depositIdOrRef'),
-        headers: {'Authorization': 'Bearer ${FFAppState().accessToken}'},
-      );
-      
-      if (res.statusCode == 200 || res.statusCode == 204) {
-        debugPrint('Failed deposit $depositIdOrRef removed from history');
-        if (mounted) {
-          // Refresh history to show cleaned up list
-          await _fetchHistory();
-        }
-      } else {
-        debugPrint('Could not delete deposit: ${res.statusCode}');
-      }
-    } catch (e) {
-      debugPrint('Error cleaning up failed deposit: $e');
-    }
-  }
-
   // ── Payment method card ──────────────────────────────────────────────────
-  Widget _methodCard({
+  Widget _methodCard(BuildContext context, {
     required String method,
     required IconData icon,
     required String title,
     required String subtitle,
   }) {
+    final theme = FlutterFlowTheme.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final selected = selectedMethod == method;
+    final cardBackground = selected
+        ? (isDark ? const Color(0xFF1F1F1F) : Colors.black)
+        : theme.secondaryBackground;
+    final cardBorder = selected
+        ? (isDark ? const Color(0xFF2A2A2A) : Colors.black)
+        : theme.secondaryText.withAlpha(90);
+    final textColor = selected ? Colors.white : theme.primaryText;
+    final subtitleColor = selected
+        ? Colors.white70
+        : theme.secondaryText;
+
     return GestureDetector(
       onTap: () => setState(() => selectedMethod = method),
       child: AnimatedContainer(
@@ -302,15 +298,13 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: selected ? context.background : context.surface,
+          color: cardBackground,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: selected ? context.background : context.borderColor,
-          ),
+          border: Border.all(color: cardBorder),
         ),
         child: Row(
           children: [
-            Icon(icon, color: selected ? context.onSurface : context.onSurface.withOpacity(0.7)),
+            Icon(icon, color: textColor),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -318,20 +312,20 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                 children: [
                   Text(title,
                       style: GoogleFonts.plusJakartaSans(
-                        color: context.onSurface,
+                        color: textColor,
                         fontWeight: FontWeight.bold,
                       )),
                   const SizedBox(height: 4),
                   Text(subtitle,
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 12,
-                        color: context.onSurface.withOpacity(selected ? 0.7 : 0.6),
+                        color: subtitleColor,
                       )),
                 ],
               ),
             ),
             if (selected)
-              Icon(Icons.check_circle, color: context.onSurface),
+              Icon(Icons.check_circle, color: Colors.white),
           ],
         ),
       ),
@@ -341,9 +335,22 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
   // ── UI ───────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    if (!isKycApproved) {
+      return Scaffold(
+        key: scaffoldKey,
+        backgroundColor: theme.primaryBackground,
+        body: SafeArea(
+          child: KycRequiredWidget(feature: 'deposit'),
+        ),
+      );
+    }
+
     return Scaffold(
       key: scaffoldKey,
-      backgroundColor: context.background,
+      backgroundColor: theme.primaryBackground,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -356,15 +363,13 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   FlutterFlowIconButton(
-                    icon: Icon(Icons.arrow_back_ios_new),
+                    icon: const Icon(Icons.arrow_back_ios_new),
                     onPressed: () => context.goNamed('Dashboard'),
                   ),
                   Text('Deposit Funds',
                       style: GoogleFonts.plusJakartaSans(
-                          color: context.onSurface,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold)),
-                  Icon(Icons.help_outline, color: context.onSurface),
+                          fontSize: 18, fontWeight: FontWeight.bold, color: theme.primaryText)),
+                  Icon(Icons.help_outline, color: theme.secondaryText),
                 ],
               ),
 
@@ -375,23 +380,23 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: context.background,
+                  color: isDark ? const Color(0xFF111111) : Colors.black,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: loadingWallet
-                    ? Center(
-                        child: CircularProgressIndicator(color: context.onSurface))
+                    ? const Center(
+                        child: CircularProgressIndicator(color: Colors.white))
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('Wallet Balance',
                               style: GoogleFonts.plusJakartaSans(
-                                  color: context.onSurface.withOpacity(0.7), fontSize: 12)),
+                                  color: Colors.white70, fontSize: 12)),
                           const SizedBox(height: 6),
                           Text(
                             '${walletBalance.toStringAsFixed(4)} FARM',
                             style: GoogleFonts.plusJakartaSans(
-                              color: context.onSurface,
+                              color: Colors.white,
                               fontSize: 26,
                               fontWeight: FontWeight.bold,
                             ),
@@ -410,16 +415,15 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                       const TextInputType.numberWithOptions(decimal: true),
                   onChanged: (_) => setState(() {}),
                   style: GoogleFonts.plusJakartaSans(
-                      color: context.onSurface,
                       fontSize: 36,
-                      fontWeight: FontWeight.bold),
+                      fontWeight: FontWeight.bold,
+                      color: theme.primaryText),
                   decoration: InputDecoration(
                     prefixText: '$selectedCurrency  ',
-                    prefixStyle: GoogleFonts.plusJakartaSans(color: context.onSurface),
                     border: InputBorder.none,
                     hintText: '0.00',
                     hintStyle: GoogleFonts.plusJakartaSans(
-                        fontSize: 36, color: context.textSecondary),
+                        fontSize: 36, color: theme.secondaryText),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -431,30 +435,34 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
               // Payment method
               Text('Payment Method',
                   style: GoogleFonts.plusJakartaSans(
-                      color: context.onSurface,
                       fontSize: 16,
-                      fontWeight: FontWeight.bold)),
+                      fontWeight: FontWeight.bold,
+                      color: theme.primaryText)),
               const SizedBox(height: 12),
 
               _methodCard(
+                context,
                 method: 'CARD',
                 icon: Icons.credit_card,
                 title: 'Bank Card',
                 subtitle: 'Instant • No fee — via Paystack',
               ),
               _methodCard(
+                context,
                 method: 'BANK_TRANSFER',
                 icon: Icons.account_balance,
                 title: 'Bank Transfer',
                 subtitle: '1–2 business days • No fee — via Paystack',
               ),
               _methodCard(
+                context,
                 method: 'MOBILE_MONEY',
                 icon: Icons.phone_android,
                 title: 'Mobile Money (M-Pesa)',
                 subtitle: '1–5 minutes • No fee — via Paystack',
               ),
               _methodCard(
+                context,
                 method: 'CRYPTO',
                 icon: Icons.currency_bitcoin,
                 title: 'Crypto',
@@ -467,8 +475,9 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
+                  color: theme.secondaryBackground,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: context.borderColor),
+                  border: Border.all(color: theme.secondaryText.withAlpha(80)),
                 ),
                 child: Column(
                   children: [
@@ -486,6 +495,29 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
 
               const SizedBox(height: 24),
 
+              // Security note
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: theme.secondaryBackground,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.lock_outline, size: 18, color: theme.primary),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Payments are processed securely via Paystack and Ivorypay. '
+                        'FARM tokens are credited to your wallet after confirmation.',
+                        style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12, color: theme.secondaryText),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
               const SizedBox(height: 24),
 
               // Deposit button
@@ -494,16 +526,17 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                 height: 56,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: FlutterFlowTheme.of(context).primary,
+                    backgroundColor:
+                        isDark ? const Color(0xFF1F1F1F) : Colors.black,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),
                   ),
                   onPressed: (isLoading || amount <= 0) ? null : _createDeposit,
                   child: isLoading
-                      ? CircularProgressIndicator(color: context.onSurface)
+                      ? const CircularProgressIndicator(color: Colors.white)
                       : Text('Deposit Funds',
                           style: GoogleFonts.plusJakartaSans(
-                              color: FlutterFlowTheme.of(context).onPrimary,
+                              color: Colors.white,
                               fontWeight: FontWeight.bold,
                               fontSize: 16)),
                 ),
@@ -514,9 +547,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
               // Recent deposits
               Text('Recent Deposits',
                   style: GoogleFonts.plusJakartaSans(
-                      color: context.onSurface,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold)),
+                      fontSize: 16, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
 
               if (recentDeposits.isEmpty)
@@ -525,7 +556,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                     padding: const EdgeInsets.all(24),
                     child: Text('No deposits yet',
                         style: GoogleFonts.plusJakartaSans(
-                            color: context.textSecondary)),
+                            color: theme.secondaryText)),
                   ),
                 )
               else
@@ -537,7 +568,8 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                     margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      border: Border.all(color: context.borderColor),
+                      color: theme.secondaryBackground,
+                      border: Border.all(color: theme.secondaryText.withAlpha(70)),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Row(
@@ -547,8 +579,8 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                           height: 40,
                           decoration: BoxDecoration(
                             color: isComplete
-                                ? context.successColor.withOpacity(0.2)
-                                : context.warningColor.withOpacity(0.2),
+                                ? Colors.green.shade50
+                                : Colors.orange.shade50,
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -556,7 +588,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                                 ? Icons.check_circle_outline
                                 : Icons.hourglass_top,
                             color:
-                                isComplete ? context.successColor : context.warningColor,
+                                isComplete ? Colors.green : Colors.orange,
                             size: 20,
                           ),
                         ),
@@ -568,13 +600,14 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                               Text(
                                 '${meta['currency_fiat'] ?? 'KES'} ${meta['amount_fiat'] ?? d['amount']}',
                                 style: GoogleFonts.plusJakartaSans(
-                                    fontWeight: FontWeight.bold),
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.primaryText),
                               ),
                               Text(
                                 '≈ ${d['amount']} FARM • $status',
                                 style: GoogleFonts.plusJakartaSans(
                                     fontSize: 12,
-                                    color: context.textSecondary),
+                                    color: theme.secondaryText),
                               ),
                             ],
                           ),
@@ -584,7 +617,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                               ? 'CRYPTO'
                               : 'FIAT',
                           style: GoogleFonts.plusJakartaSans(
-                              fontSize: 11, color: context.textSecondary),
+                              fontSize: 11, color: theme.secondaryText),
                         ),
                       ],
                     ),
@@ -594,7 +627,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
               const SizedBox(height: 20),
               Center(
                 child: Text('Secured by FARM 🔒',
-                    style: TextStyle(color: context.textSecondary, fontSize: 12)),
+                    style: TextStyle(color: theme.secondaryText, fontSize: 12)),
               ),
             ],
           ),

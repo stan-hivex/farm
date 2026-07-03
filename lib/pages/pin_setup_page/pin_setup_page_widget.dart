@@ -12,6 +12,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/core/theme_extensions.dart';
+import '/core/responsive.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 
 
@@ -253,11 +254,11 @@ class _PinSetupPageWidgetState
           mainAxisAlignment:
               MainAxisAlignment.center,
           children: [
-            const SizedBox(width: 82),
+            SizedBox(width: context.responsiveValue(82)),
 
             keypadButton('0'),
 
-            const SizedBox(width: 12),
+            SizedBox(width: context.responsiveValue(12)),
 
             deleteButton(),
           ],
@@ -279,17 +280,15 @@ class _PinSetupPageWidgetState
                 .primaryBackground,
         body: SafeArea(
           child: SingleChildScrollView(
-            padding:
-                const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment:
                   CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 20),
+                SizedBox(height: context.responsiveValue(20)),
 
                 Container(
-                  width: 80,
-                  height: 80,
+                  width: context.responsiveValue(80),
+                  height: context.responsiveValue(80),
                   decoration: BoxDecoration(
                     color: context.background,
                     borderRadius:
@@ -300,11 +299,11 @@ class _PinSetupPageWidgetState
                   child: Icon(
                     Icons.lock_outline,
                     color: context.onSurface,
-                    size: 40,
+                    size: context.responsiveValue(40),
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                SizedBox(height: context.responsiveValue(24)),
 
                 Text(
                   'Create Transaction PIN',
@@ -326,7 +325,7 @@ class _PinSetupPageWidgetState
                           ),
                 ),
 
-                const SizedBox(height: 8),
+                SizedBox(height: context.responsiveValue(8)),
 
                 Text(
                   'Set a secure PIN to authorize transactions',
@@ -350,7 +349,7 @@ class _PinSetupPageWidgetState
                           .titleMedium,
                 ),
 
-                const SizedBox(height: 20),
+                SizedBox(height: context.responsiveValue(20)),
 
                 Row(
                   mainAxisAlignment:
@@ -374,7 +373,7 @@ class _PinSetupPageWidgetState
                   ),
                 ),
 
-                const SizedBox(height: 40),
+                SizedBox(height: context.responsiveValue(40)),
 
                 wrapWithModel(
                   model:
@@ -390,11 +389,11 @@ class _PinSetupPageWidgetState
                   ),
                 ),
 
-                const SizedBox(height: 40),
+                SizedBox(height: context.responsiveValue(40)),
 
                 buildKeypad(),
 
-                const SizedBox(height: 30),
+                SizedBox(height: context.responsiveValue(30)),
 
                 FFButtonWidget(
                   onPressed: () async {
@@ -402,7 +401,7 @@ class _PinSetupPageWidgetState
                   },
                   text: 'Verify PIN',
                   options: FFButtonOptions(
-                    height: 55,
+                    height: context.responsiveValue(55),
                     color: FlutterFlowTheme.of(context).primary,
                     textStyle:
                         TextStyle(
@@ -418,7 +417,7 @@ class _PinSetupPageWidgetState
                   ),
                 ),
 
-                const SizedBox(height: 40),
+                SizedBox(height: context.responsiveValue(40)),
               ],
             ),
           ),

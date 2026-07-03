@@ -3,7 +3,7 @@ import '/backend/api_requests/wallet_api_service.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/core/theme_extensions.dart';
+import '/components/kyc_required_widget.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -45,9 +45,10 @@ class _SendReceiveWidgetState
   DateTime? _lastSentAt;
 
   bool showReceive = false;
+  bool isRequesting = false;
+  List<dynamic> pendingRequests = [];
 
   double balance = 0;
-
   List<dynamic> transactions = [];
   List<dynamic> userSuggestions = [];
 
@@ -65,6 +66,7 @@ class _SendReceiveWidgetState
     );
 
     fetchWallet();
+    fetchPendingRequests();
   }
 
   @override
@@ -76,6 +78,11 @@ class _SendReceiveWidgetState
     successController.dispose();
 
     super.dispose();
+  }
+
+  bool get isKycApproved {
+    final status = FFAppState().kycStatus.trim().toLowerCase();
+    return ['verified', 'approved', 'complete', 'success'].contains(status);
   }
 
   Future<void> fetchWallet() async {
@@ -240,13 +247,13 @@ class _SendReceiveWidgetState
                         width: 90,
                         height: 90,
                         decoration:
-                            BoxDecoration(
-                          color: context.successColor,
+                            const BoxDecoration(
+                          color: Colors.green,
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(
+                        child: const Icon(
                           Icons.check,
-                          color: context.onSurface,
+                          color: Colors.white,
                           size: 50,
                         ),
                       ),
@@ -254,7 +261,7 @@ class _SendReceiveWidgetState
 
                     const SizedBox(height: 24),
 
-                    Text(
+                    const Text(
                       'Transfer Successful',
                       style: TextStyle(
                         fontSize: 22,
@@ -298,7 +305,7 @@ class _SendReceiveWidgetState
           content: Text(
             e.toString().replaceAll('Exception: ', ''),
           ),
-          backgroundColor: context.errorColor,
+          backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -307,6 +314,181 @@ class _SendReceiveWidgetState
         isSending = false;
       });
     }
+  }
+
+  Future<void> requestFunds() async {
+    if (recipientController.text.isEmpty || amountController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter both recipient and amount'),
+        ),
+      );
+      return;
+    }
+
+    try {
+      setState(() => isRequesting = true);
+      final token = context.read<FFAppState>().accessToken;
+      final amount = enteredAmount;
+
+      await WalletApiService.requestFunds(
+        token: token,
+        senderIdentifier: recipientController.text.trim(),
+        amount: amount,
+        description: descriptionController.text.trim(),
+      );
+
+      successController.forward();
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            content: SizedBox(
+              height: 220,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ScaleTransition(
+                    scale: Tween<double>(begin: 0, end: 1).animate(
+                      CurvedAnimation(parent: successController, curve: Curves.elasticOut),
+                    ),
+                    child: Container(
+                      width: 90,
+                      height: 90,
+                      decoration: const BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
+                      child: const Icon(Icons.check, color: Colors.white, size: 50),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text('Request Sent', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 12),
+                  Text('${amount.toStringAsFixed(2)} FARM requested', textAlign: TextAlign.center),
+                ],
+              ),
+            ),
+          ),
+        );
+        await Future.delayed(const Duration(seconds: 2));
+        if (mounted) Navigator.pop(context);
+        recipientController.clear();
+        amountController.clear();
+        descriptionController.clear();
+        await fetchPendingRequests();
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      setState(() => isRequesting = false);
+    }
+  }
+
+  Future<void> fetchPendingRequests() async {
+    try {
+      final String token = context.read<FFAppState>().accessToken;
+      final requests = await WalletApiService.getPendingRequests(token: token);
+      setState(() => pendingRequests = requests);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    }
+  }
+
+  Future<void> acceptTransferRequest(String requestId, String pin) async {
+    try {
+      final token = context.read<FFAppState>().accessToken;
+      await WalletApiService.acceptTransferRequest(token: token, requestId: requestId, pin: pin);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Transfer completed successfully'), backgroundColor: Colors.green),
+        );
+      }
+      fetchWallet();
+      await fetchPendingRequests();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating),
+        );
+      }
+    }
+  }
+
+  Future<void> rejectTransferRequest(String requestId) async {
+    try {
+      final token = context.read<FFAppState>().accessToken;
+      await WalletApiService.rejectTransferRequest(token: token, requestId: requestId);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Request rejected')));
+      await fetchPendingRequests();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e'), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating),
+        );
+      }
+    }
+  }
+
+  void _showPinConfirmDialog(String requestId, String requesterUsername, double amount) {
+    final tempPin = TextEditingController();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text('Confirm Transfer'),
+        content: SizedBox(
+          height: 200,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Send ${amount.toStringAsFixed(2)} FARM to @$requesterUsername?',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 24),
+              TextField(
+                controller: tempPin,
+                obscureText: true,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  hintText: 'Enter PIN',
+                  prefixIcon: const Icon(Icons.lock),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              rejectTransferRequest(requestId);
+            },
+            child: const Text('Reject'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (tempPin.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter PIN')));
+                return;
+              }
+              Navigator.pop(context);
+              acceptTransferRequest(requestId, tempPin.text);
+              tempPin.dispose();
+            },
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget buildInfoRow(
@@ -327,7 +509,7 @@ class _SendReceiveWidgetState
         ),
         Text(
           value,
-          style: TextStyle(
+          style: const TextStyle(
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -338,6 +520,7 @@ class _SendReceiveWidgetState
   Widget buildTransactionCard(
     dynamic tx,
   ) {
+    final theme = FlutterFlowTheme.of(context);
     final outgoing =
         tx['is_outgoing'] == true;
 
@@ -361,16 +544,16 @@ class _SendReceiveWidgetState
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: outgoing
-                  ? context.errorColor.withOpacity(0.15)
-                  : context.successColor.withOpacity(0.15),
+                  ? Colors.red.shade100
+                  : Colors.green.shade100,
             ),
             child: Icon(
               outgoing
                   ? Icons.arrow_upward
                   : Icons.arrow_downward,
               color: outgoing
-                  ? context.errorColor
-                  : context.successColor,
+                  ? Colors.red
+                  : Colors.green,
             ),
           ),
 
@@ -388,6 +571,7 @@ class _SendReceiveWidgetState
                   style: TextStyle(
                     fontWeight:
                         FontWeight.bold,
+                    color: theme.primaryText,
                   ),
                 ),
 
@@ -411,9 +595,117 @@ class _SendReceiveWidgetState
             style: TextStyle(
               fontWeight: FontWeight.bold,
               color: outgoing
-                  ? context.errorColor
-                  : context.successColor,
+                  ? Colors.red
+                  : Colors.green,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildRequestCard(dynamic req) {
+    final theme = FlutterFlowTheme.of(context);
+    final requester = req['users_requester'];
+    final requesterName = requester != null
+        ? '${requester['first_name']} ${requester['last_name']}'
+        : 'Requester';
+    final requesterUsername = requester != null
+        ? requester['username']
+        : 'unknown';
+    final amount = req['amount'] as num;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        color: FlutterFlowTheme.of(context).secondaryBackground,
+        border: Border.all(color: Colors.orange.shade100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.orange.shade100,
+                ),
+                child: Icon(
+                  Icons.call_received,
+                  color: Colors.orange.shade700,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$requesterName requested',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: theme.primaryText,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '@$requesterUsername',
+                      style: TextStyle(
+                        color: FlutterFlowTheme.of(context).secondaryText,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                '${amount.toStringAsFixed(2)} FARM',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    _showPinConfirmDialog(
+                      req['id'],
+                      requesterUsername,
+                      amount.toDouble(),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                  child: const Text('Send'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              OutlinedButton(
+                onPressed: () {
+                  rejectTransferRequest(req['id']);
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
+                child: const Text('Reject'),
+              ),
+            ],
           ),
         ],
       ),
@@ -446,23 +738,30 @@ class _SendReceiveWidgetState
 
   @override
   Widget build(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final selectedTabBackground = isDark ? const Color(0xFF1F1F1F) : Colors.black;
+    final selectedTabTextColor = Colors.white;
+    final unselectedTabBackground = theme.primaryBackground;
+    final unselectedTabTextColor = theme.primaryText;
+
     return GestureDetector(
       onTap: () {
         FocusScope.of(context).unfocus();
       },
       child: Scaffold(
         key: scaffoldKey,
-        backgroundColor:
-            FlutterFlowTheme.of(context)
-                .primaryBackground,
+        backgroundColor: theme.primaryBackground,
 
         body: SafeArea(
-          child: isLoading
-              ? Center(
-                  child:
-                      CircularProgressIndicator(),
-                )
-              : Column(
+          child: !isKycApproved
+            ? const KycRequiredWidget(feature: 'send & receive')
+            : isLoading
+                ? const Center(
+                    child:
+                        CircularProgressIndicator(),
+                  )
+                : Column(
                   children: [
                     Padding(
                       padding:
@@ -546,9 +845,8 @@ class _SendReceiveWidgetState
                                         .circular(
                                   28,
                                 ),
-                                color: context.isDarkMode
-                                    ? context.background
-                                    : FlutterFlowTheme.of(
+                                color:
+                                    FlutterFlowTheme.of(
                                             context)
                                         .primaryText,
                                 border: Border.all(
@@ -559,7 +857,7 @@ class _SendReceiveWidgetState
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: context.background
+                                    color: Colors.black
                                         .withAlpha(20),
                                     blurRadius: 16,
                                     offset:
@@ -576,9 +874,8 @@ class _SendReceiveWidgetState
                                     'Available Balance',
                                     style:
                                         TextStyle(
-                                      color: context.isDarkMode
-                                          ? context.onSurface
-                                          : FlutterFlowTheme.of(
+                                      color:
+                                          FlutterFlowTheme.of(
                                                   context)
                                               .primaryBackground,
                                       fontWeight:
@@ -598,7 +895,7 @@ class _SendReceiveWidgetState
                                             .headlineLarge
                                             .override(
                                               color:
-                                                  context.onSurface,
+                                                  theme.primaryText,
                                               font:
                                                   GoogleFonts.plusJakartaSans(
                                                 fontWeight:
@@ -641,22 +938,15 @@ class _SendReceiveWidgetState
                                           18,
                                         ),
                                         color: !showReceive
-                                            ? FlutterFlowTheme.of(
-                                                    context)
-                                                .primaryBackground
-                                            : FlutterFlowTheme.of(
-                                                    context)
-                                                .primaryText,
+                                            ? unselectedTabBackground
+                                            : selectedTabBackground,
                                         border: Border.all(
-                                          color:
-                                              FlutterFlowTheme.of(
-                                                      context)
-                                                  .secondaryText
-                                                  .withAlpha(51),
+                                          color: theme.secondaryText
+                                              .withAlpha(51),
                                         ),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: context.background
+                                            color: Colors.black
                                                 .withAlpha(13),
                                             blurRadius: 12,
                                             offset:
@@ -672,8 +962,8 @@ class _SendReceiveWidgetState
                                           style:
                                               TextStyle(
                                             color: !showReceive
-                                                ? FlutterFlowTheme.of(context).primaryText
-                                                : context.onSurface,
+                                                ? unselectedTabTextColor
+                                                : selectedTabTextColor,
                                             fontWeight:
                                                 FontWeight.bold,
                                           ),
@@ -712,22 +1002,15 @@ class _SendReceiveWidgetState
                                           18,
                                         ),
                                         color: showReceive
-                                            ? FlutterFlowTheme.of(
-                                                    context)
-                                                .primaryBackground
-                                            : FlutterFlowTheme.of(
-                                                    context)
-                                                .primaryText,
+                                            ? unselectedTabBackground
+                                            : selectedTabBackground,
                                         border: Border.all(
-                                          color:
-                                              FlutterFlowTheme.of(
-                                                      context)
-                                                  .secondaryText
-                                                  .withAlpha(51),
+                                          color: theme.secondaryText
+                                              .withAlpha(51),
                                         ),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: context.background
+                                            color: Colors.black
                                                 .withAlpha(13),
                                             blurRadius: 12,
                                             offset:
@@ -743,8 +1026,8 @@ class _SendReceiveWidgetState
                                           style:
                                               TextStyle(
                                             color: showReceive
-                                                ? FlutterFlowTheme.of(context).primaryText
-                                                : context.onSurface,
+                                                ? unselectedTabTextColor
+                                                : selectedTabTextColor,
                                             fontWeight:
                                                 FontWeight.bold,
                                           ),
@@ -791,7 +1074,7 @@ class _SendReceiveWidgetState
                                         fontSize: 12,
                                       ),
                                       prefixIcon:
-                                          Icon(
+                                          const Icon(
                                         Icons
                                             .person,
                                       ),
@@ -962,7 +1245,7 @@ class _SendReceiveWidgetState
                                       hintText:
                                           'Enter PIN',
                                       prefixIcon:
-                                          Icon(
+                                          const Icon(
                                         Icons.lock,
                                       ),
                                       border:
@@ -1036,9 +1319,7 @@ class _SendReceiveWidgetState
                                       style:
                                           ElevatedButton.styleFrom(
                                         backgroundColor:
-                                          FlutterFlowTheme.of(
-                                              context)
-                                            .primary,
+                                            selectedTabBackground,
                                         shape:
                                             RoundedRectangleBorder(
                                           borderRadius:
@@ -1049,11 +1330,11 @@ class _SendReceiveWidgetState
                                       ),
                                       child:
                                           isSending
-                                              ? CircularProgressIndicator(
+                                              ? const CircularProgressIndicator(
                                                   color:
-                                                      context.onSurface,
+                                                      Colors.white,
                                                 )
-                                              : Text(
+                                              : const Text(
                                                   'Send FARM',
                                                   style:
                                                       TextStyle(
@@ -1061,8 +1342,8 @@ class _SendReceiveWidgetState
                                                         18,
                                                     fontWeight:
                                                         FontWeight.bold,
-                                              color:
-                                                FlutterFlowTheme.of(context).onPrimary,
+                                                    color:
+                                                        Colors.white,
                                                   ),
                                                 ),
                                     ),
@@ -1073,7 +1354,7 @@ class _SendReceiveWidgetState
                               Container(
                                 padding:
                                     const EdgeInsets
-                                        .all(32),
+                                        .all(24),
                                 decoration:
                                     BoxDecoration(
                                   borderRadius:
@@ -1094,7 +1375,7 @@ class _SendReceiveWidgetState
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: context.background
+                                      color: Colors.black
                                           .withAlpha(13),
                                       blurRadius: 14,
                                       offset:
@@ -1103,22 +1384,11 @@ class _SendReceiveWidgetState
                                   ],
                                 ),
                                 child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
                                   children: [
-                                    Icon(
-                                      Icons.qr_code,
-                                      size: 180,
-                                      color:
-                                          FlutterFlowTheme.of(
-                                                  context)
-                                              .primaryText,
-                                    ),
-
-                                    const SizedBox(
-                                      height: 24,
-                                    ),
-
                                     Text(
-                                      'Receive FARM',
+                                      'Request FARM',
                                       style:
                                           FlutterFlowTheme.of(
                                                   context)
@@ -1132,22 +1402,219 @@ class _SendReceiveWidgetState
                                     ),
 
                                     const SizedBox(
-                                      height: 12,
+                                      height: 20,
                                     ),
 
-                                    SelectableText(
-                                      context
-                                          .read<FFAppState>()
-                                          .userName,
-                                      style: TextStyle(
-                                        fontWeight:
-                                            FontWeight.bold,
-                                        fontSize:
-                                            20,
-                                        color:
+                                    TextField(
+                                      controller:
+                                          recipientController,
+                                      onChanged:
+                                          searchUsers,
+                                      decoration:
+                                          InputDecoration(
+                                        filled: true,
+                                        fillColor:
                                             FlutterFlowTheme.of(
                                                     context)
-                                                .primaryText,
+                                                .secondaryBackground,
+                                        hintText:
+                                            'Sender username or phone number',
+                                        helperText:
+                                            'Enter the user you are requesting from',
+                                        helperStyle:
+                                            TextStyle(
+                                          color:
+                                              FlutterFlowTheme.of(
+                                                      context)
+                                                  .secondaryText,
+                                          fontSize: 12,
+                                        ),
+                                        prefixIcon:
+                                            const Icon(
+                                          Icons.person,
+                                        ),
+                                        border:
+                                            OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(
+                                            18,
+                                          ),
+                                          borderSide:
+                                              BorderSide(
+                                            color:
+                                                FlutterFlowTheme.of(
+                                                        context)
+                                                    .secondaryText
+                                                    .withAlpha(61),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+
+                                    if (userSuggestions
+                                        .isNotEmpty)
+                                      Container(
+                                        margin:
+                                            const EdgeInsets
+                                                .only(
+                                          top: 12,
+                                        ),
+                                        decoration:
+                                            BoxDecoration(
+                                          borderRadius:
+                                              BorderRadius.circular(
+                                            18,
+                                          ),
+                                          color: FlutterFlowTheme.of(
+                                                  context)
+                                              .secondaryBackground,
+                                          border: Border.all(
+                                            color:
+                                                FlutterFlowTheme.of(
+                                                        context)
+                                                    .secondaryText
+                                                    .withAlpha(41),
+                                          ),
+                                        ),
+                                        child:
+                                            Column(
+                                          children:
+                                              userSuggestions
+                                                  .map(
+                                                    (
+                                                      u,
+                                                    ) =>
+                                                      buildSuggestionCard(
+                                                    u,
+                                                  ),
+                                                  )
+                                                  .toList(),
+                                        ),
+                                      ),
+
+                                    const SizedBox(
+                                      height: 20,
+                                    ),
+
+                                    TextField(
+                                      controller:
+                                          amountController,
+                                      keyboardType:
+                                          TextInputType.number,
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter
+                                            .allow(
+                                          RegExp(
+                                            r'[0-9.]',
+                                          ),
+                                        ),
+                                      ],
+                                      decoration:
+                                          InputDecoration(
+                                        filled: true,
+                                        fillColor:
+                                            FlutterFlowTheme.of(
+                                                    context)
+                                                .secondaryBackground,
+                                        hintText:
+                                            'Amount',
+                                        prefixText:
+                                            'FARM ',
+                                        border:
+                                            OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(
+                                            18,
+                                          ),
+                                          borderSide:
+                                              BorderSide(
+                                            color:
+                                                FlutterFlowTheme.of(
+                                                        context)
+                                                    .secondaryText
+                                                    .withAlpha(61),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+
+                                    const SizedBox(
+                                      height: 20,
+                                    ),
+
+                                    TextField(
+                                      controller:
+                                          descriptionController,
+                                      maxLines: 3,
+                                      decoration:
+                                          InputDecoration(
+                                        filled: true,
+                                        fillColor:
+                                            FlutterFlowTheme.of(
+                                                    context)
+                                                .secondaryBackground,
+                                        hintText:
+                                            'Description (optional)',
+                                        border:
+                                            OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(
+                                            18,
+                                          ),
+                                          borderSide:
+                                              BorderSide(
+                                            color:
+                                                FlutterFlowTheme.of(
+                                                        context)
+                                                    .secondaryText
+                                                    .withAlpha(61),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+
+                                    const SizedBox(
+                                      height: 24,
+                                    ),
+
+                                    SizedBox(
+                                      height: 58,
+                                      child:
+                                          ElevatedButton(
+                                        onPressed:
+                                            isRequesting
+                                                ? null
+                                                : requestFunds,
+                                        style:
+                                            ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              selectedTabBackground,
+                                          shape:
+                                              RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(
+                                              18,
+                                            ),
+                                          ),
+                                        ),
+                                        child:
+                                            isRequesting
+                                                ? const CircularProgressIndicator(
+                                                    color:
+                                                        Colors.white,
+                                                  )
+                                                : const Text(
+                                                    'Request FARM',
+                                                    style:
+                                                        TextStyle(
+                                                      fontSize:
+                                                          18,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color:
+                                                          Colors.white,
+                                                    ),
+                                                  ),
                                       ),
                                     ),
                                   ],
@@ -1157,6 +1624,46 @@ class _SendReceiveWidgetState
                             const SizedBox(
                               height: 36,
                             ),
+
+                            if (pendingRequests.isNotEmpty)
+                              Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Pending Requests',
+                                    style:
+                                        FlutterFlowTheme.of(
+                                                context)
+                                            .titleLarge
+                                            .override(
+                                              font:
+                                                  GoogleFonts.plusJakartaSans(
+                                                fontWeight:
+                                                    FontWeight.bold,
+                                              ),
+                                            ),
+                                  ),
+
+                                  const SizedBox(height: 16),
+
+                                  Column(
+                                    children:
+                                        pendingRequests
+                                            .map(
+                                              (
+                                                req,
+                                              ) =>
+                                                  buildRequestCard(
+                                                req,
+                                              ),
+                                            )
+                                            .toList(),
+                                  ),
+
+                                  const SizedBox(height: 36),
+                                ],
+                              ),
 
                             Text(
                               'Recent Transactions',
@@ -1179,7 +1686,7 @@ class _SendReceiveWidgetState
 
                             if (transactions
                                 .isEmpty)
-                              Center(
+                              const Center(
                                 child: Padding(
                                   padding:
                                       EdgeInsets.all(

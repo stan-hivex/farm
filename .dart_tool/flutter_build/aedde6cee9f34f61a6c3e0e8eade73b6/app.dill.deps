@@ -1637,6 +1637,7 @@ file:///C:/farm/lib/components/category_chip/category_chip_model.dart
 file:///C:/farm/lib/components/category_chip/category_chip_widget.dart
 file:///C:/farm/lib/components/escrow_item/escrow_item_model.dart
 file:///C:/farm/lib/components/escrow_item/escrow_item_widget.dart
+file:///C:/farm/lib/components/kyc_required_widget.dart
 file:///C:/farm/lib/components/merchant_stat_card/merchant_stat_card_model.dart
 file:///C:/farm/lib/components/merchant_stat_card/merchant_stat_card_widget.dart
 file:///C:/farm/lib/components/merchant_transaction_item/merchant_transaction_item_model.dart
@@ -1661,6 +1662,7 @@ file:///C:/farm/lib/components/transaction_item/transaction_item_model.dart
 file:///C:/farm/lib/components/transaction_item/transaction_item_widget.dart
 file:///C:/farm/lib/core/app_config.dart
 file:///C:/farm/lib/core/app_theme.dart
+file:///C:/farm/lib/core/responsive.dart
 file:///C:/farm/lib/core/theme_extensions.dart
 file:///C:/farm/lib/flutter_flow/flutter_flow_charts.dart
 file:///C:/farm/lib/flutter_flow/flutter_flow_icon_button.dart

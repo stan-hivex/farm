@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import '/core/app_config.dart';
 import 'package:http/http.dart' as http;
-import '/flutter_flow/flutter_flow_theme.dart';
 import '/core/theme_extensions.dart';
 
 import '/app_state.dart';
@@ -289,16 +288,15 @@ class _ChangePinPageWidgetState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: context.background,
+      backgroundColor: context.onSurface,
 
       appBar: AppBar(
         elevation: 0,
         centerTitle: true,
-        backgroundColor: context.background,
-        foregroundColor: context.onSurface,
+        backgroundColor: context.onSurface,
+        foregroundColor: context.background,
         title: Text(
           "Change PIN",
-          style: TextStyle(color: context.onSurface),
         ),
       ),
 
@@ -335,7 +333,6 @@ class _ChangePinPageWidgetState
                         ? "Enter New PIN"
                         : "Confirm New PIN",
                 style: TextStyle(
-                  color: context.onSurface,
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
@@ -380,8 +377,8 @@ class _ChangePinPageWidgetState
                       : submit,
                   style:
                       ElevatedButton.styleFrom(
-                      backgroundColor:
-                          FlutterFlowTheme.of(context).primary,
+                    backgroundColor:
+                        context.background,
                     shape:
                         RoundedRectangleBorder(
                       borderRadius:
@@ -403,7 +400,7 @@ class _ChangePinPageWidgetState
                       : Text(
                           "Save PIN",
                           style: TextStyle(
-                              color: FlutterFlowTheme.of(context).onPrimary,
+                            color: context.onSurface,
                             fontSize: 16,
                             fontWeight:
                                 FontWeight.bold,

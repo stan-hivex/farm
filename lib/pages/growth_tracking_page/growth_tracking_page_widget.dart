@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '/backend/services/api_service.dart';
 import '/flutter_flow/flutter_flow_charts.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
@@ -183,24 +182,13 @@ class _GrowthTrackingPageWidgetState extends State<GrowthTrackingPageWidget> {
 
   Widget _periodChip(String label, String value) {
     final selected = _selectedPeriod == value;
-    final theme = FlutterFlowTheme.of(context);
     return ChoiceChip(
-      label: Text(
-        label,
-        style: TextStyle(
-          color: selected ? theme.onPrimary : theme.primaryText,
-          fontWeight: selected ? FontWeight.w700 : FontWeight.normal,
-        ),
-      ),
+      label: Text(label),
       selected: selected,
-      selectedColor: theme.primary,
-      backgroundColor: theme.secondaryBackground,
-      labelPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       onSelected: (_) {
         setState(() => _selectedPeriod = value);
         _loadGrowth();
       },
     );
   }
-
 }

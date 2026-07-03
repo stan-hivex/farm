@@ -333,6 +333,18 @@ class ApiService {
     String? backImageUrl,
     required String selfieImageUrl,
     String? documentNumber,
+    String? firstName,
+    String? lastName,
+    String? dateOfBirth,
+    String? phoneNumber,
+    String? email,
+    String? country,
+    String? state,
+    String? city,
+    String? address,
+    String? postalCode,
+    String? gender,
+    String? nationality,
   }) =>
       _request(
         method: 'POST',
@@ -344,6 +356,24 @@ class ApiService {
           'selfie_image_url': selfieImageUrl,
           if (documentNumber != null && documentNumber.isNotEmpty)
             'document_number': documentNumber,
+          if (firstName != null && firstName.isNotEmpty)
+            'first_name': firstName,
+          if (lastName != null && lastName.isNotEmpty)
+            'last_name': lastName,
+          if (dateOfBirth != null && dateOfBirth.isNotEmpty)
+            'date_of_birth': dateOfBirth,
+          if (phoneNumber != null && phoneNumber.isNotEmpty)
+            'phone_number': phoneNumber,
+          if (email != null && email.isNotEmpty) 'email': email,
+          if (country != null && country.isNotEmpty) 'country': country,
+          if (state != null && state.isNotEmpty) 'state': state,
+          if (city != null && city.isNotEmpty) 'city': city,
+          if (address != null && address.isNotEmpty) 'address': address,
+          if (postalCode != null && postalCode.isNotEmpty)
+            'postal_code': postalCode,
+          if (gender != null && gender.isNotEmpty) 'gender': gender,
+          if (nationality != null && nationality.isNotEmpty)
+            'nationality': nationality,
         },
       );
 

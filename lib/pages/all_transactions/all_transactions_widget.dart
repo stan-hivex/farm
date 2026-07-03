@@ -121,60 +121,60 @@ class _AllTransactionsWidgetState extends State<AllTransactionsWidget> {
           physics: const AlwaysScrollableScrollPhysics(),
           child: context.responsiveBody(
             child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Your transaction history',
-                style: theme.titleMedium.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _filterChip('All', 'all'),
-                  _filterChip('Sent', 'send'),
-                  _filterChip('Received', 'receive'),
-                  _filterChip('Deposit', 'deposit'),
-                  _filterChip('Withdraw', 'withdraw'),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _statusChip('All', 'all'),
-                  _statusChip('Pending', 'pending'),
-                  _statusChip('Completed', 'completed'),
-                  _statusChip('Failed', 'failed'),
-                ],
-              ),
-              const SizedBox(height: 16),
-              if (_loading)
-                const Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 24), child: CircularProgressIndicator()))
-              else if (_error.isNotEmpty)
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text(_error, style: const TextStyle(color: Colors.redAccent)),
-                  ),
-                )
-              else if (_transactions.isEmpty)
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text('No transactions match your filters yet.', style: theme.bodyMedium),
-                  ),
-                )
-              else
-                ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _transactions.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (context, index) {
-                    final tx = _transactions[index];
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Your transaction history',
+                  style: theme.titleMedium.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _filterChip('All', 'all'),
+                    _filterChip('Sent', 'send'),
+                    _filterChip('Received', 'receive'),
+                    _filterChip('Deposit', 'deposit'),
+                    _filterChip('Withdraw', 'withdraw'),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _statusChip('All', 'all'),
+                    _statusChip('Pending', 'pending'),
+                    _statusChip('Completed', 'completed'),
+                    _statusChip('Failed', 'failed'),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                if (_loading)
+                  const Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 24), child: CircularProgressIndicator()))
+                else if (_error.isNotEmpty)
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(_error, style: const TextStyle(color: Colors.redAccent)),
+                    ),
+                  )
+                else if (_transactions.isEmpty)
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text('No transactions match your filters yet.', style: theme.bodyMedium),
+                    ),
+                  )
+                else
+                  ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _transactions.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final tx = _transactions[index];
                     final type = (tx['transaction_type'] ?? tx['type'] ?? 'Transaction').toString();
                     final amount = tx['amount'] ?? tx['value'] ?? 0;
                     final isOutgoing = tx['is_outgoing'] == true || type.toLowerCase().contains('send');
@@ -261,8 +261,9 @@ class _AllTransactionsWidgetState extends State<AllTransactionsWidget> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _filterChip(String label, String value) {
     final selected = _selectedType == value;

@@ -339,9 +339,6 @@ Future<void> logoutUser() async {
   FFAppState().role = '';
   FFAppState().isLoggedIn = false;
 
-  // Reset theme to light on logout so next login/visitor sees light theme
-  FFAppState().themeMode = ThemeMode.light;
-
   if (mounted) {
     context.goNamed('loginpage');
   }
@@ -891,10 +888,30 @@ GestureDetector(
 
 const SizedBox(height: 12),
 
+// DARK MODE
+SwitchListTile(
+  contentPadding: EdgeInsets.zero,
+  activeThumbColor: Colors.green,
+  value: Theme.of(context).brightness == Brightness.dark,
+  onChanged: (value) {
+    setState(() {
+      FFAppState().setThemeMode(value ? ThemeMode.dark : ThemeMode.light);
+    });
+  },
+  title: Text('Dark Mode'),
+  subtitle: Text(
+    Theme.of(context).brightness == Brightness.dark
+        ? 'Dark theme enabled'
+        : 'Light theme enabled',
+  ),
+),
+
+const SizedBox(height: 12),
+
 // BIOMETRICS
 SwitchListTile(
   contentPadding: EdgeInsets.zero,
-
+  activeThumbColor: Colors.green,
   value: biometricsEnabled,
 
   onChanged: (value) async {
@@ -941,23 +958,6 @@ SwitchListTile(
     biometricsEnabled
         ? 'Face ID / Fingerprint active'
         : 'Biometric authentication disabled',
-  ),
-),
-
-// THEME MODE
-SwitchListTile(
-  contentPadding: EdgeInsets.zero,
-  value: FFAppState().themeMode == ThemeMode.dark,
-  onChanged: (value) {
-    setState(() {
-      FFAppState().themeMode = value ? ThemeMode.dark : ThemeMode.light;
-    });
-  },
-  title: Text('Dark Theme'),
-  subtitle: Text(
-    FFAppState().themeMode == ThemeMode.dark
-        ? 'Dark theme active'
-        : 'Light theme active',
   ),
 ),
                               // NOTIFICATIONS

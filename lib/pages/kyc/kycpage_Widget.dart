@@ -8,7 +8,6 @@ import 'package:http/http.dart' as http;
 import '/backend/services/api_service.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/core/theme_extensions.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 
 import 'kycpage_model.dart';
@@ -598,8 +597,8 @@ class _KycpageWidgetState extends State<KycpageWidget> {
                 Icons.camera_alt_rounded,
                 color: FlutterFlowTheme.of(context).primary,
               ),
-              title: Text('Take Photo'),
-              subtitle: Text('Capture using your camera'),
+              title: const Text('Take Photo'),
+              subtitle: const Text('Capture using your camera'),
               onTap: () async {
                 Navigator.pop(context);
                 await _captureDocumentPhoto(key);
@@ -610,8 +609,8 @@ class _KycpageWidgetState extends State<KycpageWidget> {
                 Icons.photo_library_rounded,
                 color: FlutterFlowTheme.of(context).primary,
               ),
-              title: Text('Choose from Gallery'),
-              subtitle: Text('Select from your device'),
+              title: const Text('Choose from Gallery'),
+              subtitle: const Text('Select from your device'),
               onTap: () async {
                 Navigator.pop(context);
                 await _pickDocumentFromGallery(key);
@@ -730,13 +729,30 @@ class _KycpageWidgetState extends State<KycpageWidget> {
         backImageUrl: backUrl,
         selfieImageUrl: selfieUrl,
         documentNumber: _idNumberController.text.trim(),
+        firstName: _firstNameController.text.trim(),
+        lastName: _lastNameController.text.trim(),
+        dateOfBirth: _selectedDob != null
+            ? '${_selectedDob!.year}-${_selectedDob!.month.toString().padLeft(2, '0')}-${_selectedDob!.day.toString().padLeft(2, '0')}'
+            : null,
+        phoneNumber:
+            '${_selectedCountryCode}${_phoneController.text.trim()}',
+        email: _emailController.text.trim(),
+        country: _selectedCountry?.trim(),
+        state: _stateController.text.trim(),
+        city: _cityController.text.trim(),
+        address: _addressController.text.trim(),
+        postalCode: _postalController.text.trim(),
+        gender: _selectedGender?.trim(),
+        nationality: _selectedNationality?.trim(),
       );
 
-      _snack('KYC submitted. Your documents will be reviewed shortly.');
+      FFAppState().kycStatus = 'pending';
+      _snack('KYC submitted. Your documents will be reviewed by admin shortly.');
       context.pushNamed('Dashboard');
     } catch (e) {
       print('KYC submit error: $e');
-      _snack('Submission failed. Please try again.');
+      final message = e.toString().replaceFirst('Exception: ', '');
+      _snack(message.isNotEmpty ? message : 'Submission failed. Please try again later.');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -825,7 +841,7 @@ class _KycpageWidgetState extends State<KycpageWidget> {
                   fileName ?? 'Upload file',
                   style: FlutterFlowTheme.of(context).bodyMedium,
                 ),
-                Icon(Icons.upload_file_rounded, size: 20),
+                const Icon(Icons.upload_file_rounded, size: 20),
               ],
             ),
           ],
@@ -860,6 +876,9 @@ class _KycpageWidgetState extends State<KycpageWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: () {
         FocusScope.of(context).unfocus();
@@ -867,7 +886,7 @@ class _KycpageWidgetState extends State<KycpageWidget> {
       },
       child: Scaffold(
         key: scaffoldKey,
-        backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
+        backgroundColor: theme.primaryBackground,
         body: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -877,7 +896,7 @@ class _KycpageWidgetState extends State<KycpageWidget> {
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: context.isDarkMode ? context.background : const Color(0xFFFDFCF8),
+                    color: theme.secondaryBackground,
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: Column(
@@ -897,16 +916,13 @@ class _KycpageWidgetState extends State<KycpageWidget> {
                               font: GoogleFonts.plusJakartaSans(
                                 fontWeight: FontWeight.w800,
                               ),
-                              color: context.isDarkMode ? context.onSurface : null,
                               fontWeight: FontWeight.w800,
                             ),
                       ),
                       const SizedBox(height: 12),
                       Text(
                         'Complete KYC verification to unlock deposits, withdrawals, escrow services, and higher transaction limits.',
-                        style: FlutterFlowTheme.of(context).bodyMedium.override(
-                          color: context.isDarkMode ? context.textSecondary : null,
-                        ),
+                        style: FlutterFlowTheme.of(context).bodyMedium,
                       ),
                     ],
                   ),
@@ -1294,12 +1310,12 @@ class _KycpageWidgetState extends State<KycpageWidget> {
                                 options: FFButtonOptions(
                                   width: double.infinity,
                                   height: 52,
-                                  color: FlutterFlowTheme.of(context).primary,
+                                  color: isDark ? const Color(0xFF1F1F1F) : Colors.black,
                                   textStyle: FlutterFlowTheme.of(context)
                                       .titleSmall
                                       .override(
                                         fontFamily: 'Plus Jakarta Sans',
-                                          color: FlutterFlowTheme.of(context).onPrimary,
+                                        color: Colors.white,
                                         fontWeight: FontWeight.bold,
                                       ),
                                   elevation: 0,

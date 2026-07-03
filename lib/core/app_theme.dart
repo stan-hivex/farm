@@ -21,19 +21,19 @@ class AppTheme {
   // Dark theme colors
   static const darkPrimary = Color(0xFFFFFFFF);
   static const darkSecondary = Color(0xFFD1D5DB);
-  static const darkTertiary = Color(0xFFF8FAFC);
-  static const darkBackground = Color(0xFF000000);
-  static const darkSurface = Color(0xFF000000);
+  static const darkTertiary = Color(0xFFE0E7FF);
+  static const darkBackground = Color(0xFF0F172A);
+  static const darkSurface = Color(0xFF1E293B);
   static const darkError = Color(0xFFF87171);
   static const darkSuccess = Color(0xFF4ADE80);
   static const darkWarning = Color(0xFFFBBF24);
   static const darkInfo = Color(0xFF38BDF8);
 
   static const darkTextPrimary = Color(0xFFFFFFFF);
-  static const darkTextSecondary = Color(0xFFCCCCCC);
+  static const darkTextSecondary = Color(0xFFD1D5DB);
   static const darkTextTertiary = Color(0xFF9CA3AF);
-  static const darkBorder = Color(0xFF1F2937);
-  static const darkDivider = Color(0xFF111111);
+  static const darkBorder = Color(0xFF334155);
+  static const darkDivider = Color(0xFF1E293B);
 
   // Status colors (consistent across themes)
   static const success = Color(0xFF16A34A);
@@ -168,14 +168,10 @@ class AppTheme {
         tertiary: darkTertiary,
         surface: darkSurface,
         error: darkError,
-        onPrimary: darkBackground,
-        onSecondary: darkBackground,
-        onSurface: darkTextPrimary,
-        onBackground: darkTextPrimary,
         brightness: Brightness.dark,
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: darkBackground,
+        backgroundColor: darkSurface,
         foregroundColor: darkTextPrimary,
         elevation: 0,
         centerTitle: false,
@@ -256,17 +252,17 @@ class AppTheme {
         space: 1,
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: darkBackground,
+        backgroundColor: darkSurface,
         selectedItemColor: darkPrimary,
         unselectedItemColor: darkTextTertiary,
       ),
       navigationRailTheme: const NavigationRailThemeData(
-        backgroundColor: darkBackground,
+        backgroundColor: darkSurface,
         selectedIconTheme: IconThemeData(color: darkPrimary),
         unselectedIconTheme: IconThemeData(color: darkTextTertiary),
       ),
       drawerTheme: const DrawerThemeData(
-        backgroundColor: darkBackground,
+        backgroundColor: darkSurface,
       ),
     );
   }

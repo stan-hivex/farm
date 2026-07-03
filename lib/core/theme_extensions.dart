@@ -33,7 +33,7 @@ extension ThemeExtension on BuildContext {
       ? AppTheme.darkDivider
       : AppTheme.lightDivider;
 
-  Color get onBackground => Theme.of(this).colorScheme.onBackground;
+  Color get onBackground => Theme.of(this).colorScheme.onSurface;
   Color get onSurface => Theme.of(this).colorScheme.onSurface;
 
   /// Get primary color (brand color)

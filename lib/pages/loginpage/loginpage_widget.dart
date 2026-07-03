@@ -1,11 +1,8 @@
-
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '/core/app_config.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/core/theme_extensions.dart';
-import '/core/responsive.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -13,6 +10,7 @@ import 'loginpage_model.dart';
 export 'loginpage_model.dart';
 import '/admin/pages/admin_shell.dart';
 import '/pages/superadmin/superadmin_dashboard_page.dart';
+import '/services/secure_storage_service.dart';
 
 /// Create a premium black and white fintech login page for FARM App.
 ///
@@ -49,8 +47,6 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
   void initState() {
     super.initState();
     _model = createModel(context, () => LoginpageModel());
-    // Ensure login screen defaults to light theme
-    FFAppState().themeMode = ThemeMode.light;
   }
 
   @override
@@ -68,9 +64,9 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
 
     if (phone.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text("Please fill in all fields"),
-          backgroundColor: context.errorColor,
+          backgroundColor: Colors.red,
         ),
       );
       return;
@@ -102,9 +98,15 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
           FFAppState().firstName = data['user']?['first_name'] ?? '';
           FFAppState().userName = data['user']?['username'] ?? '';
           FFAppState().phone = data['user']?['phone'] ?? '';
+          FFAppState().kycStatus = data['user']?['kyc_status'] ?? '';
           final role = (data['user']?['role'] ?? 'user').toString();
           FFAppState().role = role;
           FFAppState().isLoggedIn = true;
+
+          await SecureStorageService.writeAccessToken(
+              data['access_token'] ?? '');
+          await SecureStorageService.writeRefreshToken(
+              data['refresh_token'] ?? '');
 
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString(
@@ -128,14 +130,13 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
             true,
           );
 
-          // Ensure app uses light theme on login
-          FFAppState().themeMode = ThemeMode.light;
-
           if (role == 'admin' || role == 'super_admin') {
             await prefs.setString('adminToken', data['access_token'] ?? '');
-            await prefs.setString('adminRefreshToken', data['refresh_token'] ?? '');
+            await prefs.setString(
+                'adminRefreshToken', data['refresh_token'] ?? '');
             await prefs.setString('adminRole', role);
-            await prefs.setString('adminName', data['user']?['first_name'] ?? 'Admin');
+            await prefs.setString(
+                'adminName', data['user']?['first_name'] ?? 'Admin');
           } else {
             await prefs.remove('adminToken');
             await prefs.remove('adminRefreshToken');
@@ -149,7 +150,7 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
             content: Text(
               responseData['message'] ?? 'Login successful',
             ),
-            backgroundColor: context.successColor,
+            backgroundColor: Colors.green,
           ),
         );
 
@@ -160,7 +161,8 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
             if (role == 'super_admin') {
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (_) => const SuperadminDashboardPage()),
+                MaterialPageRoute(
+                    builder: (_) => const SuperadminDashboardPage()),
               );
             } else if (role == 'admin') {
               Navigator.pushReplacement(
@@ -178,7 +180,7 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
             content: Text(
               responseData['message'] ?? 'Login failed',
             ),
-            backgroundColor: context.errorColor,
+            backgroundColor: Colors.red,
           ),
         );
       }
@@ -195,7 +197,7 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
             content: Text(isNetworkIssue
                 ? 'Unable to connect to backend. Please check your network or backend service.'
                 : 'Login failed. Please check your credentials.'),
-            backgroundColor: context.errorColor,
+            backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -233,15 +235,15 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14.0),
-        borderSide: BorderSide(
-          color: context.errorColor,
+        borderSide: const BorderSide(
+          color: Colors.red,
           width: 1.0,
         ),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14.0),
-        borderSide: BorderSide(
-          color: context.errorColor,
+        borderSide: const BorderSide(
+          color: Colors.red,
           width: 1.5,
         ),
       ),
@@ -260,7 +262,8 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
         backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
         body: SingleChildScrollView(
           primary: false,
-          child: context.responsiveBody(
+          child: Padding(
+            padding: const EdgeInsets.all(32.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -271,24 +274,24 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Container(
-                      width: context.responsiveValue(72.0, minValue: 60.0),
-                      height: context.responsiveValue(72.0, minValue: 60.0),
+                      width: 72.0,
+                      height: 72.0,
                       decoration: BoxDecoration(
                         color: FlutterFlowTheme.of(context).primaryText,
                         borderRadius: BorderRadius.circular(24.0),
                       ),
                       alignment: const AlignmentDirectional(0.0, 0.0),
                       child: SizedBox(
-                        width: context.responsiveValue(40.0, minValue: 32.0),
-                        height: context.responsiveValue(50.0, minValue: 40.0),
+                        width: 40.0,
+                        height: 50.0,
                         child: Stack(
                           alignment: const AlignmentDirectional(-1.0, -1.0),
                           children: [
                             Align(
                               alignment: const AlignmentDirectional(0.0, 0.0),
                               child: Container(
-                                width: context.responsiveValue(6.0, minValue: 4.0),
-                                height: context.responsiveValue(50.0, minValue: 40.0),
+                                width: 6.0,
+                                height: 50.0,
                                 decoration: BoxDecoration(
                                   color: FlutterFlowTheme.of(context).onPrimary,
                                   borderRadius: BorderRadius.circular(2.0),
@@ -298,8 +301,8 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                             Align(
                               alignment: const AlignmentDirectional(-1.0, -0.6),
                               child: Container(
-                                width: context.responsiveValue(24.0, minValue: 18.0),
-                                height: context.responsiveValue(6.0, minValue: 4.0),
+                                width: 24.0,
+                                height: 6.0,
                                 decoration: BoxDecoration(
                                   color: FlutterFlowTheme.of(context).onPrimary,
                                   borderRadius: BorderRadius.circular(2.0),
@@ -309,8 +312,8 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                             Align(
                               alignment: const AlignmentDirectional(-1.0, 0.0),
                               child: Container(
-                                width: context.responsiveValue(18.0, minValue: 14.0),
-                                height: context.responsiveValue(6.0, minValue: 4.0),
+                                width: 18.0,
+                                height: 6.0,
                                 decoration: BoxDecoration(
                                   color: FlutterFlowTheme.of(context).onPrimary,
                                   borderRadius: BorderRadius.circular(2.0),
@@ -324,22 +327,23 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                     const SizedBox(height: 16.0),
                     Text(
                       'FARM',
-                      style: FlutterFlowTheme.of(context).headlineLarge.override(
-                        font: GoogleFonts.plusJakartaSans(
-                          fontWeight: FontWeight.w900,
-                        ),
-                        color: FlutterFlowTheme.of(context).primaryText,
-                        letterSpacing: 0.0,
-                        fontWeight: FontWeight.w900,
-                      ),
+                      style:
+                          FlutterFlowTheme.of(context).headlineLarge.override(
+                                font: GoogleFonts.plusJakartaSans(
+                                  fontWeight: FontWeight.w900,
+                                ),
+                                color: FlutterFlowTheme.of(context).primaryText,
+                                letterSpacing: 0.0,
+                                fontWeight: FontWeight.w900,
+                              ),
                     ),
                     const SizedBox(height: 4.0),
                     Text(
                       'Sign In to Your Account',
                       style: FlutterFlowTheme.of(context).bodyMedium.override(
-                        font: GoogleFonts.inter(),
-                        color: FlutterFlowTheme.of(context).secondaryText,
-                      ),
+                            font: GoogleFonts.inter(),
+                            color: FlutterFlowTheme.of(context).secondaryText,
+                          ),
                     ),
                   ],
                 ),
@@ -358,17 +362,20 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                       children: [
                         Text(
                           'Phone Number',
-                          style: FlutterFlowTheme.of(context).labelLarge.override(
-                            font: GoogleFonts.plusJakartaSans(
-                              fontWeight: FontWeight.w600,
-                            ),
-                            color: FlutterFlowTheme.of(context).primaryText,
-                          ),
+                          style: FlutterFlowTheme.of(context)
+                              .labelLarge
+                              .override(
+                                font: GoogleFonts.plusJakartaSans(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                color: FlutterFlowTheme.of(context).primaryText,
+                              ),
                         ),
                         const SizedBox(height: 8.0),
                         TextFormField(
                           controller: phoneController,
-                          decoration: inputDecoration(context, 'Enter phone number'),
+                          decoration:
+                              inputDecoration(context, 'Enter phone number'),
                           keyboardType: TextInputType.phone,
                         ),
                       ],
@@ -383,23 +390,29 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                       children: [
                         Text(
                           'Password',
-                          style: FlutterFlowTheme.of(context).labelLarge.override(
-                            font: GoogleFonts.plusJakartaSans(
-                              fontWeight: FontWeight.w600,
-                            ),
-                            color: FlutterFlowTheme.of(context).primaryText,
-                          ),
+                          style: FlutterFlowTheme.of(context)
+                              .labelLarge
+                              .override(
+                                font: GoogleFonts.plusJakartaSans(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                color: FlutterFlowTheme.of(context).primaryText,
+                              ),
                         ),
                         const SizedBox(height: 8.0),
                         TextFormField(
                           controller: passwordController,
-                          decoration: inputDecoration(context, 'Enter password').copyWith(
+                          decoration: inputDecoration(context, 'Enter password')
+                              .copyWith(
                             suffixIcon: IconButton(
                               icon: Icon(
-                                passwordVisible ? Icons.visibility : Icons.visibility_off,
+                                passwordVisible
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
                               ),
                               onPressed: () {
-                                setState(() => passwordVisible = !passwordVisible);
+                                setState(
+                                    () => passwordVisible = !passwordVisible);
                               },
                             ),
                           ),
@@ -418,12 +431,15 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                         width: double.infinity,
                         height: 56.0,
                         padding: const EdgeInsets.symmetric(vertical: 0.0),
-                        color: FlutterFlowTheme.of(context).primary,
-                        textStyle: FlutterFlowTheme.of(context).titleSmall.override(
-                          color: FlutterFlowTheme.of(context).onPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        borderSide: BorderSide(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xFF1F1F1F)
+                            : FlutterFlowTheme.of(context).primary,
+                        textStyle:
+                            FlutterFlowTheme.of(context).titleSmall.override(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                        borderSide: const BorderSide(
                           color: Colors.transparent,
                           width: 1.0,
                         ),
@@ -445,11 +461,13 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                           onTap: () => context.pushNamed('registerpage'),
                           child: Text(
                             'Sign Up',
-                            style: FlutterFlowTheme.of(context).bodySmall.override(
-                              color: FlutterFlowTheme.of(context).primary,
-                              fontWeight: FontWeight.w600,
-                              decoration: TextDecoration.underline,
-                            ),
+                            style: FlutterFlowTheme.of(context)
+                                .bodySmall
+                                .override(
+                                  color: FlutterFlowTheme.of(context).primary,
+                                  fontWeight: FontWeight.w600,
+                                  decoration: TextDecoration.underline,
+                                ),
                           ),
                         ),
                       ],

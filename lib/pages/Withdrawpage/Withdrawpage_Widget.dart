@@ -7,7 +7,7 @@ import '/core/app_config.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/core/theme_extensions.dart';
+import '/components/kyc_required_widget.dart';
 
 class WithdrawpageWidget extends StatefulWidget {
   const WithdrawpageWidget({super.key});
@@ -23,13 +23,14 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   final scaffoldKey = GlobalKey<ScaffoldState>();
   final _amountCtrl = TextEditingController();
   final _accountCtrl = TextEditingController();
-  final _cryptoCtrl = TextEditingController();
-  final _networkCtrl = TextEditingController();
+  final _walletCtrl = TextEditingController();
   final _mobileCtrl = TextEditingController();
   final _pinCtrl = TextEditingController();
 
   String selectedMethod = 'BANK';
   String selectedCurrency = 'KES';
+  String selectedCryptoAsset = 'USDC';
+  String? selectedCryptoNetwork;
   bool isLoading = false;
   bool loadingWallet = true;
   bool loadingHistory = true;
@@ -59,6 +60,25 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
     'UBA Kenya',
   ];
 
+  final List<String> cryptoAssets = ['USDC', 'USDT'];
+
+  final Map<String, List<String>> cryptoNetworks = {
+    'USDC': [
+      'BNB Smart Chain (BEP20)',
+      'Polygon',
+      'Solana',
+      'Base',
+      'Starknet',
+      'Algorand',
+    ],
+    'USDT': [
+      'BNB Smart Chain (BEP20)',
+      'Polygon',
+      'Solana',
+      'Starknet',
+    ],
+  };
+
   // Fee rates per method
   final Map<String, double> _fees = {
     'BANK': 0.0,
@@ -84,11 +104,15 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
     _historyTimer?.cancel();
     _amountCtrl.dispose();
     _accountCtrl.dispose();
-    _cryptoCtrl.dispose();
-    _networkCtrl.dispose();
+    _walletCtrl.dispose();
     _mobileCtrl.dispose();
     _pinCtrl.dispose();
     super.dispose();
+  }
+
+  bool get isKycApproved {
+    final status = FFAppState().kycStatus.trim().toLowerCase();
+    return ['verified', 'approved', 'complete', 'success'].contains(status);
   }
 
   void _startHistoryPolling() {
@@ -156,7 +180,9 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
       case 'MOBILE_MONEY':
         return _mobileCtrl.text.isNotEmpty;
       case 'CRYPTO':
-        return _cryptoCtrl.text.isNotEmpty && _networkCtrl.text.isNotEmpty;
+        return selectedCryptoAsset.isNotEmpty &&
+            selectedCryptoNetwork != null &&
+            _walletCtrl.text.trim().isNotEmpty;
       default:
         return false;
     }
@@ -190,11 +216,11 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: Text('Confirm Withdrawal'),
+        title: const Text('Confirm Withdrawal'),
         content: Text('Withdraw ${amount.toStringAsFixed(4)} FARM via ${selectedMethod.replaceAll('_', ' ')}?'),
         actions: [
-          TextButton(onPressed: () => Navigator.of(c).pop(false), child: Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.of(c).pop(true), child: Text('Confirm')),
+          TextButton(onPressed: () => Navigator.of(c).pop(false), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.of(c).pop(true), child: const Text('Confirm')),
         ],
       ),
     );
@@ -223,8 +249,9 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
           requestBody['phoneNumber'] = _mobileCtrl.text.trim();
           break;
         case 'CRYPTO':
-          requestBody['cryptoAddress'] = _cryptoCtrl.text.trim();
-          requestBody['network'] = _networkCtrl.text.trim();
+          requestBody['cryptoAddress'] = selectedCryptoAsset;
+          requestBody['network'] = selectedCryptoNetwork ?? '';
+          requestBody['walletAddress'] = _walletCtrl.text.trim();
           break;
       }
 
@@ -266,10 +293,14 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   void _clearFields() {
     _amountCtrl.clear();
     _accountCtrl.clear();
-    _cryptoCtrl.clear();
+    _walletCtrl.clear();
     _mobileCtrl.clear();
     _pinCtrl.clear();
-    setState(() => _selectedBank = null);
+    setState(() {
+      _selectedBank = null;
+      selectedCryptoAsset = 'USDC';
+      selectedCryptoNetwork = null;
+    });
   }
 
   void _snack(String msg) => ScaffoldMessenger.of(context).showSnackBar(
@@ -291,13 +322,26 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   }
 
   // ── Method card ───────────────────────────────────────────────────────────
-  Widget _methodCard({
+  Widget _methodCard(BuildContext context, {
     required String method,
     required IconData icon,
     required String title,
     required String subtitle,
   }) {
+    final theme = FlutterFlowTheme.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final selected = selectedMethod == method;
+    final cardBackground = selected
+        ? (isDark ? const Color(0xFF1F1F1F) : Colors.black)
+        : theme.secondaryBackground;
+    final cardBorder = selected
+        ? (isDark ? const Color(0xFF2A2A2A) : Colors.black)
+        : theme.secondaryText.withAlpha(90);
+    final textColor = selected ? Colors.white : theme.primaryText;
+    final subtitleColor = selected
+        ? Colors.white70
+        : theme.secondaryText;
+
     return GestureDetector(
       onTap: () => setState(() => selectedMethod = method),
       child: AnimatedContainer(
@@ -305,14 +349,13 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: selected ? context.background : context.surface,
+          color: cardBackground,
           borderRadius: BorderRadius.circular(18),
-          border:
-              Border.all(color: selected ? context.background : context.borderColor),
+          border: Border.all(color: cardBorder),
         ),
         child: Row(
           children: [
-            Icon(icon, color: selected ? context.onSurface : context.onSurface.withOpacity(0.7)),
+            Icon(icon, color: textColor),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -321,16 +364,15 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                   Text(title,
                       style: GoogleFonts.plusJakartaSans(
                           fontWeight: FontWeight.bold,
-                          color: context.onSurface)),
+                          color: textColor)),
                   const SizedBox(height: 4),
                   Text(subtitle,
                       style: GoogleFonts.plusJakartaSans(
-                          fontSize: 12,
-                          color: context.onSurface.withOpacity(selected ? 0.7 : 0.6))),
+                          fontSize: 12, color: subtitleColor)),
                 ],
               ),
             ),
-            if (selected) Icon(Icons.check_circle, color: context.onSurface),
+            if (selected) const Icon(Icons.check_circle, color: Colors.white),
           ],
         ),
       ),
@@ -342,20 +384,22 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
 
   // ── Destination fields ────────────────────────────────────────────────────
   Widget _buildDestinationFields() {
+    final theme = FlutterFlowTheme.of(context);
     switch (selectedMethod) {
       case 'BANK':
         return Column(children: [
           // Bank dropdown
           Container(
             decoration: BoxDecoration(
-              border: Border.all(color: context.borderColor),
+              color: theme.secondaryBackground,
+              border: Border.all(color: theme.secondaryText.withAlpha(90)),
               borderRadius: BorderRadius.circular(14),
             ),
             child: DropdownButton<String>(
               value: _selectedBank,
-              hint: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: Text('Select Bank'),
+              hint: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text('Select Bank', style: TextStyle(color: theme.secondaryText)),
               ),
               isExpanded: true,
               underline: const SizedBox(),
@@ -364,7 +408,9 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                   value: bank,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(bank, style: GoogleFonts.plusJakartaSans()),
+                    child: Text(bank,
+                        style: GoogleFonts.plusJakartaSans(
+                            color: theme.primaryText)),
                   ),
                 );
               }).toList(),
@@ -384,10 +430,71 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
             type: TextInputType.phone);
       case 'CRYPTO':
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _inputField(controller: _cryptoCtrl, hint: 'Wallet Address'),
+            Container(
+              decoration: BoxDecoration(
+                color: theme.secondaryBackground,
+                border: Border.all(color: theme.secondaryText.withAlpha(90)),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: DropdownButton<String>(
+                value: selectedCryptoAsset,
+                hint: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text('Select Crypto Asset', style: TextStyle(color: theme.secondaryText)),
+                ),
+                isExpanded: true,
+                underline: const SizedBox(),
+                items: cryptoAssets.map((asset) {
+                  return DropdownMenuItem(
+                    value: asset,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(asset,
+                          style: GoogleFonts.plusJakartaSans(color: theme.primaryText)),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    selectedCryptoAsset = value;
+                    selectedCryptoNetwork = null;
+                  });
+                },
+              ),
+            ),
             const SizedBox(height: 12),
-            _inputField(controller: _networkCtrl, hint: 'Network (e.g. TRON, BSC, ETH)'),
+            Container(
+              decoration: BoxDecoration(
+                color: theme.secondaryBackground,
+                border: Border.all(color: theme.secondaryText.withAlpha(90)),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: DropdownButton<String>(
+                value: selectedCryptoNetwork,
+                hint: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text('Select Network', style: TextStyle(color: theme.secondaryText)),
+                ),
+                isExpanded: true,
+                underline: const SizedBox(),
+                items: cryptoNetworks[selectedCryptoAsset]!
+                    .map((network) => DropdownMenuItem(
+                          value: network,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Text(network,
+                                style: GoogleFonts.plusJakartaSans(color: theme.primaryText)),
+                          ),
+                        ))
+                    .toList(),
+                onChanged: (value) => setState(() => selectedCryptoNetwork = value),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _inputField(controller: _walletCtrl, hint: 'Wallet Address'),
           ],
         );
       default:
@@ -403,11 +510,16 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
     return TextField(
       controller: controller,
       keyboardType: type,
-      style: GoogleFonts.plusJakartaSans(color: context.onSurface),
+      style: GoogleFonts.plusJakartaSans(
+          color: FlutterFlowTheme.of(context).primaryText),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: GoogleFonts.plusJakartaSans(color: context.textSecondary),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+        hintStyle: TextStyle(color: FlutterFlowTheme.of(context).secondaryText),
+        filled: true,
+        fillColor: FlutterFlowTheme.of(context).secondaryBackground,
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: FlutterFlowTheme.of(context).secondaryText.withAlpha(90))),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
@@ -427,9 +539,22 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   // ── Build ─────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    if (!isKycApproved) {
+      return Scaffold(
+        key: scaffoldKey,
+        backgroundColor: theme.primaryBackground,
+        body: SafeArea(
+          child: KycRequiredWidget(feature: 'withdraw'),
+        ),
+      );
+    }
+
     return Scaffold(
       key: scaffoldKey,
-      backgroundColor: context.background,
+      backgroundColor: theme.primaryBackground,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -441,16 +566,16 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   FlutterFlowIconButton(
-                    icon: Icon(Icons.arrow_back_ios_new),
+                    icon: const Icon(Icons.arrow_back_ios_new),
                     onPressed: () => context.goNamed('Dashboard'),
                   ),
                   Text('Withdraw Funds',
                       style: GoogleFonts.plusJakartaSans(
-                          color: context.onSurface,
                           fontSize: 18,
-                          fontWeight: FontWeight.bold)),
+                          fontWeight: FontWeight.bold,
+                          color: theme.primaryText)),
                   FlutterFlowIconButton(
-                    icon: Icon(Icons.info_outline, color: context.onSurface),
+                    icon: Icon(Icons.info_outline, color: theme.secondaryText),
                     onPressed: () =>
                         _snack('Withdrawals are processed instantly.'),
                   ),
@@ -467,26 +592,26 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
-                        color: context.background,
+                        color: isDark ? const Color(0xFF111111) : Colors.black,
                         borderRadius: BorderRadius.circular(24),
                       ),
                       child: loadingWallet
-                          ? Center(
+                          ? const Center(
                               child:
-                                  CircularProgressIndicator(color: context.onSurface))
+                                  CircularProgressIndicator(color: Colors.white))
                           : Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text('AVAILABLE BALANCE',
                                     style: GoogleFonts.plusJakartaSans(
-                                        color: context.onSurface.withOpacity(0.7),
+                                        color: Colors.white70,
                                         fontSize: 11,
                                         letterSpacing: 1)),
                                 const SizedBox(height: 8),
                                 Text(
                                   '${walletBalance.toStringAsFixed(4)} FARM',
                                   style: GoogleFonts.plusJakartaSans(
-                                      color: context.onSurface,
+                                      color: Colors.white,
                                       fontSize: 28,
                                       fontWeight: FontWeight.bold),
                                 ),
@@ -501,13 +626,13 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: context.borderColor),
+                        border: Border.all(color: theme.secondaryText.withAlpha(60)),
                       ),
                       child: Column(
                         children: [
                           Text('Withdrawal Amount',
                               style: GoogleFonts.plusJakartaSans(
-                                  color: context.textSecondary, fontSize: 13)),
+                                  color: theme.secondaryText, fontSize: 13)),
                           const SizedBox(height: 16),
                           TextField(
                             controller: _amountCtrl,
@@ -516,14 +641,13 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                             textAlign: TextAlign.center,
                             onChanged: (_) => setState(() {}),
                             style: GoogleFonts.plusJakartaSans(
-                                color: context.onSurface,
                                 fontSize: 36,
-                                fontWeight: FontWeight.bold),
+                                fontWeight: FontWeight.bold,
+                                color: theme.primaryText),
                             decoration: InputDecoration(
                                 border: InputBorder.none,
                                 hintText: '0.00',
-                                hintStyle: GoogleFonts.plusJakartaSans(
-                                    color: context.textSecondary)),
+                                hintStyle: TextStyle(color: theme.secondaryText)),
                           ),
                           const Divider(),
                           Row(
@@ -531,10 +655,10 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                             children: [
                               Text('Min: FARM 10',
                                   style: GoogleFonts.plusJakartaSans(
-                                      color: context.textSecondary, fontSize: 12)),
+                                      color: theme.secondaryText, fontSize: 12)),
                               Text('Max: FARM 70,000',
                                   style: GoogleFonts.plusJakartaSans(
-                                      color: context.textSecondary, fontSize: 12)),
+                                      color: theme.secondaryText, fontSize: 12)),
                             ],
                           ),
                         ],
@@ -546,22 +670,23 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                     // Method selection
                     Text('Select Method',
                         style: GoogleFonts.plusJakartaSans(
-                            color: context.onSurface,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16)),
+                            fontWeight: FontWeight.bold, fontSize: 16, color: theme.primaryText)),
                     const SizedBox(height: 14),
 
                     _methodCard(
+                        context,
                         method: 'BANK',
                         icon: Icons.account_balance,
                         title: 'Bank Transfer',
                         subtitle: 'Instant • No fee'),
                     _methodCard(
+                        context,
                         method: 'MOBILE_MONEY',
                         icon: Icons.phone_android,
                         title: 'Mobile Money',
                         subtitle: 'Instant • No fee'),
                     _methodCard(
+                        context,
                         method: 'CRYPTO',
                         icon: Icons.currency_bitcoin,
                         title: 'Crypto Wallet',
@@ -579,12 +704,14 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                       keyboardType: TextInputType.number,
                       obscureText: true,
                       maxLength: 6,
-                      style: GoogleFonts.plusJakartaSans(color: context.onSurface),
                       decoration: InputDecoration(
                         hintText: 'Transaction PIN',
-                        hintStyle: GoogleFonts.plusJakartaSans(color: context.textSecondary),
+                        hintStyle: TextStyle(color: theme.secondaryText),
+                        filled: true,
+                        fillColor: theme.secondaryBackground,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: theme.secondaryText.withAlpha(90)),
                         ),
                         counterText: '',
                       ),
@@ -596,8 +723,9 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
+                        color: theme.secondaryBackground,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: context.borderColor),
+                        border: Border.all(color: theme.secondaryText.withAlpha(80)),
                       ),
                       child: Column(
                         children: [
@@ -618,6 +746,29 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
 
                     const SizedBox(height: 20),
 
+                    // Security note
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: theme.secondaryBackground,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.verified_user_outlined, size: 18, color: theme.primary),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Withdrawal is secured by FARM multi-layer verification. '
+                              'Funds are locked until processed.',
+                              style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12, color: theme.secondaryText),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
                     const SizedBox(height: 28),
                     // Submit button
                     SizedBox(
@@ -625,18 +776,18 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                                         height: 58,
                                         child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                        backgroundColor: FlutterFlowTheme.of(context).primary,
+                          backgroundColor: isDark ? const Color(0xFF1F1F1F) : Colors.black,
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16)),
                         ),
                         onPressed:
                             (isLoading || amount <= 0) ? null : _createWithdraw,
                         child: isLoading
-                            ? CircularProgressIndicator(
-                                color: context.onSurface)
+                            ? const CircularProgressIndicator(
+                                color: Colors.white)
                             : Text('Withdraw Funds',
                                 style: GoogleFonts.plusJakartaSans(
-                            color: FlutterFlowTheme.of(context).onPrimary,
+                                    color: Colors.white,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16)),
                       ),
@@ -654,26 +805,27 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                       style: GoogleFonts.plusJakartaSans(
                           fontWeight: FontWeight.bold, fontSize: 16)),
                   TextButton(
-                      onPressed: _fetchHistory, child: Text('Refresh')),
+                      onPressed: _fetchHistory, child: const Text('Refresh')),
                 ],
               ),
 
               const SizedBox(height: 14),
 
               if (loadingHistory)
-                Center(child: CircularProgressIndicator())
+                const Center(child: CircularProgressIndicator())
               else if (history.isEmpty)
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
+                    color: theme.secondaryBackground,
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: context.borderColor),
+                    border: Border.all(color: theme.secondaryText.withAlpha(70)),
                   ),
                   child: Center(
                       child: Text('No withdrawal history',
                           style:
-                              GoogleFonts.plusJakartaSans(color: context.textSecondary))),
+                              GoogleFonts.plusJakartaSans(color: theme.secondaryText))),
                 )
               else
                 ...history.map((w) {
@@ -685,8 +837,9 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
+                      color: theme.secondaryBackground,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: context.borderColor),
+                      border: Border.all(color: theme.secondaryText.withAlpha(70)),
                     ),
                     child: Row(
                       children: [
@@ -695,15 +848,15 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                           height: 42,
                           decoration: BoxDecoration(
                             color: isComplete
-                                ? context.successColor.withOpacity(0.2)
-                                : context.warningColor.withOpacity(0.2),
+                                ? Colors.green.shade50
+                                : Colors.orange.shade50,
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
                             isComplete
                                 ? Icons.check_circle_outline
                                 : Icons.hourglass_top,
-                            color: isComplete ? context.successColor : context.warningColor,
+                            color: isComplete ? Colors.green : Colors.orange,
                             size: 20,
                           ),
                         ),
@@ -717,18 +870,20 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                                     w['description'] ??
                                     'Withdrawal',
                                 style: GoogleFonts.plusJakartaSans(
-                                    fontWeight: FontWeight.bold),
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.primaryText),
                               ),
                               Text(status.toUpperCase(),
                                     style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 12, color: context.textSecondary)),
+                                      fontSize: 12,
+                                      color: theme.secondaryText)),
                             ],
                           ),
                         ),
                         Text(
                           '-${w['amount']} FARM',
                           style: GoogleFonts.plusJakartaSans(
-                              fontWeight: FontWeight.bold, color: context.errorColor),
+                              fontWeight: FontWeight.bold, color: Colors.red),
                         ),
                       ],
                     ),

@@ -5,7 +5,6 @@ import '/flutter_flow/flutter_flow_charts.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/core/theme_extensions.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -298,8 +297,8 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                       ),
                     ),
                     child: applyingMerchant
-                        ? CircularProgressIndicator(color: context.onSurface)
-                        : Text('Submit Application'),
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text('Submit Application'),
                   ),
                 ),
               ],
@@ -379,8 +378,8 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                           ),
                         ),
                         child: payoutLoading
-                            ? CircularProgressIndicator(color: context.onSurface)
-                            : Text('Submit Payout Request'),
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : const Text('Submit Payout Request'),
                       ),
                     ),
                   ],
@@ -396,7 +395,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
   void showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        backgroundColor: context.errorColor,
+        backgroundColor: Colors.red,
         content: Text(message),
       ),
     );
@@ -405,7 +404,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
   void showSuccess(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        backgroundColor: context.successColor,
+        backgroundColor: Colors.green,
         content: Text(message),
       ),
     );
@@ -422,14 +421,14 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
         hintText: hint,
         filled: true,
         fillColor: const Color(0xFF111B2A),
-        hintStyle: TextStyle(color: context.onSurface.withOpacity(0.38)),
+        hintStyle: const TextStyle(color: Colors.white38),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
       ),
-      style: TextStyle(color: context.onSurface),
+      style: const TextStyle(color: Colors.white),
     );
   }
 
@@ -438,7 +437,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
     if (loading) {
       return Scaffold(
         backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
-        body: Center(child: CircularProgressIndicator()),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -456,7 +455,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                     width: 120,
                     height: 120,
                     decoration: BoxDecoration(
-                      color: FlutterFlowTheme.of(context).primary.withAlpha((0.14 * 255).round()),
+                      color: FlutterFlowTheme.of(context).primary.withOpacity(0.14),
                       borderRadius: BorderRadius.circular(32),
                     ),
                     child: Icon(
@@ -499,7 +498,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                       child: Text(
                         'Apply Merchant Account',
                         style: GoogleFonts.plusJakartaSans(
-                          color: context.onSurface,
+                          color: Colors.white,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -847,12 +846,12 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                                             imageUrl: merchant!['qr_code'],
                                             fit: BoxFit.cover,
                                             placeholder: (context, url) =>
-                                                Center(
+                                                const Center(
                                                     child:
                                                         CircularProgressIndicator()),
                                             errorWidget:
                                                 (context, url, error) =>
-                                                    Center(
+                                                    const Center(
                                                         child: Icon(
                                                             Icons
                                                                 .qr_code_2_rounded,
@@ -861,7 +860,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                                                                 .white24)),
                                           ),
                                         )
-                                      : Center(
+                                      : const Center(
                                           child: Icon(
                                             Icons.qr_code_2_rounded,
                                             size: 120,
