@@ -28,4 +28,21 @@ class SecureStorageService {
     await prefs.remove('device_fingerprint');
     await prefs.remove('device_id');
   }
+
+  static Future<void> writeAccessToken(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('accessToken', value);
+  }
+
+  static Future<void> writeRefreshToken(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('refreshToken', value);
+  }
+
+  static Future<void> clearAuthData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('accessToken');
+    await prefs.remove('refreshToken');
+    await clearBiometricData();
+  }
 }

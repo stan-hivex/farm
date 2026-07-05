@@ -12,6 +12,7 @@ import '/pages/withdrawpage/withdrawpage_widget.dart';
 import '/pages/send_receive/send_receive_widget.dart';
 import '/pages/all_transactions/all_transactions_widget.dart';
 import '/pages/merchant_dashboard/merchant_dashboard_widget.dart';
+import '/services/auth/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -78,32 +79,14 @@ class _DashboardWidgetState extends State<DashboardWidget>
 
   Future<void> logoutUser() async {
     try {
-      final response = await http.post(
-        Uri.parse('${AppConfig.api}/auth/logout'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${FFAppState().accessToken}',
-        },
-      );
-
-      print('LOGOUT STATUS: ${response.statusCode}');
-      print('LOGOUT BODY: ${response.body}');
-
-      // Clear local session ALWAYS (even if backend fails)
-      FFAppState().accessToken = '';
-      FFAppState().userName = '';
-      FFAppState().isLoggedIn = false;
-
-      if (mounted) {
-        context.goNamed('loginpage');
-      }
+      await AuthService().logout();
     } catch (e) {
-      print('LOGOUT ERROR: $e');
-
-      // still force logout locally
+      debugPrint('LOGOUT ERROR: $e');
+    } finally {
       FFAppState().accessToken = '';
       FFAppState().userName = '';
       FFAppState().isLoggedIn = false;
+      FFAppState().themeMode = ThemeMode.light;
 
       if (mounted) {
         context.goNamed('loginpage');

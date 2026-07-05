@@ -1,4 +1,3 @@
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '/core/app_config.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
@@ -11,6 +10,9 @@ export 'loginpage_model.dart';
 import '/admin/pages/admin_shell.dart';
 import '/pages/superadmin/superadmin_dashboard_page.dart';
 import '/services/secure_storage_service.dart';
+import '/services/auth/auth_service.dart';
+import '/services/auth/biometric_login_service.dart';
+import '/pages/forgot_password_page/forgot_password_page_widget.dart';
 
 /// Create a premium black and white fintech login page for FARM App.
 ///
@@ -40,6 +42,8 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
   final TextEditingController passwordController = TextEditingController();
   bool passwordVisible = false;
   bool isLoading = false;
+  bool _biometricAvailable = false;
+  String _biometricButtonLabel = 'Login with Biometric';
 
   final String baseUrl = '${AppConfig.api}/auth';
 
@@ -47,6 +51,26 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
   void initState() {
     super.initState();
     _model = createModel(context, () => LoginpageModel());
+    FFAppState().themeMode = ThemeMode.light;
+    _initializeBiometric();
+  }
+
+  Future<void> _initializeBiometric() async {
+    try {
+      final biometricService = BiometricLoginService();
+      final canUse = await biometricService.canUseBiometrics();
+      final hasSession = await biometricService.hasBiometricSession();
+      
+      if (mounted && canUse && hasSession) {
+        final label = await biometricService.getBiometricButtonLabel();
+        setState(() {
+          _biometricAvailable = true;
+          _biometricButtonLabel = label;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error initializing biometric: $e');
+    }
   }
 
   @override
@@ -57,7 +81,7 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
     super.dispose();
   }
 
-  /// Login API call
+  /// Login with email/password
   Future<void> handleLogin() async {
     final phone = phoneController.text.trim();
     final password = passwordController.text.trim();
@@ -75,115 +99,90 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
     setState(() => isLoading = true);
 
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'identifier': phone,
-          'password': password,
-          'device_name': 'Flutter Web',
-          'device_os': 'web',
-        }),
-      );
-
-      final responseData = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
-        final data = responseData['data'];
-
-        if (data != null) {
-          FFAppState().accessToken = data['access_token'] ?? '';
-          FFAppState().refreshToken = data['refresh_token'] ?? '';
-          FFAppState().userId = data['user']?['id'] ?? '';
-          FFAppState().firstName = data['user']?['first_name'] ?? '';
-          FFAppState().userName = data['user']?['username'] ?? '';
-          FFAppState().phone = data['user']?['phone'] ?? '';
-          FFAppState().kycStatus = data['user']?['kyc_status'] ?? '';
-          final role = (data['user']?['role'] ?? 'user').toString();
-          FFAppState().role = role;
-          FFAppState().isLoggedIn = true;
-
-          await SecureStorageService.writeAccessToken(
-              data['access_token'] ?? '');
-          await SecureStorageService.writeRefreshToken(
-              data['refresh_token'] ?? '');
-
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString(
-            'accessToken',
-            data['access_token'] ?? '',
-          );
-          await prefs.setString(
-            'refreshToken',
-            data['refresh_token'] ?? '',
-          );
-          await prefs.setString(
-            'userId',
-            data['user']?['id'] ?? '',
-          );
-          await prefs.setString(
-            'role',
-            role,
-          );
-          await prefs.setBool(
-            'isLoggedIn',
-            true,
-          );
-
-          if (role == 'admin' || role == 'super_admin') {
-            await prefs.setString('adminToken', data['access_token'] ?? '');
-            await prefs.setString(
-                'adminRefreshToken', data['refresh_token'] ?? '');
-            await prefs.setString('adminRole', role);
-            await prefs.setString(
-                'adminName', data['user']?['first_name'] ?? 'Admin');
-          } else {
-            await prefs.remove('adminToken');
-            await prefs.remove('adminRefreshToken');
-            await prefs.remove('adminRole');
-            await prefs.remove('adminName');
-          }
-        }
-
+      if (!phone.contains('@')) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              responseData['message'] ?? 'Login successful',
-            ),
-            backgroundColor: Colors.green,
-          ),
-        );
-
-        Future.delayed(
-          const Duration(seconds: 1),
-          () {
-            final role = FFAppState().role;
-            if (role == 'super_admin') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const SuperadminDashboardPage()),
-              );
-            } else if (role == 'admin') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const AdminShell()),
-              );
-            } else {
-              context.goNamed('Dashboard');
-            }
-          },
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              responseData['message'] ?? 'Login failed',
-            ),
+          const SnackBar(
+            content: Text('Please use your email address to log in.'),
             backgroundColor: Colors.red,
           ),
         );
+        setState(() => isLoading = false);
+        return;
       }
+
+      final response = await AuthService().login(
+        email: phone,
+        password: password,
+      );
+
+      final accessToken = response['farmJwt'] as String? ?? '';
+      final refreshToken = response['refreshToken'] as String? ?? '';
+      final data = response['user'] as Map<String, dynamic>?;
+
+      if (accessToken.isNotEmpty && data != null) {
+        FFAppState().accessToken = accessToken;
+        FFAppState().refreshToken = refreshToken;
+        FFAppState().userId = data['id'] ?? '';
+        FFAppState().firstName = data['first_name'] ?? '';
+        FFAppState().userName = data['username'] ?? '';
+        FFAppState().phone = data['phone'] ?? '';
+        FFAppState().kycStatus = data['kyc_status'] ?? '';
+        FFAppState().emailVerified = data['email_verified'] == true;
+        final role = (data['role'] ?? 'user').toString();
+        FFAppState().role = role;
+        FFAppState().isLoggedIn = true;
+
+        await SecureStorageService.writeAccessToken(accessToken);
+        await SecureStorageService.writeRefreshToken(refreshToken);
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('accessToken', accessToken);
+        await prefs.setString('refreshToken', refreshToken);
+        await prefs.setString('userId', data['id'] ?? '');
+        await prefs.setString('role', role);
+        await prefs.setBool('isLoggedIn', true);
+
+        if (role == 'admin' || role == 'super_admin') {
+          await prefs.setString('adminToken', accessToken);
+          await prefs.setString('adminRefreshToken', refreshToken);
+          await prefs.setString('adminRole', role);
+          await prefs.setString('adminName', data['first_name'] ?? 'Admin');
+        } else {
+          await prefs.remove('adminToken');
+          await prefs.remove('adminRefreshToken');
+          await prefs.remove('adminRole');
+          await prefs.remove('adminName');
+        }
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Login successful'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      Future.delayed(
+        const Duration(seconds: 1),
+        () {
+          final role = FFAppState().role;
+          if (role == 'super_admin') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const SuperadminDashboardPage(),
+              ),
+            );
+          } else if (role == 'admin') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const AdminShell()),
+            );
+          } else {
+            context.goNamed('Dashboard');
+          }
+        },
+      );
     } catch (e) {
       if (mounted) {
         final errorMsg = e.toString();
@@ -202,9 +201,77 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
           ),
         );
       }
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
+  }
 
-    setState(() => isLoading = false);
+  /// Login with biometric (fingerprint/face ID)
+  Future<void> handleBiometricLogin() async {
+    setState(() => isLoading = true);
+
+    try {
+      debugPrint('[BiometricLogin] Starting biometric authentication...');
+      
+      final biometricService = BiometricLoginService();
+      final response = await biometricService.authenticateWithBiometric();
+
+      if (!response['success']) {
+        throw Exception(response['message'] ?? 'Biometric authentication failed');
+      }
+
+      final user = response['user'] as Map<String, dynamic>? ?? {};
+      final role = (user['role'] ?? 'user').toString();
+
+      debugPrint('[BiometricLogin] Biometric login successful, routing to dashboard...');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Biometric login successful'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      Future.delayed(
+        const Duration(seconds: 1),
+        () {
+          if (!mounted) return;
+          
+          if (role == 'super_admin') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const SuperadminDashboardPage(),
+              ),
+            );
+          } else if (role == 'admin') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const AdminShell()),
+            );
+          } else {
+            context.goNamed('Dashboard');
+          }
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        final errorMsg = e.toString();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Biometric login failed: $errorMsg'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
+    }
   }
 
   InputDecoration inputDecoration(BuildContext context, String hint) {
@@ -448,6 +515,80 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                     ),
 
                     const SizedBox(height: 16.0),
+
+                    /// Biometric Login Button (if available)
+                    if (_biometricAvailable)
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Divider(
+                                  color: FlutterFlowTheme.of(context).alternate,
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8.0),
+                                child: Text(
+                                  'Or',
+                                  style: FlutterFlowTheme.of(context)
+                                      .bodySmall
+                                      .override(
+                                        color: FlutterFlowTheme.of(context)
+                                            .secondaryText,
+                                      ),
+                                ),
+                              ),
+                              Expanded(
+                                child: Divider(
+                                  color: FlutterFlowTheme.of(context).alternate,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16.0),
+                          FFButtonWidget(
+                            onPressed:
+                                isLoading ? null : handleBiometricLogin,
+                            text: _biometricButtonLabel,
+                            options: FFButtonOptions(
+                              width: double.infinity,
+                              height: 56.0,
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 0.0),
+                              color: FlutterFlowTheme.of(context)
+                                  .secondaryBackground,
+                              textStyle: FlutterFlowTheme.of(context)
+                                  .titleSmall
+                                  .override(
+                                    color: FlutterFlowTheme.of(context)
+                                        .primaryText,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                              borderSide: BorderSide(
+                                color: FlutterFlowTheme.of(context).alternate,
+                                width: 1.0,
+                              ),
+                              borderRadius: BorderRadius.circular(14.0),
+                            ),
+                          ),
+                          const SizedBox(height: 16.0),
+                        ],
+                      ),
+
+                    TextButton(
+                      onPressed: () => context.pushNamed(ForgotPasswordPageWidget.routeName),
+                      child: Text(
+                        'Forgot password?',
+                        style: FlutterFlowTheme.of(context).bodySmall.override(
+                          color: FlutterFlowTheme.of(context).primary,
+                          fontWeight: FontWeight.w600,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
 
                     /// Create Account Link
                     Row(

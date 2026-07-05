@@ -4,10 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'flutter_flow/flutter_flow_theme.dart';
 import 'flutter_flow/flutter_flow_util.dart';
 import 'core/app_theme.dart';
+import 'core/config/env.dart';
 import 'index.dart';
 import 'services/device_fingerprint_service.dart';
 import 'backend/api_requests/biometric_api_service.dart';
@@ -16,6 +19,15 @@ import 'services/secure_storage_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Load environment variables from the project root .env file.
+  await dotenv.load(fileName: '.env');
+
+  // Initialize Supabase with environment variables
+  await Supabase.initialize(
+    url: Env.supabaseUrl,
+    publishableKey: Env.supabaseAnonKey,
+  );
 
   // Global Flutter framework error handler
   FlutterError.onError = (FlutterErrorDetails details) {

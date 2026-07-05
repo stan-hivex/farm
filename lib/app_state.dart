@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'flutter_flow/flutter_flow_theme.dart';
+import '/services/secure_storage_service.dart';
 
 class FFAppState extends ChangeNotifier {
   static FFAppState _instance = FFAppState._internal();
@@ -25,6 +26,7 @@ class FFAppState extends ChangeNotifier {
     _userName = prefs.getString('userName') ?? '';
     _phone = prefs.getString('phone') ?? '';
     _kycStatus = prefs.getString('kycStatus') ?? '';
+    _emailVerified = prefs.getBool('emailVerified') ?? false;
     _isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
     _biometricsEnabled = prefs.getBool('biometricsEnabled') ?? false;
     _role = prefs.getString('role') ?? '';
@@ -137,7 +139,16 @@ class FFAppState extends ChangeNotifier {
     );
   }
 
-  ThemeMode _themeMode = ThemeMode.system;
+  bool _emailVerified = false;
+  bool get emailVerified => _emailVerified;
+  set emailVerified(bool value) {
+    _emailVerified = value;
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setBool('emailVerified', value),
+    );
+  }
+
+  ThemeMode _themeMode = ThemeMode.light;
   ThemeMode get themeMode => _themeMode;
   set themeMode(ThemeMode value) {
     _themeMode = value;
@@ -163,6 +174,8 @@ class FFAppState extends ChangeNotifier {
     isLoggedIn = false;
     biometricsEnabled = false;
     role = '';
+    themeMode = ThemeMode.light;
+    await SecureStorageService.clearAuthData();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('accessToken');
     await prefs.remove('refreshToken');
@@ -171,6 +184,7 @@ class FFAppState extends ChangeNotifier {
     await prefs.remove('userName');
     await prefs.remove('phone');
     await prefs.remove('kycStatus');
+    await prefs.remove('emailVerified');
     await prefs.remove('isLoggedIn');
     await prefs.remove('biometricsEnabled');
     await prefs.remove('role');

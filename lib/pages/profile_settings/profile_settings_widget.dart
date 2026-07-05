@@ -1,10 +1,10 @@
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import '/core/app_config.dart';
 import '/components/button/button_widget.dart';
 import '/components/profile_info_tile/profile_info_tile_widget.dart';
 import '/components/settings_action_tile/settings_action_tile_widget.dart';
 import '/backend/services/api_service.dart';
+import '/services/auth/auth_service.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/core/theme_extensions.dart';
@@ -318,48 +318,26 @@ Future<void> fetchSecuritySettings() async {
 
 Future<void> logoutUser() async {
   try {
-    await ApiService.logout();
+    await AuthService().logout();
   } catch (e) {
-    print('LOGOUT CALL FAILED: $e');
+    debugPrint('Logout failed: $e');
   }
 
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.remove('accessToken');
-  await prefs.remove('refreshToken');
-  await prefs.remove('userId');
-  await prefs.remove('role');
-  await prefs.remove('isLoggedIn');
-
-  FFAppState().accessToken = '';
-  FFAppState().refreshToken = '';
-  FFAppState().userId = '';
-  FFAppState().firstName = '';
-  FFAppState().userName = '';
-  FFAppState().phone = '';
-  FFAppState().role = '';
-  FFAppState().isLoggedIn = false;
-
-  if (mounted) {
-    context.goNamed('loginpage');
+  if (!mounted) {
+    return;
   }
+
+  context.goNamed('loginpage');
 }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
-        FocusManager.instance.primaryFocus?.unfocus();
-      },
-      child: Scaffold(
-        key: scaffoldKey,
-        backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
-        body: SingleChildScrollView(
-          primary: false,
+    return Scaffold(
+      key: scaffoldKey,
+      backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
+      body: SafeArea(
+        child: SingleChildScrollView(
           child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Container(
                 child: Padding(

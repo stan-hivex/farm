@@ -20,6 +20,8 @@ export '/pages/withdrawpage/withdrawpage_widget.dart' show WithdrawpageWidget;
 export '/pages/otppage/otppage_widget.dart' show OtppageWidget;
 export '/pages/forgot_password_page/forgot_password_page_widget.dart'
     show ForgotPasswordPageWidget;
+export '/pages/reset_password_page/reset_password_page_widget.dart'
+    show ResetPasswordPageWidget;
 export '/pages/pin_setup_page/pin_setup_page_widget.dart'
     show PinSetupPageWidget;
 export '/pages/biometric_security_page/biometric_security_page_widget.dart'

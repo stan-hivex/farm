@@ -22,8 +22,8 @@ class AppTheme {
   static const darkPrimary = Color(0xFFFFFFFF);
   static const darkSecondary = Color(0xFFD1D5DB);
   static const darkTertiary = Color(0xFFE0E7FF);
-  static const darkBackground = Color(0xFF0F172A);
-  static const darkSurface = Color(0xFF1E293B);
+  static const darkBackground = Color(0xFF000000);
+  static const darkSurface = Color(0xFF1A1A1A);
   static const darkError = Color(0xFFF87171);
   static const darkSuccess = Color(0xFF4ADE80);
   static const darkWarning = Color(0xFFFBBF24);

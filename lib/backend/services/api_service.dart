@@ -1,15 +1,35 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import '/core/app_config.dart';
 import '/app_state.dart';
+import '/services/auth/auth_service.dart';
 
 class ApiService {
+  static bool _isRefreshing = false;
+
   // Central method — all requests go through here
   static Future<Map<String, dynamic>> _request({
     required String method,
     required String path,
     Map<String, dynamic>? body,
     bool requiresAuth = true,
+  }) async {
+    return _performRequest(
+      method: method,
+      path: path,
+      body: body,
+      requiresAuth: requiresAuth,
+      isRetry: false,
+    );
+  }
+
+  static Future<Map<String, dynamic>> _performRequest({
+    required String method,
+    required String path,
+    Map<String, dynamic>? body,
+    required bool requiresAuth,
+    required bool isRetry,
   }) async {
     final uri = Uri.parse('${AppConfig.api}$path');
     final token = FFAppState().accessToken;
@@ -22,27 +42,33 @@ class ApiService {
 
     late http.Response response;
 
-    switch (method.toUpperCase()) {
-      case 'GET':
-        response = await http.get(uri, headers: headers);
-        break;
-      case 'POST':
-        response = await http.post(uri,
-            headers: headers, body: body != null ? jsonEncode(body) : null);
-        break;
-      case 'PUT':
-        response = await http.put(uri,
-            headers: headers, body: body != null ? jsonEncode(body) : null);
-        break;
-      case 'PATCH':
-        response = await http.patch(uri,
-            headers: headers, body: body != null ? jsonEncode(body) : null);
-        break;
-      case 'DELETE':
-        response = await http.delete(uri, headers: headers);
-        break;
-      default:
-        throw Exception('Unknown HTTP method: $method');
+    try {
+      switch (method.toUpperCase()) {
+        case 'GET':
+          response = await http.get(uri, headers: headers);
+          break;
+        case 'POST':
+          response = await http.post(uri,
+              headers: headers, body: body != null ? jsonEncode(body) : null);
+          break;
+        case 'PUT':
+          response = await http.put(uri,
+              headers: headers, body: body != null ? jsonEncode(body) : null);
+          break;
+        case 'PATCH':
+          response = await http.patch(uri,
+              headers: headers, body: body != null ? jsonEncode(body) : null);
+          break;
+        case 'DELETE':
+          response = await http.delete(uri, headers: headers);
+          break;
+        default:
+          throw Exception('Unknown HTTP method: $method');
+      }
+    } on SocketException {
+      throw Exception('No internet connection. Please check your network and try again.');
+    } on http.ClientException {
+      throw Exception('No internet connection. Please check your network and try again.');
     }
 
     Map<String, dynamic> decoded = {};
@@ -56,6 +82,45 @@ class ApiService {
       }
     }
 
+    // Handle 401 Unauthorized: token expired, try refresh and retry
+    if (response.statusCode == 401 && requiresAuth && !isRetry) {
+      if (_isRefreshing) {
+        throw Exception('Session expired. Please log in again.');
+      }
+
+      _isRefreshing = true;
+      try {
+        final refreshToken = FFAppState().refreshToken;
+        if (refreshToken.isEmpty) {
+          throw Exception('No refresh token available.');
+        }
+
+        // Refresh via Supabase and backend
+        final newFarmJwt = await AuthService().refreshSession();
+        if (newFarmJwt != null && newFarmJwt.isNotEmpty) {
+          // Update app state with new token
+          FFAppState().accessToken = newFarmJwt;
+
+          // Retry the original request with new token
+          return _performRequest(
+            method: method,
+            path: path,
+            body: body,
+            requiresAuth: requiresAuth,
+            isRetry: true,
+          );
+        } else {
+          throw Exception('Token refresh returned null.');
+        }
+      } catch (e) {
+        // Refresh failed, clear credentials and redirect to login
+        await FFAppState().clearAuthCredentials();
+        throw Exception('Session expired. Please log in again. Error: $e');
+      } finally {
+        _isRefreshing = false;
+      }
+    }
+
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return decoded;
     }
@@ -63,6 +128,11 @@ class ApiService {
     final message = decoded['message'] is String
         ? decoded['message'] as String
         : responseBody;
+
+    if (response.statusCode >= 500) {
+      throw Exception('Server error. Please try again later.');
+    }
+
     throw Exception(message.isNotEmpty
         ? message
         : 'Request failed (${response.statusCode})');
@@ -107,6 +177,53 @@ class ApiService {
         requiresAuth: false,
       );
 
+  static Future<Map<String, dynamic>> verifyEmail({
+    required String token,
+  }) =>
+      _request(
+        method: 'GET',
+        path: '/auth/verify-email/$token',
+        requiresAuth: false,
+      );
+
+  static Future<Map<String, dynamic>> forgotPassword({
+    required String email,
+  }) =>
+      _request(
+        method: 'POST',
+        path: '/auth/forgot-password',
+        body: {'email': email},
+        requiresAuth: false,
+      );
+
+  static Future<Map<String, dynamic>> resetPassword({
+    required String password,
+    required String confirmPassword,
+    String? token,
+    String? email,
+  }) =>
+      _request(
+        method: 'POST',
+        path: '/auth/reset-password',
+        body: {
+          if (token != null && token.isNotEmpty) 'token': token,
+          if (email != null && email.isNotEmpty) 'email': email,
+          'password': password,
+          'confirm_password': confirmPassword,
+        },
+        requiresAuth: false,
+      );
+
+  static Future<Map<String, dynamic>> resendEmailVerification({
+    required String email,
+  }) =>
+      _request(
+        method: 'POST',
+        path: '/auth/resend-email-verification',
+        body: {'email': email},
+        requiresAuth: false,
+      );
+
   static Future<Map<String, dynamic>> verifyOtp({
     required String phone,
     required String otpCode,
@@ -144,8 +261,38 @@ class ApiService {
         },
       );
 
-  static Future<void> logout() =>
-      _request(method: 'POST', path: '/auth/logout');
+  static Future<void> logout() async {
+    await _request(method: 'POST', path: '/auth/sessions/revoke-all');
+  }
+
+  static Future<Map<String, dynamic>> getSessions() =>
+      _request(method: 'GET', path: '/auth/sessions');
+
+  static Future<Map<String, dynamic>> revokeSession({
+    required String sessionId,
+  }) =>
+      _request(method: 'POST', path: '/auth/sessions/$sessionId/revoke');
+
+  static Future<Map<String, dynamic>> revokeOtherSessions() =>
+      _request(method: 'POST', path: '/auth/sessions/revoke-others');
+
+  static Future<Map<String, dynamic>> revokeAllSessions() =>
+      _request(method: 'POST', path: '/auth/sessions/revoke-all');
+
+  static Future<Map<String, dynamic>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String confirmPassword,
+  }) =>
+      _request(
+        method: 'POST',
+        path: '/auth/change-password',
+        body: {
+          'current_password': currentPassword,
+          'new_password': newPassword,
+          'confirm_password': confirmPassword,
+        },
+      );
 
   static Future<Map<String, dynamic>> refreshToken({
     required String refreshToken,

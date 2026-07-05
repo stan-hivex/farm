@@ -11,7 +11,10 @@ import '/pages/support/live_chat_page_widget.dart';
 import '/pages/support/email_support_page_widget.dart';
 import '/pages/notifications/user_notifications_page_widget.dart';
 import '/pages/growth_tracking_page/growth_tracking_page_widget.dart';
+import '/pages/verify_email_page/verify_email_page_widget.dart';
+import '/pages/reset_password_page/reset_password_page_widget.dart';
 import '/index.dart';
+import '/services/auth/route_guard_service.dart';
 
 export 'package:go_router/go_router.dart';
 export 'serialization_util.dart';
@@ -40,6 +43,11 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
       refreshListenable: appStateNotifier,
       navigatorKey: appNavigatorKey,
       errorBuilder: (context, state) => const OnboardingWidget(),
+      redirect: (BuildContext context, GoRouterState state) async {
+        // Use RouteGuardService to check authentication and redirect if needed
+        final routeGuard = RouteGuardService();
+        return await routeGuard.verifyAndRedirect(context, state.uri.path);
+      },
       routes: [
         
         FFRoute(
@@ -60,58 +68,69 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
         FFRoute(
           name: DashboardWidget.routeName,
           path: DashboardWidget.routePath,
+          requireAuth: true,
           builder: (context, params) => const DashboardWidget(),
         ),
         FFRoute(
           name: GrowthTrackingPageWidget.routeName,
           path: GrowthTrackingPageWidget.routePath,
+          requireAuth: true,
           builder: (context, params) => const GrowthTrackingPageWidget(),
         ),
         FFRoute(
           name: SendReceiveWidget.routeName,
           path: SendReceiveWidget.routePath,
+          requireAuth: true,
           builder: (context, params) => const SendReceiveWidget(),
         ),
         FFRoute(
           name: KycpageWidget.routeName,
           path: KycpageWidget.routePath,
+          requireAuth: true,
           builder: (context, params) => const KycpageWidget(),
         ),
         FFRoute(
           name: QRScannerWidget.routeName,
           path: QRScannerWidget.routePath,
+          requireAuth: true,
           builder: (context, params) => const QRScannerWidget(),
         ),
         FFRoute(
           name: EscrowHubWidget.routeName,
           path: EscrowHubWidget.routePath,
+          requireAuth: true,
           builder: (context, params) => const EscrowHubWidget(),
         ),
         FFRoute(
           name: InvestmentMarketplaceWidget.routeName,
           path: InvestmentMarketplaceWidget.routePath,
+          requireAuth: true,
           builder: (context, params) => const InvestmentMarketplaceWidget(),
         ),
         FFRoute(
         name: 'FaqPage',
         path: '/faq',
+        requireAuth: true,
         builder: (context, params) => const FaqPageWidget(),
     ),
 
 FFRoute(
   name: 'LiveChatPage',
   path: '/chat',
+  requireAuth: true,
   builder: (context, params) => const LiveChatPageWidget(),
 ),
 
 FFRoute(
   name: 'EmailSupportPage',
   path: '/email-support',
+  requireAuth: true,
   builder: (context, params) => const EmailSupportPageWidget(),
 ),
         FFRoute(
           name: ProjectDetailsWidget.routeName,
           path: ProjectDetailsWidget.routePath,
+          requireAuth: true,
           builder: (context, params) => ProjectDetailsWidget(
             projectId: params.getParam(
               'projectId',
@@ -122,16 +141,19 @@ FFRoute(
         FFRoute(
           name: MerchantDashboardWidget.routeName,
           path: MerchantDashboardWidget.routePath,
+          requireAuth: true,
           builder: (context, params) => const MerchantDashboardWidget(),
         ),
         FFRoute(
           name: AllTransactionsWidget.routeName,
           path: AllTransactionsWidget.routePath,
+          requireAuth: true,
           builder: (context, params) => const AllTransactionsWidget(),
         ),
         FFRoute(
           name: ProfileSettingsWidget.routeName,
           path: ProfileSettingsWidget.routePath,
+          requireAuth: true,
           builder: (context, params) => const ProfileSettingsWidget(),
         ),
         FFRoute(
@@ -147,11 +169,13 @@ FFRoute(
         FFRoute(
           name: DepositpageWidget.routeName,
           path: DepositpageWidget.routePath,
+          requireAuth: true,
           builder: (context, params) => const DepositpageWidget(),
         ),
         FFRoute(
           name: WithdrawpageWidget.routeName,
           path: WithdrawpageWidget.routePath,
+          requireAuth: true,
           builder: (context, params) => const WithdrawpageWidget(),
         ),
         FFRoute(
@@ -170,55 +194,75 @@ FFRoute(
           builder: (context, params) => const ForgotPasswordPageWidget(),
         ),
         FFRoute(
+          name: VerifyEmailPageWidget.routeName,
+          path: VerifyEmailPageWidget.routePath,
+          builder: (context, params) => const VerifyEmailPageWidget(),
+        ),
+        FFRoute(
+          name: ResetPasswordPageWidget.routeName,
+          path: ResetPasswordPageWidget.routePath,
+          builder: (context, params) => const ResetPasswordPageWidget(),
+        ),
+        FFRoute(
           name: PinSetupPageWidget.routeName,
           path: PinSetupPageWidget.routePath,
+          requireAuth: true,
           builder: (context, params) => const PinSetupPageWidget(),
         ),
                 FFRoute(
           name: BiometricSecurityPageWidget.routeName,
           path: BiometricSecurityPageWidget.routePath,
+          requireAuth: true,
           builder: (context, params) => const BiometricSecurityPageWidget(),
         ),
 
         FFRoute(
           name: ChangePinPageWidget.routeName,
           path: ChangePinPageWidget.routePath,
+          requireAuth: true,
           builder: (context, params) => const ChangePinPageWidget(),
         ),
 
         FFRoute(
           name: ForgotPinPageWidget.routeName,
           path: ForgotPinPageWidget.routePath,
+          requireAuth: true,
           builder: (context, params) => const ForgotPinPageWidget(),
         ),
         FFRoute(
           name: NotificationSettingsPageWidget.routeName,
           path: NotificationSettingsPageWidget.routePath,
+          requireAuth: true,
           builder: (context, params) => const NotificationSettingsPageWidget(),
         ),
         FFRoute(
           name: UserNotificationsPageWidget.routeName,
           path: UserNotificationsPageWidget.routePath,
+          requireAuth: true,
           builder: (context, params) => const UserNotificationsPageWidget(),
         ),
         FFRoute(
           name: LanguageSettingsPageWidget.routeName,
           path: LanguageSettingsPageWidget.routePath,
+          requireAuth: true,
           builder: (context, params) => const LanguageSettingsPageWidget(),
         ),
         FFRoute(
           name: SupportHelpCenterPageWidget.routeName,
           path: SupportHelpCenterPageWidget.routePath,
+          requireAuth: true,
           builder: (context, params) => const SupportHelpCenterPageWidget(),
         ),
         FFRoute(
           name: SuperadminDashboardPage.routeName,
           path: SuperadminDashboardPage.routePath,
+          requireAuth: true,
           builder: (context, params) => const SuperadminDashboardPage(),
         ),
         FFRoute(
           name: SuperadminWalletPage.routeName,
           path: SuperadminWalletPage.routePath,
+          requireAuth: true,
           builder: (context, params) => const SuperadminWalletPage(),
         ),
       ].map((r) => r.toRoute(appStateNotifier)).toList(),

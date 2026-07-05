@@ -1,5 +1,4 @@
-import 'package:http/http.dart' as http;
-import '/core/app_config.dart';
+import '/services/auth/auth_service.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
@@ -375,6 +374,7 @@ class _RegisterpageWidgetState extends State<RegisterpageWidget> {
       context,
       () => RegisterpageModel(),
     );
+    FFAppState().themeMode = ThemeMode.light;
   }
 
   @override
@@ -873,56 +873,46 @@ class _RegisterpageWidgetState extends State<RegisterpageWidget> {
                       print('REGISTER DATA');
                       print(registerData);
 
-                      try {
-                        final response = await http.post(
-                          Uri.parse(
-                            '${AppConfig.api}/auth/register',
+                      final email = emailController.text.trim();
+                      final password = passwordController.text.trim();
+
+                      if (!email.contains('@')) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Please enter a valid email address.'),
+                            backgroundColor: Colors.red,
                           ),
-                          headers: {
-                            'Content-Type': 'application/json',
-                          },
-                          body: jsonEncode(registerData),
+                        );
+                        return;
+                      }
+
+                      try {
+                        await AuthService().signUp(
+                          email: email,
+                          password: password,
+                          firstName: firstNameController.text.trim(),
+                          lastName: lastNameController.text.trim(),
+                          username: usernameController.text.trim(),
+                          phone: fullPhone,
+                          country: _selectedCountry,
+                          referralCode: referralController.text.trim(),
                         );
 
-                        print('STATUS CODE: ${response.statusCode}');
-                        print('BODY: ${response.body}');
-
-                        final responseData = jsonDecode(response.body);
-
-                        if (response.statusCode == 200 ||
-                            response.statusCode == 201) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                responseData['message'] ??
-                                    'Registration successful',
-                              ),
-                              backgroundColor: Colors.green,
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Registration successful. Please verify your email before logging in.',
                             ),
-                          );
+                            backgroundColor: Colors.green,
+                          ),
+                        );
 
-                          Future.delayed(
-                            const Duration(seconds: 1),
-                            () {
-                              context.pushNamed(
-                                'otppage',
-                                queryParameters: {
-                                  'phone': fullPhone,
-                                },
-                              );
-                            },
-                          );
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                responseData['message'] ??
-                                    'Registration failed',
-                              ),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
+                        Future.delayed(
+                          const Duration(seconds: 1),
+                          () {
+                            context.pushNamed('loginpage');
+                          },
+                        );
                       } catch (e) {
                         print('ERROR: $e');
 
