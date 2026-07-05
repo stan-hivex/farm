@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import '/core/app_config.dart';
 import '/app_state.dart';
+import '/backend/services/turnstile_payload.dart';
 import '/services/auth/auth_service.dart';
 
 class ApiService {
@@ -66,9 +67,11 @@ class ApiService {
           throw Exception('Unknown HTTP method: $method');
       }
     } on SocketException {
-      throw Exception('No internet connection. Please check your network and try again.');
+      throw Exception(
+          'No internet connection. Please check your network and try again.');
     } on http.ClientException {
-      throw Exception('No internet connection. Please check your network and try again.');
+      throw Exception(
+          'No internet connection. Please check your network and try again.');
     }
 
     Map<String, dynamic> decoded = {};
@@ -142,11 +145,15 @@ class ApiService {
   static Future<Map<String, dynamic>> login({
     required String identifier,
     required String password,
+    String? turnstileToken,
   }) =>
       _request(
         method: 'POST',
         path: '/auth/login',
-        body: {'identifier': identifier, 'password': password},
+        body: attachTurnstileToken(
+          {'identifier': identifier, 'password': password},
+          turnstileToken: turnstileToken,
+        ),
         requiresAuth: false,
       );
 
@@ -159,21 +166,25 @@ class ApiService {
     String? email,
     String? country,
     String? referralCode,
+    String? turnstileToken,
   }) =>
       _request(
         method: 'POST',
         path: '/auth/register',
-        body: {
-          'first_name': firstName,
-          'last_name': lastName,
-          'username': username,
-          'phone': phone,
-          'password': password,
-          if (email != null && email.isNotEmpty) 'email': email,
-          if (country != null && country.isNotEmpty) 'country': country,
-          if (referralCode != null && referralCode.isNotEmpty)
-            'referral_code': referralCode,
-        },
+        body: attachTurnstileToken(
+          {
+            'first_name': firstName,
+            'last_name': lastName,
+            'username': username,
+            'phone': phone,
+            'password': password,
+            if (email != null && email.isNotEmpty) 'email': email,
+            if (country != null && country.isNotEmpty) 'country': country,
+            if (referralCode != null && referralCode.isNotEmpty)
+              'referral_code': referralCode,
+          },
+          turnstileToken: turnstileToken,
+        ),
         requiresAuth: false,
       );
 
@@ -188,11 +199,15 @@ class ApiService {
 
   static Future<Map<String, dynamic>> forgotPassword({
     required String email,
+    String? turnstileToken,
   }) =>
       _request(
         method: 'POST',
         path: '/auth/forgot-password',
-        body: {'email': email},
+        body: attachTurnstileToken(
+          {'email': email},
+          turnstileToken: turnstileToken,
+        ),
         requiresAuth: false,
       );
 
@@ -293,6 +308,9 @@ class ApiService {
           'confirm_password': confirmPassword,
         },
       );
+
+  static Future<Map<String, dynamic>> deleteAccount() =>
+      _request(method: 'DELETE', path: '/auth/delete-account');
 
   static Future<Map<String, dynamic>> refreshToken({
     required String refreshToken,
@@ -505,8 +523,7 @@ class ApiService {
             'document_number': documentNumber,
           if (firstName != null && firstName.isNotEmpty)
             'first_name': firstName,
-          if (lastName != null && lastName.isNotEmpty)
-            'last_name': lastName,
+          if (lastName != null && lastName.isNotEmpty) 'last_name': lastName,
           if (dateOfBirth != null && dateOfBirth.isNotEmpty)
             'date_of_birth': dateOfBirth,
           if (phoneNumber != null && phoneNumber.isNotEmpty)

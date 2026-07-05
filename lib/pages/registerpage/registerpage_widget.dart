@@ -1,5 +1,7 @@
 import '/services/auth/auth_service.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
+import '/components/turnstile_widget.dart';
+import '/core/config/env.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import 'package:flutter/material.dart';
@@ -43,6 +45,7 @@ class _RegisterpageWidgetState extends State<RegisterpageWidget> {
 
   final TextEditingController referralController = TextEditingController();
 
+  String _turnstileToken = '';
   String? _selectedCountry = 'United States';
   String _selectedCountryCode = '+1';
 
@@ -849,6 +852,15 @@ class _RegisterpageWidgetState extends State<RegisterpageWidget> {
                     ),
                   ),
                   const SizedBox(height: 24.0),
+                  if (Env.turnstileSiteKey.isNotEmpty) ...[
+                    TurnstileWidget(
+                      siteKey: Env.turnstileSiteKey,
+                      onTokenChanged: (token) {
+                        setState(() => _turnstileToken = token);
+                      },
+                    ),
+                    const SizedBox(height: 16.0),
+                  ],
                   FFButtonWidget(
                     onPressed: () async {
                       FocusScope.of(context).unfocus();
@@ -873,13 +885,26 @@ class _RegisterpageWidgetState extends State<RegisterpageWidget> {
                       print('REGISTER DATA');
                       print(registerData);
 
+                      if (Env.turnstileSiteKey.isNotEmpty &&
+                          _turnstileToken.trim().isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                'Please complete the security check before continuing.'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
+
                       final email = emailController.text.trim();
                       final password = passwordController.text.trim();
 
                       if (!email.contains('@')) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Please enter a valid email address.'),
+                            content:
+                                Text('Please enter a valid email address.'),
                             backgroundColor: Colors.red,
                           ),
                         );
@@ -896,6 +921,7 @@ class _RegisterpageWidgetState extends State<RegisterpageWidget> {
                           phone: fullPhone,
                           country: _selectedCountry,
                           referralCode: referralController.text.trim(),
+                          turnstileToken: _turnstileToken,
                         );
 
                         ScaffoldMessenger.of(context).showSnackBar(

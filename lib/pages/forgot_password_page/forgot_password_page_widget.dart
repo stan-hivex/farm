@@ -6,6 +6,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 import '/services/auth/auth_service.dart';
 import '/pages/loginpage/loginpage_widget.dart';
+import '/components/turnstile_widget.dart';
+import '/core/config/env.dart';
 import 'forgot_password_page_model.dart';
 export 'forgot_password_page_model.dart';
 
@@ -37,6 +39,7 @@ class _ForgotPasswordPageWidgetState extends State<ForgotPasswordPageWidget> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   bool _isSubmitting = false;
+  String _turnstileToken = '';
 
   @override
   void initState() {
@@ -56,10 +59,24 @@ class _ForgotPasswordPageWidgetState extends State<ForgotPasswordPageWidget> {
       return;
     }
 
+    if (Env.turnstileSiteKey.isNotEmpty && _turnstileToken.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Please complete the security check before continuing.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isSubmitting = true);
 
     try {
-      await AuthService().sendPasswordReset(email: _emailController.text.trim());
+      await AuthService().sendPasswordReset(
+        email: _emailController.text.trim(),
+        turnstileToken: _turnstileToken,
+      );
       if (!mounted) {
         return;
       }
@@ -145,21 +162,22 @@ class _ForgotPasswordPageWidgetState extends State<ForgotPasswordPageWidget> {
                     'Reset your password',
                     textAlign: TextAlign.center,
                     style: FlutterFlowTheme.of(context).headlineMedium.override(
-                      font: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800),
-                      color: FlutterFlowTheme.of(context).primaryText,
-                      letterSpacing: 0.0,
-                      fontWeight: FontWeight.w800,
-                    ),
+                          font: GoogleFonts.plusJakartaSans(
+                              fontWeight: FontWeight.w800),
+                          color: FlutterFlowTheme.of(context).primaryText,
+                          letterSpacing: 0.0,
+                          fontWeight: FontWeight.w800,
+                        ),
                   ),
                   const SizedBox(height: 12),
                   Text(
                     'Enter your email address and we will send a secure reset link to help you create a new password.',
                     textAlign: TextAlign.center,
                     style: FlutterFlowTheme.of(context).bodyMedium.override(
-                      font: GoogleFonts.inter(),
-                      color: FlutterFlowTheme.of(context).secondaryText,
-                      letterSpacing: 0.0,
-                    ),
+                          font: GoogleFonts.inter(),
+                          color: FlutterFlowTheme.of(context).secondaryText,
+                          letterSpacing: 0.0,
+                        ),
                   ),
                   const SizedBox(height: 24),
                   TextFormField(
@@ -181,6 +199,15 @@ class _ForgotPasswordPageWidgetState extends State<ForgotPasswordPageWidget> {
                     },
                   ),
                   const SizedBox(height: 20),
+                  if (Env.turnstileSiteKey.isNotEmpty) ...[
+                    TurnstileWidget(
+                      siteKey: Env.turnstileSiteKey,
+                      onTokenChanged: (token) {
+                        setState(() => _turnstileToken = token);
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   FilledButton.icon(
                     onPressed: _isSubmitting ? null : _submit,
                     icon: _isSubmitting
@@ -190,7 +217,8 @@ class _ForgotPasswordPageWidgetState extends State<ForgotPasswordPageWidget> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.send_rounded),
-                    label: Text(_isSubmitting ? 'Sending...' : 'Send reset link'),
+                    label:
+                        Text(_isSubmitting ? 'Sending...' : 'Send reset link'),
                   ),
                   const SizedBox(height: 16),
                   TextButton(

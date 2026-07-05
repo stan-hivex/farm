@@ -10,11 +10,14 @@ class Env {
   static final apiBaseUrl =
       dotenv.env['API_URL'] ?? 'https://farm-backend-9b8u.onrender.com';
 
-  static final frontendUrl = dotenv.env['FRONTEND_URL'] ?? 'http://localhost:4200';
+  static final frontendUrl =
+      dotenv.env['FRONTEND_URL'] ?? 'http://localhost:4200';
 
   static final appScheme = dotenv.env['APP_SCHEME'] ?? 'farm';
 
   static final appHost = dotenv.env['APP_HOST'] ?? 'farm.com';
+
+  static final turnstileSiteKey = dotenv.env['TURNSTILE_SITE_KEY'] ?? '';
 
   static final apiVersion = '/api/v1';
 

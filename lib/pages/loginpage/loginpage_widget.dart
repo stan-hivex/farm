@@ -10,9 +10,12 @@ export 'loginpage_model.dart';
 import '/admin/pages/admin_shell.dart';
 import '/pages/superadmin/superadmin_dashboard_page.dart';
 import '/services/secure_storage_service.dart';
-import '/services/auth/auth_service.dart';
 import '/services/auth/biometric_login_service.dart';
 import '/pages/forgot_password_page/forgot_password_page_widget.dart';
+import '/components/turnstile_widget.dart';
+import '/core/config/env.dart';
+import '/backend/services/api_service.dart';
+import 'login_identifier.dart';
 
 /// Create a premium black and white fintech login page for FARM App.
 ///
@@ -38,12 +41,13 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
   late LoginpageModel _model;
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
-  final TextEditingController phoneController = TextEditingController();
+  final TextEditingController identifierController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   bool passwordVisible = false;
   bool isLoading = false;
   bool _biometricAvailable = false;
   String _biometricButtonLabel = 'Login with Biometric';
+  String _turnstileToken = '';
 
   final String baseUrl = '${AppConfig.api}/auth';
 
@@ -60,7 +64,7 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
       final biometricService = BiometricLoginService();
       final canUse = await biometricService.canUseBiometrics();
       final hasSession = await biometricService.hasBiometricSession();
-      
+
       if (mounted && canUse && hasSession) {
         final label = await biometricService.getBiometricButtonLabel();
         setState(() {
@@ -75,18 +79,68 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
 
   @override
   void dispose() {
-    phoneController.dispose();
+    identifierController.dispose();
     passwordController.dispose();
     _model.dispose();
     super.dispose();
   }
 
-  /// Login with email/password
+  Future<void> _showLoginSecurityNotice() async {
+    try {
+      final response = await ApiService.getNotifications();
+      final rawNotifications = response['data'];
+      final notifications = rawNotifications is List
+          ? rawNotifications.whereType<Map>().toList()
+          : <Map>[];
+
+      final latestLoginNotice = notifications.firstWhere(
+        (item) {
+          final title = (item['title'] ?? '').toString().toLowerCase();
+          final body = (item['body'] ?? '').toString().toLowerCase();
+          return title.contains('new login detected') ||
+              body.contains('new login detected');
+        },
+        orElse: () => <String, dynamic>{},
+      );
+
+      if (!mounted) return;
+
+      final noticeBody =
+          ((latestLoginNotice['body'] ?? 'New login detected') as String?)
+              ?.toString()
+              .trim();
+      final summary = (noticeBody ?? 'New login detected')
+          .split('\n')
+          .where((line) => line.trim().isNotEmpty)
+          .join(' • ');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(summary.isNotEmpty ? summary : 'New login detected'),
+          backgroundColor: Colors.orange.shade700,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 6),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('New login detected'),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
+  /// Login with email/phone number and password.
   Future<void> handleLogin() async {
-    final phone = phoneController.text.trim();
+    final identifier = normalizeLoginIdentifier(identifierController.text);
     final password = passwordController.text.trim();
 
-    if (phone.isEmpty || password.isEmpty) {
+    if (identifier.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Please fill in all fields"),
@@ -96,28 +150,30 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
       return;
     }
 
+    if (Env.turnstileSiteKey.isNotEmpty && _turnstileToken.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Please complete the security check before continuing.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() => isLoading = true);
 
     try {
-      if (!phone.contains('@')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please use your email address to log in.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        setState(() => isLoading = false);
-        return;
-      }
-
-      final response = await AuthService().login(
-        email: phone,
+      final response = await ApiService.login(
+        identifier: identifier,
         password: password,
+        turnstileToken: _turnstileToken,
       );
 
-      final accessToken = response['farmJwt'] as String? ?? '';
-      final refreshToken = response['refreshToken'] as String? ?? '';
-      final data = response['user'] as Map<String, dynamic>?;
+      final payload = response['data'] as Map<String, dynamic>? ?? {};
+      final accessToken = payload['access_token'] as String? ?? '';
+      final refreshToken = payload['refresh_token'] as String? ?? '';
+      final data = payload['user'] as Map<String, dynamic>?;
 
       if (accessToken.isNotEmpty && data != null) {
         FFAppState().accessToken = accessToken;
@@ -161,6 +217,8 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
           backgroundColor: Colors.green,
         ),
       );
+
+      await _showLoginSecurityNotice();
 
       Future.delayed(
         const Duration(seconds: 1),
@@ -214,18 +272,20 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
 
     try {
       debugPrint('[BiometricLogin] Starting biometric authentication...');
-      
+
       final biometricService = BiometricLoginService();
       final response = await biometricService.authenticateWithBiometric();
 
       if (!response['success']) {
-        throw Exception(response['message'] ?? 'Biometric authentication failed');
+        throw Exception(
+            response['message'] ?? 'Biometric authentication failed');
       }
 
       final user = response['user'] as Map<String, dynamic>? ?? {};
       final role = (user['role'] ?? 'user').toString();
 
-      debugPrint('[BiometricLogin] Biometric login successful, routing to dashboard...');
+      debugPrint(
+          '[BiometricLogin] Biometric login successful, routing to dashboard...');
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -234,11 +294,13 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
         ),
       );
 
+      await _showLoginSecurityNotice();
+
       Future.delayed(
         const Duration(seconds: 1),
         () {
           if (!mounted) return;
-          
+
           if (role == 'super_admin') {
             Navigator.pushReplacement(
               context,
@@ -422,13 +484,13 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    /// Phone Field
+                    /// Identifier Field
                     Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Phone Number',
+                          'Email or Phone Number',
                           style: FlutterFlowTheme.of(context)
                               .labelLarge
                               .override(
@@ -440,10 +502,12 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                         ),
                         const SizedBox(height: 8.0),
                         TextFormField(
-                          controller: phoneController,
-                          decoration:
-                              inputDecoration(context, 'Enter phone number'),
-                          keyboardType: TextInputType.phone,
+                          controller: identifierController,
+                          decoration: inputDecoration(
+                            context,
+                            'Enter your email or phone number',
+                          ),
+                          keyboardType: TextInputType.text,
                         ),
                       ],
                     ),
@@ -490,6 +554,16 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
 
                     const SizedBox(height: 32.0),
 
+                    if (Env.turnstileSiteKey.isNotEmpty) ...[
+                      TurnstileWidget(
+                        siteKey: Env.turnstileSiteKey,
+                        onTokenChanged: (token) {
+                          setState(() => _turnstileToken = token);
+                        },
+                      ),
+                      const SizedBox(height: 16.0),
+                    ],
+
                     /// Login Button
                     FFButtonWidget(
                       onPressed: isLoading ? null : handleLogin,
@@ -529,8 +603,8 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                                 ),
                               ),
                               Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8.0),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 8.0),
                                 child: Text(
                                   'Or',
                                   style: FlutterFlowTheme.of(context)
@@ -550,8 +624,7 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                           ),
                           const SizedBox(height: 16.0),
                           FFButtonWidget(
-                            onPressed:
-                                isLoading ? null : handleBiometricLogin,
+                            onPressed: isLoading ? null : handleBiometricLogin,
                             text: _biometricButtonLabel,
                             options: FFButtonOptions(
                               width: double.infinity,
@@ -579,14 +652,15 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                       ),
 
                     TextButton(
-                      onPressed: () => context.pushNamed(ForgotPasswordPageWidget.routeName),
+                      onPressed: () =>
+                          context.pushNamed(ForgotPasswordPageWidget.routeName),
                       child: Text(
                         'Forgot password?',
                         style: FlutterFlowTheme.of(context).bodySmall.override(
-                          color: FlutterFlowTheme.of(context).primary,
-                          fontWeight: FontWeight.w600,
-                          decoration: TextDecoration.underline,
-                        ),
+                              color: FlutterFlowTheme.of(context).primary,
+                              fontWeight: FontWeight.w600,
+                              decoration: TextDecoration.underline,
+                            ),
                       ),
                     ),
 

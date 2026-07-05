@@ -29,24 +29,24 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget> {
   late ProfileSettingsModel _model;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
-  
+
   Map<String, dynamic>? profileData;
 
-bool isProfileLoading = true;
+  bool isProfileLoading = true;
 
-String fullName = '';
-String username = '';
-String email = '';
-String phone = '';
-String kycStatus = '';
-String walletAddress = '';
-String profileImage = '';
-String initials = '';
+  String fullName = '';
+  String username = '';
+  String email = '';
+  String phone = '';
+  String kycStatus = '';
+  String walletAddress = '';
+  String profileImage = '';
+  String initials = '';
 
-bool hasPin = false;
-bool biometricsEnabled = false;
-bool securityLoading = true;
-bool accountLocked = false;
+  bool hasPin = false;
+  bool biometricsEnabled = false;
+  bool securityLoading = true;
+  bool accountLocked = false;
 
   @override
   void initState() {
@@ -63,100 +63,97 @@ bool accountLocked = false;
 
     super.dispose();
   }
-  
+
   Future<void> fetchProfile() async {
-  try {
-    final response = await http.get(
-      Uri.parse('${AppConfig.api}/users/me'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${FFAppState().accessToken}',
-      },
-    );
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConfig.api}/users/me'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${FFAppState().accessToken}',
+        },
+      );
 
-    print('PROFILE STATUS: ${response.statusCode}');
-    print('PROFILE BODY: ${response.body}');
+      print('PROFILE STATUS: ${response.statusCode}');
+      print('PROFILE BODY: ${response.body}');
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
 
-      final user = data['data'];
+        final user = data['data'];
 
-      final firstName = user['first_name'] ?? '';
-      final lastName = user['last_name'] ?? '';
+        final firstName = user['first_name'] ?? '';
+        final lastName = user['last_name'] ?? '';
 
-      setState(() {
-        profileData = user;
+        setState(() {
+          profileData = user;
 
-        fullName = '$firstName $lastName';
-        username = user['username'] ?? '';
-        email = user['email'] ?? '';
-        phone = user['phone'] ?? '';
-        kycStatus = user['kyc_status'] ?? 'none';
+          fullName = '$firstName $lastName';
+          username = user['username'] ?? '';
+          email = user['email'] ?? '';
+          phone = user['phone'] ?? '';
+          kycStatus = user['kyc_status'] ?? 'none';
 
-        profileImage = user['profile_image'] ?? '';
+          profileImage = user['profile_image'] ?? '';
 
-        walletAddress =
-            user['wallets'] != null &&
-                    user['wallets'].length > 0
-                ? user['wallets'][0]['wallet_address'] ?? ''
-                : '';
+          walletAddress = user['wallets'] != null && user['wallets'].length > 0
+              ? user['wallets'][0]['wallet_address'] ?? ''
+              : '';
 
-        initials =
-            '${firstName.isNotEmpty ? firstName[0] : ''}'
-            '${lastName.isNotEmpty ? lastName[0] : ''}';
+          initials = '${firstName.isNotEmpty ? firstName[0] : ''}'
+              '${lastName.isNotEmpty ? lastName[0] : ''}';
 
-        isProfileLoading = false;
-      });
-    } else {
-      print('PROFILE FETCH FAILED');
+          isProfileLoading = false;
+        });
+      } else {
+        print('PROFILE FETCH FAILED');
+
+        setState(() {
+          isProfileLoading = false;
+        });
+      }
+    } catch (e) {
+      print('PROFILE ERROR: $e');
 
       setState(() {
         isProfileLoading = false;
       });
     }
-  } catch (e) {
-    print('PROFILE ERROR: $e');
-
-    setState(() {
-      isProfileLoading = false;
-    });
   }
-} 
 
-Future<void> fetchSecuritySettings() async {
-  try {
-    final response = await http.get(
-      Uri.parse('${AppConfig.api}/security/settings'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${FFAppState().accessToken}',
-      },
-    );
+  Future<void> fetchSecuritySettings() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConfig.api}/security/settings'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${FFAppState().accessToken}',
+        },
+      );
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
 
-      setState(() {
-        hasPin = data['has_pin'] ?? false;
-        biometricsEnabled = data['biometrics_enabled'] ?? false;
-        accountLocked = data['pin_locked'] ?? false;
+        setState(() {
+          hasPin = data['has_pin'] ?? false;
+          biometricsEnabled = data['biometrics_enabled'] ?? false;
+          accountLocked = data['pin_locked'] ?? false;
 
-        securityLoading = false;
-      });
-    } else {
+          securityLoading = false;
+        });
+      } else {
+        setState(() {
+          securityLoading = false;
+        });
+      }
+    } catch (e) {
+      print('SECURITY FETCH ERROR: $e');
+
       setState(() {
         securityLoading = false;
       });
     }
-  } catch (e) {
-    print('SECURITY FETCH ERROR: $e');
-
-    setState(() {
-      securityLoading = false;
-    });
   }
-}
 
   Future<void> _showEditContactDialog({
     required String title,
@@ -300,7 +297,8 @@ Future<void> fetchSecuritySettings() async {
                   await fetchProfile();
                   Navigator.of(context).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Username updated successfully')),
+                    const SnackBar(
+                        content: Text('Username updated successfully')),
                   );
                 } catch (e) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -316,19 +314,67 @@ Future<void> fetchSecuritySettings() async {
     );
   }
 
-Future<void> logoutUser() async {
-  try {
-    await AuthService().logout();
-  } catch (e) {
-    debugPrint('Logout failed: $e');
+  Future<void> logoutUser() async {
+    try {
+      await AuthService().logout();
+    } catch (e) {
+      debugPrint('Logout failed: $e');
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    context.goNamed('loginpage');
   }
 
-  if (!mounted) {
-    return;
-  }
+  Future<void> deleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Delete account?'),
+          content: const Text(
+            'This action is permanent. Your account, saved data, and active sessions will be removed.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style:
+                  FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Delete account'),
+            ),
+          ],
+        );
+      },
+    );
 
-  context.goNamed('loginpage');
-}
+    if (confirmed != true) {
+      return;
+    }
+
+    try {
+      await AuthService().deleteAccount();
+
+      if (!mounted) {
+        return;
+      }
+
+      context.goNamed('loginpage');
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Delete account failed: $e')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -354,52 +400,54 @@ Future<void> logoutUser() async {
                             alignment: const AlignmentDirectional(0.0, 0.0),
                             children: [
                               (profileImage.isNotEmpty)
-    ? ClipRRect(
-        borderRadius: BorderRadius.circular(100),
-        child: Image.network(
-          profileImage,
-          width: 80,
-          height: 80,
-          fit: BoxFit.cover,
-        ),
-      )
-    : Container(
-        width: 80.0,
-        height: 80.0,
-                                decoration: BoxDecoration(
-                                  color:
-                                      FlutterFlowTheme.of(context).primaryText,
-                                  shape: BoxShape.circle,
-                                ),
-                                alignment: const AlignmentDirectional(0.0, 0.0),
-                                child: Text(
-                                  isProfileLoading ? '...' : initials,
-                                  textAlign: TextAlign.center,
-                                  maxLines: 1,
-                                  style: FlutterFlowTheme.of(context)
-                                      .labelMedium
-                                      .override(
-                                        font: GoogleFonts.plusJakartaSans(
-                                          fontWeight: FontWeight.w600,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .labelMedium
-                                                  .fontStyle,
-                                        ),
-                                        color: FlutterFlowTheme.of(context)
-                                            .primaryBackground,
-                                        fontSize: 30.4,
-                                        letterSpacing: 0.0,
-                                        fontWeight: FontWeight.w600,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .labelMedium
-                                            .fontStyle,
-                                        lineHeight: 1.3,
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(100),
+                                      child: Image.network(
+                                        profileImage,
+                                        width: 80,
+                                        height: 80,
+                                        fit: BoxFit.cover,
                                       ),
-                                  overflow: TextOverflow.clip,
-                                ),
-                              ),
-
+                                    )
+                                  : Container(
+                                      width: 80.0,
+                                      height: 80.0,
+                                      decoration: BoxDecoration(
+                                        color: FlutterFlowTheme.of(context)
+                                            .primaryText,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      alignment:
+                                          const AlignmentDirectional(0.0, 0.0),
+                                      child: Text(
+                                        isProfileLoading ? '...' : initials,
+                                        textAlign: TextAlign.center,
+                                        maxLines: 1,
+                                        style: FlutterFlowTheme.of(context)
+                                            .labelMedium
+                                            .override(
+                                              font: GoogleFonts.plusJakartaSans(
+                                                fontWeight: FontWeight.w600,
+                                                fontStyle:
+                                                    FlutterFlowTheme.of(context)
+                                                        .labelMedium
+                                                        .fontStyle,
+                                              ),
+                                              color:
+                                                  FlutterFlowTheme.of(context)
+                                                      .primaryBackground,
+                                              fontSize: 30.4,
+                                              letterSpacing: 0.0,
+                                              fontWeight: FontWeight.w600,
+                                              fontStyle:
+                                                  FlutterFlowTheme.of(context)
+                                                      .labelMedium
+                                                      .fontStyle,
+                                              lineHeight: 1.3,
+                                            ),
+                                        overflow: TextOverflow.clip,
+                                      ),
+                                    ),
                               Align(
                                 alignment: const AlignmentDirectional(1.0, 1.0),
                                 child: GestureDetector(
@@ -410,7 +458,8 @@ Future<void> logoutUser() async {
                                     decoration: BoxDecoration(
                                       color: FlutterFlowTheme.of(context)
                                           .secondaryBackground,
-                                      borderRadius: BorderRadius.circular(9999.0),
+                                      borderRadius:
+                                          BorderRadius.circular(9999.0),
                                       shape: BoxShape.rectangle,
                                       border: Border.all(
                                         color: FlutterFlowTheme.of(context)
@@ -418,7 +467,8 @@ Future<void> logoutUser() async {
                                         width: 2.0,
                                       ),
                                     ),
-                                    alignment: const AlignmentDirectional(0.0, 0.0),
+                                    alignment:
+                                        const AlignmentDirectional(0.0, 0.0),
                                     child: Icon(
                                       Icons.edit_rounded,
                                       color: FlutterFlowTheme.of(context)
@@ -549,8 +599,8 @@ Future<void> logoutUser() async {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Padding(
-                    padding:
-                        const EdgeInsetsDirectional.fromSTEB(24.0, 24.0, 24.0, 8.0),
+                    padding: const EdgeInsetsDirectional.fromSTEB(
+                        24.0, 24.0, 24.0, 8.0),
                     child: Container(
                       child: Text(
                         'Personal Information',
@@ -573,8 +623,8 @@ Future<void> logoutUser() async {
                     ),
                   ),
                   Padding(
-                    padding:
-                        const EdgeInsetsDirectional.fromSTEB(24.0, 0.0, 24.0, 0.0),
+                    padding: const EdgeInsetsDirectional.fromSTEB(
+                        24.0, 0.0, 24.0, 0.0),
                     child: Container(
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(20.0),
@@ -608,7 +658,9 @@ Future<void> logoutUser() async {
                                   show_arrow: true,
                                   value: isProfileLoading
                                       ? 'Loading...'
-                                      : (email.isNotEmpty ? email : 'Not available'),
+                                      : (email.isNotEmpty
+                                          ? email
+                                          : 'Not available'),
                                   onTap: isProfileLoading
                                       ? null
                                       : () => _showEditContactDialog(
@@ -631,7 +683,9 @@ Future<void> logoutUser() async {
                                   ),
                                   label: 'Phone Number',
                                   show_arrow: true,
-                                  value: phone.isNotEmpty ? phone : 'Not available',
+                                  value: phone.isNotEmpty
+                                      ? phone
+                                      : 'Not available',
                                   onTap: () => _showEditContactDialog(
                                     title: 'Update Phone Number',
                                     label: 'New Phone Number',
@@ -674,8 +728,8 @@ Future<void> logoutUser() async {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Padding(
-                    padding:
-                        const EdgeInsetsDirectional.fromSTEB(24.0, 24.0, 24.0, 8.0),
+                    padding: const EdgeInsetsDirectional.fromSTEB(
+                        24.0, 24.0, 24.0, 8.0),
                     child: Container(
                       child: Text(
                         'Preferences',
@@ -698,8 +752,8 @@ Future<void> logoutUser() async {
                     ),
                   ),
                   Padding(
-                    padding:
-                        const EdgeInsetsDirectional.fromSTEB(24.0, 0.0, 24.0, 0.0),
+                    padding: const EdgeInsetsDirectional.fromSTEB(
+                        24.0, 0.0, 24.0, 0.0),
                     child: Container(
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(20.0),
@@ -719,266 +773,274 @@ Future<void> logoutUser() async {
                             mainAxisAlignment: MainAxisAlignment.start,
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-     
 // SECURITY & PIN
-GestureDetector(
-  onTap: () async {
-    context.pushNamed('pin_setup_page');
-  },
-  child: Container(
-    padding: const EdgeInsets.all(18),
-    decoration: BoxDecoration(
-      border: Border(
-        bottom: BorderSide(
-          color: FlutterFlowTheme.of(context).alternate,
-          width: 1,
-        ),
-      ),
-    ),
-    child: Row(
-      children: [
-        Icon(
-          Icons.security_rounded,
-          color: FlutterFlowTheme.of(context).primaryText,
-          size: 22,
-        ),
+                              GestureDetector(
+                                onTap: () async {
+                                  context.pushNamed('pin_setup_page');
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(18),
+                                  decoration: BoxDecoration(
+                                    border: Border(
+                                      bottom: BorderSide(
+                                        color: FlutterFlowTheme.of(context)
+                                            .alternate,
+                                        width: 1,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.security_rounded,
+                                        color: FlutterFlowTheme.of(context)
+                                            .primaryText,
+                                        size: 22,
+                                      ),
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Security & PIN',
+                                              style:
+                                                  FlutterFlowTheme.of(context)
+                                                      .bodyMedium
+                                                      .override(
+                                                        font: GoogleFonts.inter(
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
+                                                      ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            if (securityLoading)
+                                              Text(
+                                                'Loading security status...',
+                                                style: TextStyle(
+                                                  color: FlutterFlowTheme.of(
+                                                          context)
+                                                      .secondaryText,
+                                                  fontSize: 12,
+                                                ),
+                                              )
+                                            else
+                                              Text(
+                                                accountLocked
+                                                    ? 'Account Locked'
+                                                    : hasPin
+                                                        ? biometricsEnabled
+                                                            ? 'PIN + Biometrics Enabled'
+                                                            : 'PIN is set'
+                                                        : 'No PIN Configured',
+                                                style: TextStyle(
+                                                  color: accountLocked
+                                                      ? context.errorColor
+                                                      : context.successColor,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                      Icon(
+                                        Icons.chevron_right_rounded,
+                                        color: FlutterFlowTheme.of(context)
+                                            .secondaryText,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
 
-        const SizedBox(width: 14),
-
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Security & PIN',
-                style: FlutterFlowTheme.of(context)
-                    .bodyMedium
-                    .override(
-                      font: GoogleFonts.inter(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-              ),
-
-              const SizedBox(height: 4),
-
-              if (securityLoading)
-                Text(
-                  'Loading security status...',
-                  style: TextStyle(
-                    color:
-                        FlutterFlowTheme.of(context)
-                            .secondaryText,
-                    fontSize: 12,
-                  ),
-                )
-              else
-                Text(
-                  accountLocked
-                      ? 'Account Locked'
-                      : hasPin
-                          ? biometricsEnabled
-                              ? 'PIN + Biometrics Enabled'
-                              : 'PIN is set'
-                          : 'No PIN Configured',
-                  style: TextStyle(
-                    color: accountLocked
-                        ? context.errorColor
-                        : context.successColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-            ],
-          ),
-        ),
-
-        Icon(
-          Icons.chevron_right_rounded,
-          color:
-              FlutterFlowTheme.of(context)
-                  .secondaryText,
-        ),
-      ],
-    ),
-  ),
-),
-
-const SizedBox(height: 12),
+                              const SizedBox(height: 12),
 
 // CHANGE PIN
-GestureDetector(
-  onTap: () {
-    context.pushNamed(
-      ChangePinPageWidget.routeName,
-    );
-  },
-  child: Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: context.primaryColor,
-      borderRadius: BorderRadius.circular(16),
-    ),
-    child: Row(
-      children: [
-        Icon(Icons.lock_reset, color: context.background),
-        const SizedBox(width: 12),
-        Text(
-          'Change PIN',
-          style: TextStyle(color: context.background),
-        ),
-        const Spacer(),
-        Icon(Icons.chevron_right, color: context.background),
-      ],
-    ),
-  ),
-),
+                              GestureDetector(
+                                onTap: () {
+                                  context.pushNamed(
+                                    ChangePinPageWidget.routeName,
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: context.primaryColor,
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.lock_reset,
+                                          color: context.background),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        'Change PIN',
+                                        style: TextStyle(
+                                            color: context.background),
+                                      ),
+                                      const Spacer(),
+                                      Icon(Icons.chevron_right,
+                                          color: context.background),
+                                    ],
+                                  ),
+                                ),
+                              ),
 
-const SizedBox(height: 12),
+                              const SizedBox(height: 12),
 
 // FORGOT PIN
-GestureDetector(
-  onTap: () {
-    context.pushNamed(
-      ForgotPinPageWidget.routeName,
-    );
-  },
-  child: Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: context.primaryColor,
-      borderRadius: BorderRadius.circular(16),
-    ),
-    child: Row(
-      children: [
-        Icon(Icons.help_outline, color: context.background),
-        const SizedBox(width: 12),
-        Text(
-          'Forgot PIN',
-          style: TextStyle(color: context.background),
-        ),
-        const Spacer(),
-        Icon(Icons.chevron_right, color: context.background),
-      ],
-    ),
-  ),
-),
+                              GestureDetector(
+                                onTap: () {
+                                  context.pushNamed(
+                                    ForgotPinPageWidget.routeName,
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: context.primaryColor,
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.help_outline,
+                                          color: context.background),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        'Forgot PIN',
+                                        style: TextStyle(
+                                            color: context.background),
+                                      ),
+                                      const Spacer(),
+                                      Icon(Icons.chevron_right,
+                                          color: context.background),
+                                    ],
+                                  ),
+                                ),
+                              ),
 
-const SizedBox(height: 12),
+                              const SizedBox(height: 12),
 
 // DARK MODE
-SwitchListTile(
-  contentPadding: EdgeInsets.zero,
-  activeThumbColor: Colors.green,
-  value: Theme.of(context).brightness == Brightness.dark,
-  onChanged: (value) {
-    setState(() {
-      FFAppState().setThemeMode(value ? ThemeMode.dark : ThemeMode.light);
-    });
-  },
-  title: Text('Dark Mode'),
-  subtitle: Text(
-    Theme.of(context).brightness == Brightness.dark
-        ? 'Dark theme enabled'
-        : 'Light theme enabled',
-  ),
-),
+                              SwitchListTile(
+                                contentPadding: EdgeInsets.zero,
+                                activeThumbColor: Colors.green,
+                                value: Theme.of(context).brightness ==
+                                    Brightness.dark,
+                                onChanged: (value) {
+                                  setState(() {
+                                    FFAppState().setThemeMode(value
+                                        ? ThemeMode.dark
+                                        : ThemeMode.light);
+                                  });
+                                },
+                                title: Text('Dark Mode'),
+                                subtitle: Text(
+                                  Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? 'Dark theme enabled'
+                                      : 'Light theme enabled',
+                                ),
+                              ),
 
-const SizedBox(height: 12),
+                              const SizedBox(height: 12),
 
 // BIOMETRICS
-SwitchListTile(
-  contentPadding: EdgeInsets.zero,
-  activeThumbColor: Colors.green,
-  value: biometricsEnabled,
+                              SwitchListTile(
+                                contentPadding: EdgeInsets.zero,
+                                activeThumbColor: Colors.green,
+                                value: biometricsEnabled,
+                                onChanged: (value) async {
+                                  setState(() {
+                                    biometricsEnabled = value;
+                                  });
 
-  onChanged: (value) async {
-    setState(() {
-      biometricsEnabled = value;
-    });
+                                  try {
+                                    await http.put(
+                                      Uri.parse(
+                                        '${AppConfig.api}/security/biometrics',
+                                      ),
+                                      headers: {
+                                        'Content-Type': 'application/json',
+                                        'Authorization':
+                                            'Bearer ${FFAppState().accessToken}',
+                                      },
+                                      body: jsonEncode({
+                                        'enabled': value,
+                                      }),
+                                    );
 
-    try {
-      await http.put(
-        Uri.parse(
-          '${AppConfig.api}/security/biometrics',
-        ),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization':
-              'Bearer ${FFAppState().accessToken}',
-        },
-        body: jsonEncode({
-          'enabled': value,
-        }),
-      );
+                                    FFAppState().update(() {
+                                      FFAppState().biometricsEnabled = value;
+                                    });
 
-      FFAppState().update(() {
-        FFAppState().biometricsEnabled = value;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            value
-                ? 'Biometrics enabled'
-                : 'Biometrics disabled',
-          ),
-        ),
-      );
-    } catch (e) {
-      print(e);
-    }
-  },
-
-  title: Text('Enable Biometrics'),
-
-  subtitle: Text(
-    biometricsEnabled
-        ? 'Face ID / Fingerprint active'
-        : 'Biometric authentication disabled',
-  ),
-),
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          value
+                                              ? 'Biometrics enabled'
+                                              : 'Biometrics disabled',
+                                        ),
+                                      ),
+                                    );
+                                  } catch (e) {
+                                    print(e);
+                                  }
+                                },
+                                title: Text('Enable Biometrics'),
+                                subtitle: Text(
+                                  biometricsEnabled
+                                      ? 'Face ID / Fingerprint active'
+                                      : 'Biometric authentication disabled',
+                                ),
+                              ),
                               // NOTIFICATIONS
-GestureDetector(
-  onTap: () {
-    context.pushNamed('NotificationSettingsPage');
-  },
-  child: SettingsActionTileWidget(
-    icon: Icon(
-      Icons.notifications_none_rounded,
-      color: FlutterFlowTheme.of(context).primaryText,
-    ),
-    label: 'Notification Settings',
-  ),
-),
+                              GestureDetector(
+                                onTap: () {
+                                  context.pushNamed('NotificationSettingsPage');
+                                },
+                                child: SettingsActionTileWidget(
+                                  icon: Icon(
+                                    Icons.notifications_none_rounded,
+                                    color: FlutterFlowTheme.of(context)
+                                        .primaryText,
+                                  ),
+                                  label: 'Notification Settings',
+                                ),
+                              ),
 
 // LANGUAGE
-GestureDetector(
-  onTap: () {
-    context.pushNamed('LanguageSettingsPage');
-  },
-  child: SettingsActionTileWidget(
-    icon: Icon(
-      Icons.language_rounded,
-      color: FlutterFlowTheme.of(context).primaryText,
-    ),
-    label: 'Language',
-  ),
-),
+                              GestureDetector(
+                                onTap: () {
+                                  context.pushNamed('LanguageSettingsPage');
+                                },
+                                child: SettingsActionTileWidget(
+                                  icon: Icon(
+                                    Icons.language_rounded,
+                                    color: FlutterFlowTheme.of(context)
+                                        .primaryText,
+                                  ),
+                                  label: 'Language',
+                                ),
+                              ),
 
 // SUPPORT / HELP CENTER
-GestureDetector(
-  onTap: () {
-    context.pushNamed('SupportHelpCenterPage');
-  },
-  child: SettingsActionTileWidget(
-    icon: Icon(
-      Icons.help_outline_rounded,
-      color: FlutterFlowTheme.of(context).primaryText,
-    ),
-    label: 'Support & Help Center',
-  ),
-),
+                              GestureDetector(
+                                onTap: () {
+                                  context.pushNamed('SupportHelpCenterPage');
+                                },
+                                child: SettingsActionTileWidget(
+                                  icon: Icon(
+                                    Icons.help_outline_rounded,
+                                    color: FlutterFlowTheme.of(context)
+                                        .primaryText,
+                                  ),
+                                  label: 'Support & Help Center',
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -988,34 +1050,58 @@ GestureDetector(
                 ],
               ),
               Padding(
-                padding: const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 32.0),
+                padding:
+                    const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 12.0),
                 child: Container(
                   child: Container(
                     child: Padding(
                       padding: const EdgeInsets.all(24.0),
-                      child: Container(
-                        child: wrapWithModel(
-                          model: _model.buttonModel,
-                          updateCallback: () => safeSetState(() {}),
-                          child: ButtonWidget(
-                            content: 'Sign Out',
-                            icon: Icon(
-                              Icons.logout_rounded,
-                              color: FlutterFlowTheme.of(context).primaryText,
-                              size: 16.0,
+                      child: Column(
+                        children: [
+                          SizedBox(
+                            width: double.infinity,
+                            child: TextButton.icon(
+                              onPressed: deleteAccount,
+                              icon: const Icon(Icons.delete_forever_rounded,
+                                  color: Colors.red),
+                              label: const Text(
+                                'Delete Account',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                              style: TextButton.styleFrom(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                side: const BorderSide(color: Colors.redAccent),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
                             ),
-                            icon_present: true,
-                            icon_end_present: false,
-                            on_tap: '',
-                            onTapCallback: logoutUser,
-                            color: FlutterFlowTheme.of(context).primaryText,
-                            variant: 'outline',
-                            size: 'medium',
-                            full_width: true,
-                            loading: false,
-                            disabled: false,
                           ),
-                        ),
+                          const SizedBox(height: 12),
+                          wrapWithModel(
+                            model: _model.buttonModel,
+                            updateCallback: () => safeSetState(() {}),
+                            child: ButtonWidget(
+                              content: 'Sign Out',
+                              icon: Icon(
+                                Icons.logout_rounded,
+                                color: FlutterFlowTheme.of(context).primaryText,
+                                size: 16.0,
+                              ),
+                              icon_present: true,
+                              icon_end_present: false,
+                              on_tap: '',
+                              onTapCallback: logoutUser,
+                              color: FlutterFlowTheme.of(context).primaryText,
+                              variant: 'outline',
+                              size: 'medium',
+                              full_width: true,
+                              loading: false,
+                              disabled: false,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),

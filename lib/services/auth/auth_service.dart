@@ -5,6 +5,7 @@ import '/core/config/supabase_config.dart';
 import '/core/config/env.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/backend/services/api_service.dart';
+import '/backend/services/turnstile_payload.dart';
 import '/services/secure_storage_service.dart';
 
 /// Centralized authentication service for the FARM app.
@@ -51,6 +52,7 @@ class AuthService {
     required String phone,
     String? country,
     String? referralCode,
+    String? turnstileToken,
   }) async {
     try {
       final response = await _supabase.auth.signUp(
@@ -71,6 +73,7 @@ class AuthService {
         email: email,
         country: country,
         referralCode: referralCode,
+        turnstileToken: turnstileToken,
       );
 
       return response;
@@ -92,6 +95,7 @@ class AuthService {
   Future<Map<String, dynamic>> login({
     required String email,
     required String password,
+    String? turnstileToken,
   }) async {
     try {
       // Step 1: Authenticate with Supabase
@@ -107,7 +111,10 @@ class AuthService {
       final supabaseToken = authResponse.session!.accessToken;
 
       // Step 2: Exchange Supabase token for FARM JWT
-      final backendData = await exchangeSupabaseToken(supabaseToken);
+      final backendData = await exchangeSupabaseToken(
+        supabaseToken,
+        turnstileToken: turnstileToken,
+      );
       final farmJwt = backendData['access_token'] as String? ?? '';
       final refreshToken = backendData['refresh_token'] as String? ?? '';
       final backendUser = backendData['user'];
@@ -142,7 +149,10 @@ class AuthService {
   /// 4. Issues a FARM JWT for API authentication
   ///
   /// Public method used by AuthService.login() and BiometricLoginService.
-  Future<Map<String, dynamic>> exchangeSupabaseToken(String supabaseToken) async {
+  Future<Map<String, dynamic>> exchangeSupabaseToken(
+    String supabaseToken, {
+    String? turnstileToken,
+  }) async {
     try {
       final response = await http.post(
         Uri.parse('${Env.api}/auth/supabase'),
@@ -150,15 +160,19 @@ class AuthService {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $supabaseToken',
         },
-        body: jsonEncode({
-          'supabase_token': supabaseToken,
-        }),
+        body: jsonEncode(
+          attachTurnstileToken(
+            {'supabase_token': supabaseToken},
+            turnstileToken: turnstileToken,
+          ),
+        ),
       );
 
       final bodyData = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode != 200) {
         final message = bodyData['message'] ?? response.body;
-        throw Exception('Token exchange failed: ${response.statusCode} - $message');
+        throw Exception(
+            'Token exchange failed: ${response.statusCode} - $message');
       }
 
       final payload = bodyData['data'] is Map<String, dynamic>
@@ -207,10 +221,37 @@ class AuthService {
     }
   }
 
-  /// Send a password reset email with a secure reset link.
-  Future<void> sendPasswordReset({required String email}) async {
+  Future<void> deleteAccount() async {
     try {
-      await ApiService.forgotPassword(email: email);
+      await ApiService.deleteAccount();
+    } catch (e) {
+      throw Exception('Account deletion failed: $e');
+    }
+
+    try {
+      await _supabase.auth.signOut();
+    } catch (e) {
+      debugPrint('Supabase signOut error during account deletion: $e');
+    }
+
+    try {
+      await SecureStorageService.clearAuthData();
+      await FFAppState().clearAuthCredentials();
+    } catch (e) {
+      debugPrint('Local cleanup error during account deletion: $e');
+    }
+  }
+
+  /// Send a password reset email with a secure reset link.
+  Future<void> sendPasswordReset({
+    required String email,
+    String? turnstileToken,
+  }) async {
+    try {
+      await ApiService.forgotPassword(
+        email: email,
+        turnstileToken: turnstileToken,
+      );
     } catch (e) {
       throw Exception('Password reset failed: $e');
     }
@@ -243,7 +284,8 @@ class AuthService {
     try {
       final backendRefreshToken = FFAppState().refreshToken.trim();
       if (backendRefreshToken.isNotEmpty) {
-        final response = await ApiService.refreshToken(refreshToken: backendRefreshToken);
+        final response =
+            await ApiService.refreshToken(refreshToken: backendRefreshToken);
         final payload = response['data'] is Map<String, dynamic>
             ? response['data'] as Map<String, dynamic>
             : response;
