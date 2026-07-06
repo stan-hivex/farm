@@ -13,9 +13,9 @@ class FeeManagementPage extends StatefulWidget {
 }
 
 class _FeeManagementPageState extends State<FeeManagementPage> {
-  final _bgColor = const Color(0xFF0B1320);
-  final _cardColor = const Color(0xFF111B2A);
-  final _accent = const Color(0xFFD4AF37);
+  final _bgColor = Colors.white;
+  final _cardColor = Colors.white;
+  final _accent = const Color(0xFFEAF2FF);
 
   List<dynamic> _fees = [];
   bool _loading = true;
@@ -56,15 +56,22 @@ class _FeeManagementPageState extends State<FeeManagementPage> {
   }
 
   String _feeId(dynamic fee) {
-    return fee['id']?.toString() ?? fee['fee_code']?.toString() ?? fee['name']?.toString() ?? '';
+    return fee['id']?.toString() ??
+        fee['fee_code']?.toString() ??
+        fee['name']?.toString() ??
+        '';
   }
 
   String _feeLabel(dynamic fee) {
-    return fee['name']?.toString() ?? fee['fee_code']?.toString() ?? 'Fee setting';
+    return fee['name']?.toString() ??
+        fee['fee_code']?.toString() ??
+        'Fee setting';
   }
 
   String _feeDescription(dynamic fee) {
-    return fee['description']?.toString() ?? fee['note']?.toString() ?? 'Update the fee value for this configuration.';
+    return fee['description']?.toString() ??
+        fee['note']?.toString() ??
+        'Update the fee value for this configuration.';
   }
 
   String _feeValue(dynamic fee) {
@@ -95,8 +102,12 @@ class _FeeManagementPageState extends State<FeeManagementPage> {
     }
   }
 
-  void _snack(String msg, Color color) => ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: color, behavior: SnackBarBehavior.floating),
+  void _snack(String msg, Color color) =>
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(msg),
+            backgroundColor: color,
+            behavior: SnackBarBehavior.floating),
       );
 
   @override
@@ -117,49 +128,68 @@ class _FeeManagementPageState extends State<FeeManagementPage> {
           color: _accent,
           backgroundColor: _bgColor,
           child: _loading
-              ? ListView(children: const [SizedBox(height: 120), Center(child: CircularProgressIndicator())])
+              ? ListView(children: const [
+                  SizedBox(height: 120),
+                  Center(child: CircularProgressIndicator())
+                ])
               : ListView(padding: const EdgeInsets.all(20), children: [
                   Text('Fee Management',
                       style: GoogleFonts.plusJakartaSans(
-                          fontSize: 22, fontWeight: FontWeight.bold, color: context.onSurface)),
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: context.onSurface)),
                   const SizedBox(height: 6),
                   Text('Review and update platform fee configurations.',
-                      style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.7), fontSize: 13)),
+                      style: GoogleFonts.plusJakartaSans(
+                          color: context.onSurface.withOpacity(0.7),
+                          fontSize: 13)),
                   const SizedBox(height: 24),
-
                   if (_error != null)
                     Container(
                       margin: const EdgeInsets.only(bottom: 18),
                       padding: const EdgeInsets.all(18),
                       decoration: BoxDecoration(
-                        color: context.errorColor.withAlpha((0.14 * 255).round()),
+                        color:
+                            context.errorColor.withAlpha((0.14 * 255).round()),
                         borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: context.errorColor.withAlpha((0.2 * 255).round())),
+                        border: Border.all(
+                            color: context.errorColor
+                                .withAlpha((0.2 * 255).round())),
                       ),
                       child: Row(children: [
-                        Icon(Icons.error_outline, color: context.errorColorAccent),
+                        Icon(Icons.error_outline,
+                            color: context.errorColorAccent),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: Text(_error!, style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.7))),
+                          child: Text(_error!,
+                              style: GoogleFonts.plusJakartaSans(
+                                  color: context.onSurface.withOpacity(0.7))),
                         ),
-                        TextButton(onPressed: _load, child: Text('Retry', style: TextStyle(color: _accent))),
+                        TextButton(
+                            onPressed: _load,
+                            child: Text('Retry',
+                                style: TextStyle(color: _accent))),
                       ]),
                     ),
-
                   if (_fees.isEmpty)
                     Container(
                       padding: const EdgeInsets.all(22),
                       decoration: BoxDecoration(
                         color: _cardColor,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: context.onSurface.withOpacity(0.1)),
+                        border: Border.all(
+                            color: context.onSurface.withOpacity(0.1)),
                       ),
                       child: Column(children: [
-                        Icon(Icons.percent_rounded, size: 32, color: context.onSurface.withOpacity(0.24)),
+                        Icon(Icons.percent_rounded,
+                            size: 32,
+                            color: context.onSurface.withOpacity(0.24)),
                         const SizedBox(height: 14),
                         Text('No fee configurations available',
                             textAlign: TextAlign.center,
-                            style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.54), fontSize: 14)),
+                            style: GoogleFonts.plusJakartaSans(
+                                color: context.onSurface.withOpacity(0.54),
+                                fontSize: 14)),
                       ]),
                     )
                   else
@@ -174,62 +204,87 @@ class _FeeManagementPageState extends State<FeeManagementPage> {
                         decoration: BoxDecoration(
                           color: _cardColor,
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: context.onSurface.withOpacity(0.1)),
+                          border: Border.all(
+                              color: context.onSurface.withOpacity(0.1)),
                         ),
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(_feeLabel(fee),
-                              style: GoogleFonts.plusJakartaSans(
-                                  fontWeight: FontWeight.bold, fontSize: 14, color: context.onSurface)),
-                          const SizedBox(height: 8),
-                          Text(_feeDescription(fee),
-                              style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.6), fontSize: 12)),
-                          const SizedBox(height: 16),
-                          Row(children: [
-                            Expanded(
-                              child: TextField(
-                                controller: controller,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                style: GoogleFonts.plusJakartaSans(color: context.onSurface),
-                                decoration: InputDecoration(
-                                  hintText: 'Fee value',
-                                  hintStyle: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.38)),
-                                  filled: true,
-                                  fillColor: const Color(0xFF0F1724),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                    borderSide: BorderSide(color: context.onSurface.withOpacity(0.1)),
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(_feeLabel(fee),
+                                  style: GoogleFonts.plusJakartaSans(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: context.onSurface)),
+                              const SizedBox(height: 8),
+                              Text(_feeDescription(fee),
+                                  style: GoogleFonts.plusJakartaSans(
+                                      color: context.onSurface.withOpacity(0.6),
+                                      fontSize: 12)),
+                              const SizedBox(height: 16),
+                              Row(children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: controller,
+                                    keyboardType:
+                                        const TextInputType.numberWithOptions(
+                                            decimal: true),
+                                    style: GoogleFonts.plusJakartaSans(
+                                        color: context.onSurface),
+                                    decoration: InputDecoration(
+                                      hintText: 'Fee value',
+                                      hintStyle: GoogleFonts.plusJakartaSans(
+                                          color: context.onSurface
+                                              .withOpacity(0.38)),
+                                      filled: true,
+                                      fillColor: const Color(0xFF0F1724),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                        borderSide: BorderSide(
+                                            color: context.onSurface
+                                                .withOpacity(0.1)),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                        borderSide: BorderSide(
+                                            color: context.onSurface
+                                                .withOpacity(0.1)),
+                                      ),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 16, vertical: 16),
+                                    ),
                                   ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                    borderSide: BorderSide(color: context.onSurface.withOpacity(0.1)),
+                                ),
+                                const SizedBox(width: 12),
+                                SizedBox(
+                                  height: 48,
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: _accent,
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(14)),
+                                    ),
+                                    onPressed:
+                                        saving ? null : () => _saveFee(id),
+                                    child: saving
+                                        ? SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(
+                                                color: context.onBackground
+                                                    .withOpacity(0.87),
+                                                strokeWidth: 2),
+                                          )
+                                        : Text('Save',
+                                            style: GoogleFonts.plusJakartaSans(
+                                                fontWeight: FontWeight.bold,
+                                                color: context.onBackground
+                                                    .withOpacity(0.87))),
                                   ),
-                                  contentPadding:
-                                      const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                                 ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            SizedBox(
-                              height: 48,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: _accent,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                ),
-                                onPressed: saving ? null : () => _saveFee(id),
-                                child: saving
-                                    ? SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(color: context.onBackground.withOpacity(0.87), strokeWidth: 2),
-                                      )
-                                    : Text('Save',
-                                        style: GoogleFonts.plusJakartaSans(
-                                            fontWeight: FontWeight.bold, color: context.onBackground.withOpacity(0.87))),
-                              ),
-                            ),
-                          ]),
-                        ]),
+                              ]),
+                            ]),
                       );
                     }),
                 ]),

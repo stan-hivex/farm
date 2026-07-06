@@ -40,26 +40,32 @@ class _TransactionsManagementPageState
         _txns = res['data'] ?? [];
         _total = res['meta']?['total'] ?? 0;
       });
-    } catch (_) {} finally {
+    } catch (_) {
+    } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
   Color _statusColor(String? s) {
     switch (s) {
-      case 'completed': return context.successColor;
-      case 'pending': return context.warningColor;
-      case 'failed': return context.errorColor;
-      case 'processing': return Colors.blue;
-      default: return context.textSecondary;
+      case 'completed':
+        return context.successColor;
+      case 'pending':
+        return context.warningColor;
+      case 'failed':
+        return context.errorColor;
+      case 'processing':
+        return Colors.blue;
+      default:
+        return context.textSecondary;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = const Color(0xFF0B1320);
-    final cardColor = const Color(0xFF111B2A);
-    final accent = const Color(0xFFD4AF37);
+    final bgColor = Colors.white;
+    final cardColor = Colors.white;
+    final accent = const Color(0xFFEAF2FF);
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -70,7 +76,8 @@ class _TransactionsManagementPageState
             if (_loading)
               const Expanded(
                   child: Center(
-                      child: CircularProgressIndicator(color: Color(0xFFD4AF37))))
+                      child:
+                          CircularProgressIndicator(color: Color(0xFF90CAF9))))
             else
               Expanded(
                   child: RefreshIndicator(
@@ -85,8 +92,7 @@ class _TransactionsManagementPageState
                             return Padding(
                               padding: const EdgeInsets.all(16),
                               child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.center,
+                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     TextButton(
                                         onPressed: _page > 1
@@ -96,10 +102,8 @@ class _TransactionsManagementPageState
                                               }
                                             : null,
                                         child: Text('← Prev',
-                                            style: GoogleFonts
-                                                .plusJakartaSans(
-                                                    color: Colors
-                                                        .white70))),
+                                            style: GoogleFonts.plusJakartaSans(
+                                                color: Colors.grey.shade600))),
                                     Text('$_page / $last',
                                         style: GoogleFonts.plusJakartaSans(
                                             fontWeight: FontWeight.bold,
@@ -112,10 +116,8 @@ class _TransactionsManagementPageState
                                               }
                                             : null,
                                         child: Text('Next →',
-                                            style: GoogleFonts
-                                                .plusJakartaSans(
-                                                    color: Colors
-                                                        .white70))),
+                                            style: GoogleFonts.plusJakartaSans(
+                                                color: Colors.grey.shade600))),
                                   ]),
                             );
                           }
@@ -127,16 +129,17 @@ class _TransactionsManagementPageState
                             decoration: BoxDecoration(
                               color: cardColor,
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: context.onSurface.withOpacity(0.1)),
+                              border: Border.all(
+                                  color: context.onSurface.withOpacity(0.1)),
                             ),
                             child: Row(children: [
                               Container(
                                 width: 40,
                                 height: 40,
                                 decoration: BoxDecoration(
-                                    color: color.withAlpha((0.14 * 255).round()),
-                                    borderRadius:
-                                        BorderRadius.circular(10)),
+                                    color:
+                                        color.withAlpha((0.14 * 255).round()),
+                                    borderRadius: BorderRadius.circular(10)),
                                 child: Icon(Icons.swap_horiz_rounded,
                                     color: color, size: 20),
                               ),
@@ -151,51 +154,40 @@ class _TransactionsManagementPageState
                                             .toString()
                                             .replaceAll('_', ' ')
                                             .toUpperCase(),
-                                        style: GoogleFonts
-                                            .plusJakartaSans(
-                                                fontWeight:
-                                                    FontWeight.bold,
-                                                fontSize: 12,
-                                                color: context.onSurface)),
-                                    Text(
-                                        t['transaction_reference'] ?? '',
-                                        style: GoogleFonts
-                                            .plusJakartaSans(
-                                                color: context.onSurface.withOpacity(0.54),
-                                                fontSize: 11),
-                                        overflow:
-                                            TextOverflow.ellipsis),
+                                        style: GoogleFonts.plusJakartaSans(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                            color: context.onSurface)),
+                                    Text(t['transaction_reference'] ?? '',
+                                        style: GoogleFonts.plusJakartaSans(
+                                            color: context.onSurface
+                                                .withOpacity(0.54),
+                                            fontSize: 11),
+                                        overflow: TextOverflow.ellipsis),
                                   ])),
                               Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.end,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     Text(
                                         '${double.tryParse(t['amount']?.toString() ?? '0')?.toStringAsFixed(2)} FARM',
-                                        style: GoogleFonts
-                                            .plusJakartaSans(
-                                                fontWeight:
-                                                    FontWeight.bold,
-                                                fontSize: 13,
-                                                color: context.onSurface)),
+                                        style: GoogleFonts.plusJakartaSans(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                            color: context.onSurface)),
                                     Container(
-                                      padding: const EdgeInsets
-                                          .symmetric(
+                                      padding: const EdgeInsets.symmetric(
                                           horizontal: 8, vertical: 2),
                                       decoration: BoxDecoration(
-                                          color: color.withAlpha((0.16 * 255).round()),
+                                          color: color
+                                              .withAlpha((0.16 * 255).round()),
                                           borderRadius:
                                               BorderRadius.circular(6)),
                                       child: Text(
-                                          (t['status'] ?? '')
-                                              .toUpperCase(),
-                                          style: GoogleFonts
-                                              .plusJakartaSans(
-                                                  color: color,
-                                                  fontSize: 9,
-                                                  fontWeight:
-                                                      FontWeight
-                                                          .bold)),
+                                          (t['status'] ?? '').toUpperCase(),
+                                          style: GoogleFonts.plusJakartaSans(
+                                              color: color,
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.bold)),
                                     ),
                                   ]),
                             ]),
@@ -213,88 +205,84 @@ class _TransactionsManagementPageState
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
-            child: Row(
-                children: [
-                  for (final f in [
-                    'all',
-                    'transfer',
-                    'deposit',
-                    'withdrawal',
-                    'escrow_lock',
-                    'escrow_release',
-                    'investment'
-                  ])
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Text(
-                            f.replaceAll('_', ' ').toUpperCase(),
-                            style: GoogleFonts.plusJakartaSans(
-                                fontSize: 11,
-                                color: _typeFilter == f
-                                    ? context.background
-                                    : context.onSurface.withOpacity(0.7))),
-                        selected: _typeFilter == f,
-                        selectedColor:
-                            _typeFilter == f ? accent : Colors.transparent,
-                        backgroundColor: const Color(0xFF111B2A),
-                        side: BorderSide(
+            child: Row(children: [
+              for (final f in [
+                'all',
+                'transfer',
+                'deposit',
+                'withdrawal',
+                'escrow_lock',
+                'escrow_release',
+                'investment'
+              ])
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(f.replaceAll('_', ' ').toUpperCase(),
+                        style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
                             color: _typeFilter == f
-                                ? accent
-                                : context.onSurface.withOpacity(0.1),
-                            width: 1),
-                        onSelected: (_) {
-                          setState(() {
-                            _typeFilter = f;
-                            _page = 1;
-                          });
-                          _load();
-                        },
-                      ),
-                    ),
-                ]),
+                                ? context.background
+                                : context.onSurface.withOpacity(0.7))),
+                    selected: _typeFilter == f,
+                    selectedColor:
+                        _typeFilter == f ? accent : Colors.transparent,
+                    backgroundColor: Colors.white,
+                    side: BorderSide(
+                        color: _typeFilter == f
+                            ? accent
+                            : context.onSurface.withOpacity(0.1),
+                        width: 1),
+                    onSelected: (_) {
+                      setState(() {
+                        _typeFilter = f;
+                        _page = 1;
+                      });
+                      _load();
+                    },
+                  ),
+                ),
+            ]),
           ),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: Row(
-                children: [
-                  for (final s in [
-                    'all',
-                    'completed',
-                    'pending',
-                    'failed',
-                    'processing'
-                  ])
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Text(s.toUpperCase(),
-                            style: GoogleFonts.plusJakartaSans(
-                                fontSize: 11,
-                                color: _statusFilter == s
-                                    ? context.background
-                                    : context.onSurface.withOpacity(0.7))),
-                        selected: _statusFilter == s,
-                        selectedColor: _statusFilter == s
-                            ? accent
-                            : Colors.transparent,
-                        backgroundColor: const Color(0xFF111B2A),
-                        side: BorderSide(
+            child: Row(children: [
+              for (final s in [
+                'all',
+                'completed',
+                'pending',
+                'failed',
+                'processing'
+              ])
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(s.toUpperCase(),
+                        style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
                             color: _statusFilter == s
-                                ? accent
-                                : context.onSurface.withOpacity(0.1),
-                            width: 1),
-                        onSelected: (_) {
-                          setState(() {
-                            _statusFilter = s;
-                            _page = 1;
-                          });
-                          _load();
-                        },
-                      ),
-                    ),
-                ]),
+                                ? context.background
+                                : context.onSurface.withOpacity(0.7))),
+                    selected: _statusFilter == s,
+                    selectedColor:
+                        _statusFilter == s ? accent : Colors.transparent,
+                    backgroundColor: Colors.white,
+                    side: BorderSide(
+                        color: _statusFilter == s
+                            ? accent
+                            : context.onSurface.withOpacity(0.1),
+                        width: 1),
+                    onSelected: (_) {
+                      setState(() {
+                        _statusFilter = s;
+                        _page = 1;
+                      });
+                      _load();
+                    },
+                  ),
+                ),
+            ]),
           ),
         ],
       );

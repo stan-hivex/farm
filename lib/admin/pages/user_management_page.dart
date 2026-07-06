@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/core/theme_extensions.dart';
@@ -60,7 +59,8 @@ class _UserManagementPageState extends State<UserManagementPage> {
     try {
       await AdminApiService.updateUserStatus(userId, {'is_suspended': suspend});
       _load();
-      _snack(suspend ? 'User suspended' : 'User activated', suspend ? context.warningColor : context.successColor);
+      _snack(suspend ? 'User suspended' : 'User activated',
+          suspend ? context.warningColor : context.successColor);
     } catch (e) {
       _snack(e.toString(), context.errorColor);
     }
@@ -69,9 +69,12 @@ class _UserManagementPageState extends State<UserManagementPage> {
   Future<void> _loadSummaryCounts() async {
     try {
       final allRes = await AdminApiService.getUsers(page: 1);
-      final verifiedRes = await AdminApiService.getUsers(page: 1, kycStatus: 'verified');
-      final pendingRes = await AdminApiService.getUsers(page: 1, kycStatus: 'pending');
-      final rejectedRes = await AdminApiService.getUsers(page: 1, kycStatus: 'rejected');
+      final verifiedRes =
+          await AdminApiService.getUsers(page: 1, kycStatus: 'verified');
+      final pendingRes =
+          await AdminApiService.getUsers(page: 1, kycStatus: 'pending');
+      final rejectedRes =
+          await AdminApiService.getUsers(page: 1, kycStatus: 'rejected');
       if (!mounted) return;
       setState(() {
         _totalUsers = allRes['meta']?['total'] ?? 0;
@@ -88,14 +91,15 @@ class _UserManagementPageState extends State<UserManagementPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF0B1320),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => DraggableScrollableSheet(
         expand: false,
         initialChildSize: 0.75,
         builder: (_, ctrl) => Container(
           decoration: const BoxDecoration(
-            color: Color(0xFF0B1320),
+            color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: ListView(
@@ -106,7 +110,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
                 child: Container(
                   width: 40,
                   height: 4,
-                  decoration: BoxDecoration(color: context.onSurface.withOpacity(0.24), borderRadius: BorderRadius.circular(2)),
+                  decoration: BoxDecoration(
+                      color: context.onSurface.withOpacity(0.24),
+                      borderRadius: BorderRadius.circular(2)),
                 ),
               ),
               const SizedBox(height: 20),
@@ -116,16 +122,24 @@ class _UserManagementPageState extends State<UserManagementPage> {
                   radius: 28,
                   child: Text(
                     (user['first_name'] ?? 'U')[0].toUpperCase(),
-                    style: TextStyle(color: context.background, fontSize: 22, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                        color: context.background,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold),
                   ),
                 ),
                 const SizedBox(width: 16),
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('${user['first_name']} ${user['last_name']}',
-                      style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 18, color: context.onSurface)),
+                      style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: context.onSurface)),
                   const SizedBox(height: 4),
                   Text('@${user['username']}',
-                      style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.6), fontSize: 13)),
+                      style: GoogleFonts.plusJakartaSans(
+                          color: context.onSurface.withOpacity(0.6),
+                          fontSize: 13)),
                 ]),
               ]),
               const SizedBox(height: 24),
@@ -133,20 +147,31 @@ class _UserManagementPageState extends State<UserManagementPage> {
               _detailRow('Email', user['email'] ?? '-'),
               _detailRow('Role', user['role'] ?? '-'),
               _detailRow('KYC Status', user['kyc_status'] ?? '-'),
-              _detailRow('Wallet Balance', 'FARM ${user['balance']?.toString() ?? '0'}'),
-              _detailRow('Status', user['is_suspended'] == true ? 'Suspended' : 'Active'),
-              _detailRow('Joined', (user['created_at'] ?? '').toString().substring(0, 10)),
+              _detailRow('Wallet Balance',
+                  'FARM ${user['balance']?.toString() ?? '0'}'),
+              _detailRow('Status',
+                  user['is_suspended'] == true ? 'Suspended' : 'Active'),
+              _detailRow('Joined',
+                  (user['created_at'] ?? '').toString().substring(0, 10)),
               const SizedBox(height: 24),
               Row(children: [
                 Expanded(
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: user['is_suspended'] == true ? context.successColor : context.warningColor,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      backgroundColor: user['is_suspended'] == true
+                          ? context.successColor
+                          : context.warningColor,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    icon: Icon(user['is_suspended'] == true ? Icons.check_circle_rounded : Icons.block_rounded, size: 18),
-                    label: Text(user['is_suspended'] == true ? 'Activate' : 'Suspend'),
+                    icon: Icon(
+                        user['is_suspended'] == true
+                            ? Icons.check_circle_rounded
+                            : Icons.block_rounded,
+                        size: 18),
+                    label: Text(
+                        user['is_suspended'] == true ? 'Activate' : 'Suspend'),
                     onPressed: () {
                       Navigator.pop(context);
                       _updateStatus(user['id'], user['is_suspended'] != true);
@@ -163,15 +188,18 @@ class _UserManagementPageState extends State<UserManagementPage> {
 
   void _snack(String msg, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: color, behavior: SnackBarBehavior.floating),
+      SnackBar(
+          content: Text(msg),
+          backgroundColor: color,
+          behavior: SnackBarBehavior.floating),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = const Color(0xFF0B1320);
-    final cardColor = const Color(0xFF111B2A);
-    final accent = const Color(0xFFD4AF37);
+    final bgColor = Colors.white;
+    final cardColor = Colors.white;
+    final accent = const Color(0xFFEAF2FF);
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -188,10 +216,15 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       children: [
                         Text('Users Management',
                             style: GoogleFonts.plusJakartaSans(
-                                color: context.onSurface, fontSize: 24, fontWeight: FontWeight.bold)),
+                                color: context.onSurface,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold)),
                         const SizedBox(height: 6),
-                        Text('Browse users, review KYC and manage account status.',
-                            style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.6), fontSize: 13)),
+                        Text(
+                            'Browse users, review KYC and manage account status.',
+                            style: GoogleFonts.plusJakartaSans(
+                                color: context.onSurface.withOpacity(0.6),
+                                fontSize: 13)),
                       ],
                     ),
                   ),
@@ -199,10 +232,12 @@ class _UserManagementPageState extends State<UserManagementPage> {
                     decoration: BoxDecoration(
                       color: cardColor,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: context.onSurface.withOpacity(0.12)),
+                      border: Border.all(
+                          color: context.onSurface.withOpacity(0.12)),
                     ),
                     padding: const EdgeInsets.all(12),
-                    child: Icon(Icons.filter_list_rounded, color: context.onSurface),
+                    child: Icon(Icons.filter_list_rounded,
+                        color: context.onSurface),
                   ),
                 ],
               ),
@@ -211,11 +246,14 @@ class _UserManagementPageState extends State<UserManagementPage> {
               child: _loading
                   ? Center(child: CircularProgressIndicator())
                   : _error != null
-                      ? Center(child: Text(_error!, style: TextStyle(color: context.onSurface)))
+                      ? Center(
+                          child: Text(_error!,
+                              style: TextStyle(color: context.onSurface)))
                       : RefreshIndicator(
                           onRefresh: _load,
                           child: ListView(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 0),
                             children: [
                               _searchBar(cardColor),
                               const SizedBox(height: 12),
@@ -223,7 +261,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
                               const SizedBox(height: 24),
                               _summaryCards(cardColor, accent),
                               const SizedBox(height: 24),
-                              ..._users.map((u) => _userCard(u, cardColor, accent)).toList(),
+                              ..._users
+                                  .map((u) => _userCard(u, cardColor, accent))
+                                  .toList(),
                               _paginationBar(cardColor),
                               const SizedBox(height: 20),
                             ],
@@ -249,10 +289,12 @@ class _UserManagementPageState extends State<UserManagementPage> {
           decoration: InputDecoration(
             hintText: 'Search users by name, phone, email...',
             hintStyle: TextStyle(color: context.onSurface.withOpacity(0.54)),
-            prefixIcon: Icon(Icons.search_rounded, color: context.onSurface.withOpacity(0.7)),
+            prefixIcon: Icon(Icons.search_rounded,
+                color: context.onSurface.withOpacity(0.7)),
             suffixIcon: _search.isNotEmpty
                 ? IconButton(
-                    icon: Icon(Icons.clear_rounded, color: context.onSurface.withOpacity(0.7)),
+                    icon: Icon(Icons.clear_rounded,
+                        color: context.onSurface.withOpacity(0.7)),
                     onPressed: () {
                       _searchCtrl.clear();
                       setState(() {
@@ -264,7 +306,8 @@ class _UserManagementPageState extends State<UserManagementPage> {
                   )
                 : null,
             border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
           onSubmitted: (v) {
             setState(() {
@@ -291,11 +334,14 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       style: GoogleFonts.plusJakartaSans(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: _filter == f ? context.onSurface : context.onSurface.withOpacity(0.7))),
+                          color: _filter == f
+                              ? context.onSurface
+                              : context.onSurface.withOpacity(0.7))),
                   selected: _filter == f,
                   selectedColor: context.onSurface.withOpacity(0.12),
                   backgroundColor: cardColor,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
                   onSelected: (_) {
                     setState(() {
                       _filter = f;
@@ -314,7 +360,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
         children: [
           Row(
             children: [
-              Expanded(child: _summaryCard('Total Users', '$_totalUsers', cardColor, accent, () {
+              Expanded(
+                  child: _summaryCard(
+                      'Total Users', '$_totalUsers', cardColor, accent, () {
                 setState(() {
                   _filter = 'all';
                   _page = 1;
@@ -322,7 +370,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
                 _load();
               })),
               const SizedBox(width: 14),
-              Expanded(child: _summaryCard('Verified KYC', '$_verifiedCount', cardColor, accent, () {
+              Expanded(
+                  child: _summaryCard(
+                      'Verified KYC', '$_verifiedCount', cardColor, accent, () {
                 setState(() {
                   _filter = 'verified';
                   _page = 1;
@@ -334,7 +384,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
           const SizedBox(height: 14),
           Row(
             children: [
-              Expanded(child: _summaryCard('Pending KYC', '$_pendingCount', cardColor, accent, () {
+              Expanded(
+                  child: _summaryCard(
+                      'Pending KYC', '$_pendingCount', cardColor, accent, () {
                 setState(() {
                   _filter = 'pending';
                   _page = 1;
@@ -342,7 +394,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
                 _load();
               })),
               const SizedBox(width: 14),
-              Expanded(child: _summaryCard('Rejected KYC', '$_rejectedCount', cardColor, accent, () {
+              Expanded(
+                  child: _summaryCard(
+                      'Rejected KYC', '$_rejectedCount', cardColor, accent, () {
                 setState(() {
                   _filter = 'rejected';
                   _page = 1;
@@ -354,7 +408,8 @@ class _UserManagementPageState extends State<UserManagementPage> {
         ],
       );
 
-  Widget _summaryCard(String title, String value, Color cardColor, Color accent, [VoidCallback? onTap]) {
+  Widget _summaryCard(String title, String value, Color cardColor, Color accent,
+      [VoidCallback? onTap]) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -371,13 +426,21 @@ class _UserManagementPageState extends State<UserManagementPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(title,
-                  style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.54), fontSize: 12, fontWeight: FontWeight.w500)),
+                  style: GoogleFonts.plusJakartaSans(
+                      color: context.onSurface.withOpacity(0.54),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500)),
               const SizedBox(height: 10),
               Text(value,
-                  style: GoogleFonts.plusJakartaSans(color: context.onSurface, fontSize: 22, fontWeight: FontWeight.w800)),
+                  style: GoogleFonts.plusJakartaSans(
+                      color: context.onSurface,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800)),
               const SizedBox(height: 6),
               Text('Compared to last month',
-                  style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.38), fontSize: 11)),
+                  style: GoogleFonts.plusJakartaSans(
+                      color: context.onSurface.withOpacity(0.38),
+                      fontSize: 11)),
             ],
           ),
         ),
@@ -385,7 +448,8 @@ class _UserManagementPageState extends State<UserManagementPage> {
     );
   }
 
-  Widget _userCard(Map<String, dynamic> u, Color cardColor, Color accent) => Container(
+  Widget _userCard(Map<String, dynamic> u, Color cardColor, Color accent) =>
+      Container(
         margin: const EdgeInsets.only(bottom: 14),
         decoration: BoxDecoration(
           color: cardColor,
@@ -393,27 +457,37 @@ class _UserManagementPageState extends State<UserManagementPage> {
           border: Border.all(color: context.onSurface.withOpacity(0.1)),
         ),
         child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           leading: CircleAvatar(
             radius: 26,
             backgroundColor: accent,
             child: Text((u['first_name'] ?? 'U')[0].toUpperCase(),
-                style: GoogleFonts.plusJakartaSans(color: context.background, fontSize: 18, fontWeight: FontWeight.bold)),
+                style: GoogleFonts.plusJakartaSans(
+                    color: context.background,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold)),
           ),
           title: Text('${u['first_name']} ${u['last_name']}',
-              style: GoogleFonts.plusJakartaSans(color: context.onSurface, fontWeight: FontWeight.bold, fontSize: 15)),
+              style: GoogleFonts.plusJakartaSans(
+                  color: context.onSurface,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15)),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 6),
-              Text(u['email'] ?? '-', style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.7), fontSize: 12)),
+              Text(u['email'] ?? '-',
+                  style: GoogleFonts.plusJakartaSans(
+                      color: context.onSurface.withOpacity(0.7), fontSize: 12)),
               const SizedBox(height: 6),
               Wrap(
                 runSpacing: 6,
                 spacing: 6,
                 children: [
                   _tag(u['kyc_status'] ?? 'none', _kycColor(u['kyc_status'])),
-                  if (u['is_suspended'] == true) _tag('SUSPENDED', context.errorColor),
+                  if (u['is_suspended'] == true)
+                    _tag('SUSPENDED', context.errorColor),
                 ],
               ),
             ],
@@ -422,19 +496,27 @@ class _UserManagementPageState extends State<UserManagementPage> {
             crossAxisAlignment: CrossAxisAlignment.end,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('FARM ${double.tryParse(u['balance']?.toString() ?? '0')?.toStringAsFixed(2) ?? '0'}',
-                  style: GoogleFonts.plusJakartaSans(color: context.onSurface, fontWeight: FontWeight.bold, fontSize: 12)),
+              Text(
+                  'FARM ${double.tryParse(u['balance']?.toString() ?? '0')?.toStringAsFixed(2) ?? '0'}',
+                  style: GoogleFonts.plusJakartaSans(
+                      color: context.onSurface,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12)),
               const SizedBox(height: 8),
               GestureDetector(
                 onTap: () => _viewUser(u),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: accent.withAlpha((0.18 * 255).round()),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Text('View',
-                      style: GoogleFonts.plusJakartaSans(color: accent, fontSize: 12, fontWeight: FontWeight.w700)),
+                      style: GoogleFonts.plusJakartaSans(
+                          color: accent,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700)),
                 ),
               ),
             ],
@@ -456,13 +538,24 @@ class _UserManagementPageState extends State<UserManagementPage> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           TextButton(
-            onPressed: _page > 1 ? () { setState(() => _page--); _load(); } : null,
+            onPressed: _page > 1
+                ? () {
+                    setState(() => _page--);
+                    _load();
+                  }
+                : null,
             child: Text('← Prev'),
           ),
           Text('$_page / $lastPage',
-              style: GoogleFonts.plusJakartaSans(color: context.onSurface, fontWeight: FontWeight.bold)),
+              style: GoogleFonts.plusJakartaSans(
+                  color: context.onSurface, fontWeight: FontWeight.bold)),
           TextButton(
-            onPressed: _page < lastPage ? () { setState(() => _page++); _load(); } : null,
+            onPressed: _page < lastPage
+                ? () {
+                    setState(() => _page++);
+                    _load();
+                  }
+                : null,
             child: Text('Next →'),
           ),
         ],
@@ -472,16 +565,26 @@ class _UserManagementPageState extends State<UserManagementPage> {
 
   Widget _tag(String text, Color color) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(color: color.withAlpha((0.14 * 255).round()), borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(
+            color: color.withAlpha((0.14 * 255).round()),
+            borderRadius: BorderRadius.circular(12)),
         child: Text(text.toUpperCase(),
-            style: GoogleFonts.plusJakartaSans(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
+            style: GoogleFonts.plusJakartaSans(
+                color: color, fontSize: 10, fontWeight: FontWeight.bold)),
       );
 
   Widget _detailRow(String label, String value) => Padding(
         padding: const EdgeInsets.only(bottom: 14),
-        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text(label, style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.54), fontSize: 13)),
-          Text(value, style: GoogleFonts.plusJakartaSans(color: context.onSurface, fontWeight: FontWeight.w600, fontSize: 13)),
+        child:
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Text(label,
+              style: GoogleFonts.plusJakartaSans(
+                  color: context.onSurface.withOpacity(0.54), fontSize: 13)),
+          Text(value,
+              style: GoogleFonts.plusJakartaSans(
+                  color: context.onSurface,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13)),
         ]),
       );
 

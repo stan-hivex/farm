@@ -30,7 +30,8 @@ class _EscrowManagementPageState extends State<EscrowManagementPage> {
       final res = await AdminApiService.getEscrows(
           page: _page, status: _filter == 'all' ? null : _filter);
       setState(() => _escrows = res['data'] ?? []);
-    } catch (_) {} finally {
+    } catch (_) {
+    } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -40,7 +41,7 @@ class _EscrowManagementPageState extends State<EscrowManagementPage> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF111B2A),
+        backgroundColor: Colors.white,
         title: Text('Resolve Dispute — Award to $winner',
             style: GoogleFonts.plusJakartaSans(
                 fontWeight: FontWeight.bold, color: context.onSurface)),
@@ -50,51 +51,69 @@ class _EscrowManagementPageState extends State<EscrowManagementPage> {
           decoration: InputDecoration(
               hintText: 'Resolution note...',
               hintStyle: TextStyle(color: context.onSurface.withOpacity(0.54)),
-              border: OutlineInputBorder(borderSide: BorderSide(color: context.onSurface.withOpacity(0.1))),
-              enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: context.onSurface.withOpacity(0.1)))),
+              border: OutlineInputBorder(
+                  borderSide:
+                      BorderSide(color: context.onSurface.withOpacity(0.1))),
+              enabledBorder: OutlineInputBorder(
+                  borderSide:
+                      BorderSide(color: context.onSurface.withOpacity(0.1)))),
           maxLines: 3,
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.7)))),
+              child: Text('Cancel',
+                  style: GoogleFonts.plusJakartaSans(
+                      color: context.onSurface.withOpacity(0.7)))),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37)),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF90CAF9)),
             onPressed: () async {
               Navigator.pop(context);
               try {
-                await AdminApiService.resolveDispute(escrowId, winner, ctrl.text.trim());
+                await AdminApiService.resolveDispute(
+                    escrowId, winner, ctrl.text.trim());
                 _snack('Dispute resolved — $winner wins', context.successColor);
                 _load();
               } catch (e) {
                 _snack(e.toString(), context.errorColor);
               }
             },
-            child: Text('Confirm', style: GoogleFonts.plusJakartaSans(color: context.onBackground.withOpacity(0.87))),
+            child: Text('Confirm',
+                style: GoogleFonts.plusJakartaSans(
+                    color: context.onBackground.withOpacity(0.87))),
           ),
         ],
       ),
     );
   }
 
-  void _snack(String msg, Color c) => ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: c, behavior: SnackBarBehavior.floating));
+  void _snack(String msg, Color c) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(msg),
+          backgroundColor: c,
+          behavior: SnackBarBehavior.floating));
 
   Color _escrowColor(String? s) {
     switch (s) {
-      case 'active': return Colors.blue;
-      case 'completed': return context.successColor;
-      case 'disputed': return context.errorColor;
-      case 'refunded': return context.warningColor;
-      default: return context.textSecondary;
+      case 'active':
+        return Colors.blue;
+      case 'completed':
+        return context.successColor;
+      case 'disputed':
+        return context.errorColor;
+      case 'refunded':
+        return context.warningColor;
+      default:
+        return context.textSecondary;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = const Color(0xFF0B1320);
-    final cardColor = const Color(0xFF111B2A);
-    final accent = const Color(0xFFD4AF37);
+    final bgColor = Colors.white;
+    final cardColor = Colors.white;
+    final accent = const Color(0xFFEAF2FF);
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -105,7 +124,8 @@ class _EscrowManagementPageState extends State<EscrowManagementPage> {
             if (_loading)
               const Expanded(
                   child: Center(
-                      child: CircularProgressIndicator(color: Color(0xFFD4AF37))))
+                      child:
+                          CircularProgressIndicator(color: Color(0xFF90CAF9))))
             else
               Expanded(
                   child: RefreshIndicator(
@@ -115,7 +135,8 @@ class _EscrowManagementPageState extends State<EscrowManagementPage> {
                           ? Center(
                               child: Text('No escrow contracts',
                                   style: GoogleFonts.plusJakartaSans(
-                                      color: context.onSurface.withOpacity(0.6))))
+                                      color:
+                                          context.onSurface.withOpacity(0.6))))
                           : ListView.builder(
                               padding: const EdgeInsets.all(20),
                               itemCount: _escrows.length,
@@ -131,35 +152,41 @@ class _EscrowManagementPageState extends State<EscrowManagementPage> {
   Widget _filterRow(Color accent) => SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-        child: Row(
-            children: [
-              for (final f in ['all', 'active', 'completed', 'disputed', 'refunded'])
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: Text(f.toUpperCase(),
-                        style: GoogleFonts.plusJakartaSans(
-                            fontSize: 11,
-                            color: _filter == f
-                                ? context.background
-                                : context.onSurface.withOpacity(0.7))),
-                    selected: _filter == f,
-                    selectedColor:
-                        _filter == f ? accent : Colors.transparent,
-                    backgroundColor: const Color(0xFF111B2A),
-                    side: BorderSide(
-                        color: _filter == f ? accent : context.onSurface.withOpacity(0.1),
-                        width: 1),
-                    onSelected: (_) {
-                      setState(() {
-                        _filter = f;
-                        _page = 1;
-                      });
-                      _load();
-                    },
-                  ),
-                ),
-            ]),
+        child: Row(children: [
+          for (final f in [
+            'all',
+            'active',
+            'completed',
+            'disputed',
+            'refunded'
+          ])
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: Text(f.toUpperCase(),
+                    style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        color: _filter == f
+                            ? context.background
+                            : context.onSurface.withOpacity(0.7))),
+                selected: _filter == f,
+                selectedColor: _filter == f ? accent : Colors.transparent,
+                backgroundColor: Colors.white,
+                side: BorderSide(
+                    color: _filter == f
+                        ? accent
+                        : context.onSurface.withOpacity(0.1),
+                    width: 1),
+                onSelected: (_) {
+                  setState(() {
+                    _filter = f;
+                    _page = 1;
+                  });
+                  _load();
+                },
+              ),
+            ),
+        ]),
       );
 
   Widget _escrowCard(Map<String, dynamic> e, Color cardColor, Color accent) {
@@ -174,7 +201,9 @@ class _EscrowManagementPageState extends State<EscrowManagementPage> {
         color: cardColor,
         borderRadius: BorderRadius.circular(18),
         border: isDisputed
-            ? Border.all(color: context.errorColor.withAlpha((0.4 * 255).round()), width: 1.5)
+            ? Border.all(
+                color: context.errorColor.withAlpha((0.4 * 255).round()),
+                width: 1.5)
             : Border.all(color: context.onSurface.withOpacity(0.1)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -196,8 +225,10 @@ class _EscrowManagementPageState extends State<EscrowManagementPage> {
         _escrowDetail('Title', e['title'] ?? '-'),
         _escrowDetail('Amount',
             '${double.tryParse(e['amount']?.toString() ?? '0')?.toStringAsFixed(2)} FARM'),
-        _escrowDetail('Buyer', '${buyer['first_name'] ?? ''} ${buyer['last_name'] ?? ''}'),
-        _escrowDetail('Seller', '${seller['first_name'] ?? ''} ${seller['last_name'] ?? ''}'),
+        _escrowDetail('Buyer',
+            '${buyer['first_name'] ?? ''} ${buyer['last_name'] ?? ''}'),
+        _escrowDetail('Seller',
+            '${seller['first_name'] ?? ''} ${seller['last_name'] ?? ''}'),
         if (isDisputed) ...[
           const SizedBox(height: 12),
           Row(children: [
@@ -221,7 +252,8 @@ class _EscrowManagementPageState extends State<EscrowManagementPage> {
                         borderRadius: BorderRadius.circular(10))),
                 onPressed: () => _resolve(e['id'], 'seller'),
                 child: Text('Award Seller',
-                    style: GoogleFonts.plusJakartaSans(color: context.onBackground.withOpacity(0.87))),
+                    style: GoogleFonts.plusJakartaSans(
+                        color: context.onBackground.withOpacity(0.87))),
               ),
             ),
           ]),
@@ -237,7 +269,8 @@ class _EscrowManagementPageState extends State<EscrowManagementPage> {
               width: 70,
               child: Text(label,
                   style: GoogleFonts.plusJakartaSans(
-                      color: context.onSurface.withOpacity(0.54), fontSize: 12))),
+                      color: context.onSurface.withOpacity(0.54),
+                      fontSize: 12))),
           Text(value,
               style: GoogleFonts.plusJakartaSans(
                   color: context.onSurface,

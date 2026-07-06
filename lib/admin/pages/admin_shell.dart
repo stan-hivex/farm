@@ -40,40 +40,48 @@ class _AdminShellState extends State<AdminShell> {
   }
 
   final List<_NavItem> _navItems = [
-    _NavItem(icon: Icons.dashboard_rounded,     label: 'Dashboard'),
+    _NavItem(icon: Icons.dashboard_rounded, label: 'Dashboard'),
     _NavItem(icon: Icons.admin_panel_settings_rounded, label: 'Superadmins'),
-    _NavItem(icon: Icons.people_rounded,         label: 'Users'),
-    _NavItem(icon: Icons.verified_user_rounded,  label: 'KYC'),
-    _NavItem(icon: Icons.swap_horiz_rounded,     label: 'Transactions'),
-    _NavItem(icon: Icons.security_rounded,       label: 'Escrow'),
-    _NavItem(icon: Icons.south_west_rounded,     label: 'Deposits'),
-    _NavItem(icon: Icons.north_east_rounded,     label: 'Withdrawals'),
-    _NavItem(icon: Icons.campaign_rounded,       label: 'Notifications'),
-    _NavItem(icon: Icons.settings_rounded,       label: 'Settings'),
-    _NavItem(icon: Icons.percent_rounded,        label: 'Fees'),
-    _NavItem(icon: Icons.badge_rounded,          label: 'Merchant KYB'),
+    _NavItem(icon: Icons.people_rounded, label: 'Users'),
+    _NavItem(icon: Icons.verified_user_rounded, label: 'KYC'),
+    _NavItem(icon: Icons.swap_horiz_rounded, label: 'Transactions'),
+    _NavItem(icon: Icons.security_rounded, label: 'Escrow'),
+    _NavItem(icon: Icons.south_west_rounded, label: 'Deposits'),
+    _NavItem(icon: Icons.north_east_rounded, label: 'Withdrawals'),
+    _NavItem(icon: Icons.campaign_rounded, label: 'Notifications'),
+    _NavItem(icon: Icons.settings_rounded, label: 'Settings'),
+    _NavItem(icon: Icons.percent_rounded, label: 'Fees'),
+    _NavItem(icon: Icons.badge_rounded, label: 'Merchant KYB'),
   ];
 
   List<Widget> get _pages => [
-    const AdminDashboardPage(),
-    SuperadminsManagementPage(onGoBack: () => setState(() => _selectedIndex = 0)),
-    UserManagementPage(onGoBack: () => setState(() => _selectedIndex = 0)),
-    KycManagementPage(onGoBack: () => setState(() => _selectedIndex = 0)),
-    TransactionsManagementPage(onGoBack: () => setState(() => _selectedIndex = 0)),
-    EscrowManagementPage(onGoBack: () => setState(() => _selectedIndex = 0)),
-    DepositsManagementPage(onGoBack: () => setState(() => _selectedIndex = 0)),
-    WithdrawalsManagementPage(onGoBack: () => setState(() => _selectedIndex = 0)),
-    NotificationsManagementPage(onGoBack: () => setState(() => _selectedIndex = 0)),
-    SettingsManagementPage(onGoBack: () => setState(() => _selectedIndex = 0)),
-    FeeManagementPage(onGoBack: () => setState(() => _selectedIndex = 0)),
-    MerchantKybManagementPage(onGoBack: () => setState(() => _selectedIndex = 0)),
-  ];
+        const AdminDashboardPage(),
+        SuperadminsManagementPage(
+            onGoBack: () => setState(() => _selectedIndex = 0)),
+        UserManagementPage(onGoBack: () => setState(() => _selectedIndex = 0)),
+        KycManagementPage(onGoBack: () => setState(() => _selectedIndex = 0)),
+        TransactionsManagementPage(
+            onGoBack: () => setState(() => _selectedIndex = 0)),
+        EscrowManagementPage(
+            onGoBack: () => setState(() => _selectedIndex = 0)),
+        DepositsManagementPage(
+            onGoBack: () => setState(() => _selectedIndex = 0)),
+        WithdrawalsManagementPage(
+            onGoBack: () => setState(() => _selectedIndex = 0)),
+        NotificationsManagementPage(
+            onGoBack: () => setState(() => _selectedIndex = 0)),
+        SettingsManagementPage(
+            onGoBack: () => setState(() => _selectedIndex = 0)),
+        FeeManagementPage(onGoBack: () => setState(() => _selectedIndex = 0)),
+        MerchantKybManagementPage(
+            onGoBack: () => setState(() => _selectedIndex = 0)),
+      ];
 
   Future<void> _logout() async {
     await AdminApiService.logout();
     if (mounted) {
-      Navigator.pushReplacement(context,
-          MaterialPageRoute(builder: (_) => const LoginpageWidget()));
+      Navigator.pushReplacement(
+          context, MaterialPageRoute(builder: (_) => const LoginpageWidget()));
     }
   }
 
@@ -82,7 +90,7 @@ class _AdminShellState extends State<AdminShell> {
     final isWide = MediaQuery.of(context).size.width > 700;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0B1320),
+      backgroundColor: Colors.white,
       body: Row(
         children: [
           // Sidebar — only on wide screens
@@ -107,7 +115,7 @@ class _AdminShellState extends State<AdminShell> {
   Widget _buildSidebar() {
     return Container(
       width: 220,
-      color: const Color(0xFF0C1320),
+      color: Colors.white,
       child: Column(
         children: [
           const SizedBox(height: 32),
@@ -121,11 +129,14 @@ class _AdminShellState extends State<AdminShell> {
             ),
             child: Row(
               children: [
-                Text('FARM', style: GoogleFonts.inter(
-                    fontWeight: FontWeight.w900, fontSize: 18)),
+                Text('FARM',
+                    style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w900, fontSize: 18)),
                 const SizedBox(width: 8),
-                Text('Admin', style: GoogleFonts.plusJakartaSans(
-                    color: context.onBackground.withOpacity(0.54), fontSize: 13)),
+                Text('Admin',
+                    style: GoogleFonts.plusJakartaSans(
+                        color: context.onBackground.withOpacity(0.54),
+                        fontSize: 13)),
               ],
             ),
           ),
@@ -143,8 +154,8 @@ class _AdminShellState extends State<AdminShell> {
                   onTap: () => setState(() => _selectedIndex = i),
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 4),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
                     decoration: BoxDecoration(
                       color: selected
                           ? context.onSurface.withOpacity(0.12)
@@ -154,12 +165,16 @@ class _AdminShellState extends State<AdminShell> {
                     child: Row(
                       children: [
                         Icon(item.icon,
-                            color: selected ? context.onSurface : context.onSurface.withOpacity(0.38),
+                            color: selected
+                                ? context.onSurface
+                                : context.onSurface.withOpacity(0.38),
                             size: 20),
                         const SizedBox(width: 12),
                         Text(item.label,
                             style: GoogleFonts.plusJakartaSans(
-                              color: selected ? context.onSurface : context.onSurface.withOpacity(0.54),
+                              color: selected
+                                  ? context.onSurface
+                                  : context.onSurface.withOpacity(0.54),
                               fontWeight: selected
                                   ? FontWeight.w600
                                   : FontWeight.normal,
@@ -182,7 +197,8 @@ class _AdminShellState extends State<AdminShell> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
-                  border: Border.all(color: context.onSurface.withOpacity(0.12)),
+                  border:
+                      Border.all(color: context.onSurface.withOpacity(0.12)),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(children: [
@@ -191,7 +207,8 @@ class _AdminShellState extends State<AdminShell> {
                   const SizedBox(width: 12),
                   Text('Logout',
                       style: GoogleFonts.plusJakartaSans(
-                          color: context.onSurface.withOpacity(0.38), fontSize: 14)),
+                          color: context.onSurface.withOpacity(0.38),
+                          fontSize: 14)),
                 ]),
               ),
             ),
@@ -205,9 +222,9 @@ class _AdminShellState extends State<AdminShell> {
     return Container(
       height: 60,
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: const BoxDecoration(
-        color: Color(0xFF111B2A),
-        border: Border(bottom: BorderSide(color: Color(0xFF1E2A3C))),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -215,14 +232,47 @@ class _AdminShellState extends State<AdminShell> {
           if (!isWide)
             Text('FARM Admin',
                 style: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.bold, fontSize: 16, color: context.onSurface)),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: context.onSurface)),
           if (isWide)
             Text(_navItems[_selectedIndex].label,
                 style: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.bold, fontSize: 18, color: context.onSurface)),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: context.onSurface)),
           Row(children: [
-            Icon(Icons.notifications_none_rounded, color: context.onSurface.withOpacity(0.7)),
-            const SizedBox(width: 16),
+            Icon(Icons.notifications_none_rounded,
+                color: context.onSurface.withOpacity(0.7)),
+            const SizedBox(width: 12),
+            GestureDetector(
+              onTap: _logout,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: Colors.grey.shade300, width: 1),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.logout_rounded,
+                        size: 16, color: context.onSurface),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Logout',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: context.onSurface,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
             Container(
               width: 36,
               height: 36,
@@ -242,17 +292,69 @@ class _AdminShellState extends State<AdminShell> {
   }
 
   Widget _buildBottomNav() {
-    return BottomNavigationBar(
-      backgroundColor: const Color(0xFF111B2A),
-      currentIndex: _selectedIndex > 4 ? 0 : _selectedIndex,
-      onTap: (i) => setState(() => _selectedIndex = i),
-      selectedItemColor: context.onSurface,
-      unselectedItemColor: context.onSurface.withOpacity(0.54),
-      type: BottomNavigationBarType.fixed,
-      items: _navItems.take(5).map((n) => BottomNavigationBarItem(
-            icon: Icon(n.icon),
-            label: n.label,
-          )).toList(),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Colors.grey.shade300)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          child: Row(
+            children: List.generate(_navItems.length, (i) {
+              final item = _navItems[i];
+              final selected = i == _selectedIndex;
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: InkWell(
+                  onTap: () => setState(() => _selectedIndex = i),
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    width: 90,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? const Color(0xFFEAF2FF)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          item.icon,
+                          size: 18,
+                          color: selected
+                              ? const Color(0xFF0D47A1)
+                              : context.onSurface.withOpacity(0.64),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          item.label,
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 10,
+                            fontWeight:
+                                selected ? FontWeight.w700 : FontWeight.w500,
+                            color: selected
+                                ? const Color(0xFF0D47A1)
+                                : context.onSurface.withOpacity(0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+      ),
     );
   }
 }

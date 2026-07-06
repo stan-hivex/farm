@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/core/theme_extensions.dart';
@@ -53,9 +52,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     if (_error != null) return _errorView(_error!);
 
     final s = _stats ?? {};
-    final bgColor = const Color(0xFF0B1320);
-    final cardColor = const Color(0xFF111B2A);
-    final accent = const Color(0xFFD4AF37);
+    final bgColor = Colors.white;
+    final cardColor = Colors.white;
+    final accent = const Color(0xFFEAF2FF);
     final muted = context.onSurface.withOpacity(0.7);
 
     return Scaffold(
@@ -97,23 +96,29 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
                   color: accent.withAlpha((0.16 * 255).round()),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text('FARM',
                     style: GoogleFonts.plusJakartaSans(
-                        color: accent, fontSize: 12, fontWeight: FontWeight.w900)),
+                        color: accent,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900)),
               ),
               const SizedBox(height: 14),
               Text('Admin Dashboard',
                   style: GoogleFonts.plusJakartaSans(
-                      color: context.onSurface, fontSize: 28, fontWeight: FontWeight.w800)),
+                      color: context.onSurface,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800)),
               const SizedBox(height: 8),
               Text(
                 'A unified admin control panel for users, deposits, withdrawals, and compliance.',
-                style: GoogleFonts.plusJakartaSans(color: muted, fontSize: 13, height: 1.5),
+                style: GoogleFonts.plusJakartaSans(
+                    color: muted, fontSize: 13, height: 1.5),
               ),
             ],
           ),
@@ -132,7 +137,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               backgroundColor: context.onSurface,
               child: Text('AD',
                   style: GoogleFonts.plusJakartaSans(
-                      color: context.background, fontSize: 14, fontWeight: FontWeight.bold)),
+                      color: context.background,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -140,7 +147,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     );
   }
 
-  Widget _buildOverviewRow(Map<String, dynamic> s, Color cardColor, Color accent) {
+  Widget _buildOverviewRow(
+      Map<String, dynamic> s, Color cardColor, Color accent) {
     return GridView.count(
       crossAxisCount: 2,
       crossAxisSpacing: 16,
@@ -149,15 +157,20 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       children: [
-        _metricCard('Total Users', '${s['total_users'] ?? 0}', 'Active people', cardColor, accent),
-        _metricCard('Active Escrows', '${s['active_escrows'] ?? 0}', 'Escrow flows', cardColor, accent),
-        _metricCard('Pending KYC', '${s['pending_kyc'] ?? 0}', 'Review queue', cardColor, accent),
-        _metricCard('Pending Payouts', '${s['pending_payouts'] ?? 0}', 'Awaiting settlement', cardColor, accent),
+        _metricCard('Total Users', '${s['total_users'] ?? 0}', 'Active people',
+            cardColor, accent),
+        _metricCard('Active Escrows', '${s['active_escrows'] ?? 0}',
+            'Escrow flows', cardColor, accent),
+        _metricCard('Pending KYC', '${s['pending_kyc'] ?? 0}', 'Review queue',
+            cardColor, accent),
+        _metricCard('Pending Payouts', '${s['pending_payouts'] ?? 0}',
+            'Awaiting settlement', cardColor, accent),
       ],
     );
   }
 
-  Widget _metricCard(String title, String value, String caption, Color cardColor, Color accent) {
+  Widget _metricCard(String title, String value, String caption,
+      Color cardColor, Color accent) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -165,7 +178,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: context.onSurface.withOpacity(0.12)),
         boxShadow: [
-          BoxShadow(color: context.background.withAlpha((0.18 * 255).round()), blurRadius: 18, offset: const Offset(0, 8)),
+          BoxShadow(
+              color: context.background.withAlpha((0.18 * 255).round()),
+              blurRadius: 18,
+              offset: const Offset(0, 8)),
         ],
       ),
       child: Column(
@@ -177,7 +193,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             children: [
               Text(title,
                   style: GoogleFonts.plusJakartaSans(
-                      color: context.onSurface.withOpacity(0.7), fontSize: 13, fontWeight: FontWeight.w500)),
+                      color: context.onSurface.withOpacity(0.7),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500)),
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
@@ -190,9 +208,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           ),
           Text(value,
               style: GoogleFonts.plusJakartaSans(
-                  color: context.onSurface, fontSize: 26, fontWeight: FontWeight.w900)),
+                  color: context.onSurface,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900)),
           Text(caption,
-              style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.54), fontSize: 12)),
+              style: GoogleFonts.plusJakartaSans(
+                  color: context.onSurface.withOpacity(0.54), fontSize: 12)),
         ],
       ),
     );
@@ -206,7 +227,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: context.onSurface.withOpacity(0.1)),
         boxShadow: [
-          BoxShadow(color: context.background.withAlpha((0.14 * 255).round()), blurRadius: 18, offset: const Offset(0, 10)),
+          BoxShadow(
+              color: context.background.withAlpha((0.14 * 255).round()),
+              blurRadius: 18,
+              offset: const Offset(0, 10)),
         ],
       ),
       child: Column(
@@ -220,20 +244,26 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 children: [
                   Text('Revenue Overview',
                       style: GoogleFonts.plusJakartaSans(
-                          color: context.onSurface, fontSize: 18, fontWeight: FontWeight.bold)),
+                          color: context.onSurface,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
                   Text('Last 7 days performance',
-                      style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.54), fontSize: 12)),
+                      style: GoogleFonts.plusJakartaSans(
+                          color: context.onSurface.withOpacity(0.54),
+                          fontSize: 12)),
                 ],
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: accent.withAlpha((0.18 * 255).round()),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text('+14.8%',
-                    style: GoogleFonts.plusJakartaSans(color: accent, fontWeight: FontWeight.bold)),
+                    style: GoogleFonts.plusJakartaSans(
+                        color: accent, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -246,7 +276,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   child: Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
-                      gradient: LinearGradient(colors: [context.onSurface.withOpacity(0.12), context.onSurface.withOpacity(0.1)]),
+                      gradient: LinearGradient(colors: [
+                        context.onSurface.withOpacity(0.12),
+                        context.onSurface.withOpacity(0.1)
+                      ]),
                     ),
                   ),
                 ),
@@ -271,9 +304,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('Quick Actions',
-                style: GoogleFonts.plusJakartaSans(color: context.onSurface, fontSize: 18, fontWeight: FontWeight.bold)),
+                style: GoogleFonts.plusJakartaSans(
+                    color: context.onSurface,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold)),
             Text('Manage the platform',
-                style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.54), fontSize: 12)),
+                style: GoogleFonts.plusJakartaSans(
+                    color: context.onSurface.withOpacity(0.54), fontSize: 12)),
           ],
         ),
         const SizedBox(height: 12),
@@ -281,12 +318,30 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           spacing: 14,
           runSpacing: 14,
           children: [
-            _actionChip('Add Superadmin', Icons.admin_panel_settings_rounded, accent, cardColor, () => _navigateTo(const AddSuperadminPage())),
-            _actionChip('Manage Users', Icons.manage_accounts_rounded, accent, cardColor, () => _navigateTo(const UserManagementPage())),
-            _actionChip('Review Deposits', Icons.account_balance_rounded, accent, cardColor, () => _navigateTo(const DepositsManagementPage())),
-            _actionChip('Withdrawals', Icons.outbox_rounded, accent, cardColor, () => _navigateTo(const WithdrawalsManagementPage())),
-            _actionChip('Escrows', Icons.verified_user_rounded, accent, cardColor, () => _navigateTo(const EscrowManagementPage())),
-            _actionChip('Notifications', Icons.campaign_rounded, accent, cardColor, () => _navigateTo(const NotificationsManagementPage())),
+            _actionChip(
+                'Add Superadmin',
+                Icons.admin_panel_settings_rounded,
+                accent,
+                cardColor,
+                () => _navigateTo(const AddSuperadminPage())),
+            _actionChip('Manage Users', Icons.manage_accounts_rounded, accent,
+                cardColor, () => _navigateTo(const UserManagementPage())),
+            _actionChip(
+                'Review Deposits',
+                Icons.account_balance_rounded,
+                accent,
+                cardColor,
+                () => _navigateTo(const DepositsManagementPage())),
+            _actionChip('Withdrawals', Icons.outbox_rounded, accent, cardColor,
+                () => _navigateTo(const WithdrawalsManagementPage())),
+            _actionChip('Escrows', Icons.verified_user_rounded, accent,
+                cardColor, () => _navigateTo(const EscrowManagementPage())),
+            _actionChip(
+                'Notifications',
+                Icons.campaign_rounded,
+                accent,
+                cardColor,
+                () => _navigateTo(const NotificationsManagementPage())),
           ],
         ),
       ],
@@ -298,7 +353,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Recent Activity',
-            style: GoogleFonts.plusJakartaSans(color: context.onSurface, fontSize: 18, fontWeight: FontWeight.bold)),
+            style: GoogleFonts.plusJakartaSans(
+                color: context.onSurface,
+                fontSize: 18,
+                fontWeight: FontWeight.bold)),
         const SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
@@ -315,7 +373,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     );
   }
 
-  Widget _actionChip(String label, IconData icon, Color accent, Color cardColor, VoidCallback onTap) {
+  Widget _actionChip(String label, IconData icon, Color accent, Color cardColor,
+      VoidCallback onTap) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -341,7 +400,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               ),
               const SizedBox(width: 12),
               Text(label,
-                  style: GoogleFonts.plusJakartaSans(color: context.onSurface, fontWeight: FontWeight.w600)),
+                  style: GoogleFonts.plusJakartaSans(
+                      color: context.onSurface, fontWeight: FontWeight.w600)),
             ],
           ),
         ),
@@ -358,7 +418,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           final list = (snap.data?['data'] as List? ?? []).take(5).toList();
           return list.isEmpty
               ? const Padding(
-                  padding: EdgeInsets.all(24), child: Center(child: Text('No transactions yet')))
+                  padding: EdgeInsets.all(24),
+                  child: Center(child: Text('No transactions yet')))
               : Column(
                   children: list.map((t) {
                     final isCredit = ['deposit', 'escrow_release', 'roi_payout']
@@ -366,39 +427,55 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0B1320),
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: context.onSurface.withOpacity(0.1)),
+                        border: Border.all(
+                            color: context.onSurface.withOpacity(0.1)),
                       ),
                       child: ListTile(
-                        contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 18, vertical: 12),
                         leading: Container(
                           width: 44,
                           height: 44,
                           decoration: BoxDecoration(
                             color: isCredit
-                                ? context.successColor.withAlpha((0.16 * 255).round())
-                                : context.errorColor.withAlpha((0.16 * 255).round()),
+                                ? context.successColor
+                                    .withAlpha((0.16 * 255).round())
+                                : context.errorColor
+                                    .withAlpha((0.16 * 255).round()),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
-                            isCredit ? Icons.south_west_rounded : Icons.north_east_rounded,
-                            color: isCredit ? context.successColor : context.errorColor,
+                            isCredit
+                                ? Icons.south_west_rounded
+                                : Icons.north_east_rounded,
+                            color: isCredit
+                                ? context.successColor
+                                : context.errorColor,
                             size: 20,
                           ),
                         ),
                         title: Text(
-                          (t['transaction_type'] ?? '').toString().replaceAll('_', ' ').toUpperCase(),
+                          (t['transaction_type'] ?? '')
+                              .toString()
+                              .replaceAll('_', ' ')
+                              .toUpperCase(),
                           style: GoogleFonts.plusJakartaSans(
-                              color: context.onSurface, fontWeight: FontWeight.w700, fontSize: 13),
+                              color: context.onSurface,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13),
                         ),
                         subtitle: Text(t['transaction_reference'] ?? '',
-                            style: GoogleFonts.plusJakartaSans(color: context.onSurface.withOpacity(0.7), fontSize: 11)),
+                            style: GoogleFonts.plusJakartaSans(
+                                color: context.onSurface.withOpacity(0.7),
+                                fontSize: 11)),
                         trailing: Text(
                           '${isCredit ? '+' : '-'}${_fmt(t['amount'] ?? 0)} FARM',
                           style: GoogleFonts.plusJakartaSans(
-                            color: isCredit ? context.successColor : context.errorColor,
+                            color: isCredit
+                                ? context.successColor
+                                : context.errorColor,
                             fontWeight: FontWeight.bold,
                             fontSize: 13,
                           ),
@@ -414,7 +491,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(Icons.error_outline, size: 48, color: context.errorColor),
           const SizedBox(height: 12),
-          Text(msg, textAlign: TextAlign.center, style: GoogleFonts.plusJakartaSans(color: context.onSurface)),
+          Text(msg,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.plusJakartaSans(color: context.onSurface)),
           const SizedBox(height: 16),
           ElevatedButton(onPressed: _load, child: Text('Retry')),
         ]),
