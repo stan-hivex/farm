@@ -48,6 +48,11 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget> {
   bool securityLoading = true;
   bool accountLocked = false;
 
+  bool get isKycApproved {
+    final status = kycStatus.trim().toLowerCase();
+    return ['verified', 'approved', 'complete', 'success'].contains(status);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -93,6 +98,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget> {
           email = user['email'] ?? '';
           phone = user['phone'] ?? '';
           kycStatus = user['kyc_status'] ?? 'none';
+          FFAppState().kycStatus = kycStatus;
 
           profileImage = user['profile_image'] ?? '';
 
@@ -698,9 +704,11 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget> {
                                 model: _model.profileInfoTileModel3,
                                 updateCallback: () => safeSetState(() {}),
                                 child: GestureDetector(
-                                  onTap: () {
-                                    context.pushNamed('KYCPAGE');
-                                  },
+                                  onTap: isKycApproved
+                                      ? null
+                                      : () {
+                                          context.pushNamed('KYCPAGE');
+                                        },
                                   child: ProfileInfoTileWidget(
                                     icon: Icon(
                                       Icons.fingerprint_rounded,
@@ -709,7 +717,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget> {
                                       size: 20.0,
                                     ),
                                     label: 'KYC Status',
-                                    show_arrow: true,
+                                    show_arrow: !isKycApproved,
                                     value: kycStatus.toUpperCase(),
                                   ),
                                 ),
@@ -928,19 +936,18 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget> {
                               SwitchListTile(
                                 contentPadding: EdgeInsets.zero,
                                 activeThumbColor: Colors.green,
-                                value: Theme.of(context).brightness ==
-                                    Brightness.dark,
-                                onChanged: (value) {
-                                  setState(() {
-                                    FFAppState().setThemeMode(value
-                                        ? ThemeMode.dark
-                                        : ThemeMode.light);
-                                  });
+                                value: FFAppState().themeMode == ThemeMode.dark,
+                                onChanged: (value) async {
+                                  await FFAppState().setThemeMode(
+                                    value ? ThemeMode.dark : ThemeMode.light,
+                                  );
+                                  if (mounted) {
+                                    setState(() {});
+                                  }
                                 },
-                                title: Text('Dark Mode'),
+                                title: const Text('Dark Mode'),
                                 subtitle: Text(
-                                  Theme.of(context).brightness ==
-                                          Brightness.dark
+                                  FFAppState().themeMode == ThemeMode.dark
                                       ? 'Dark theme enabled'
                                       : 'Light theme enabled',
                                 ),

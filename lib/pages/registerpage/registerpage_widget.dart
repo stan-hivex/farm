@@ -377,7 +377,6 @@ class _RegisterpageWidgetState extends State<RegisterpageWidget> {
       context,
       () => RegisterpageModel(),
     );
-    FFAppState().themeMode = ThemeMode.light;
   }
 
   @override

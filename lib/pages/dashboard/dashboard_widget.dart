@@ -86,7 +86,6 @@ class _DashboardWidgetState extends State<DashboardWidget>
       FFAppState().accessToken = '';
       FFAppState().userName = '';
       FFAppState().isLoggedIn = false;
-      FFAppState().themeMode = ThemeMode.light;
 
       if (mounted) {
         context.goNamed('loginpage');
@@ -145,7 +144,8 @@ class _DashboardWidgetState extends State<DashboardWidget>
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final kycStatus = data['data']?['kyc_status'] ?? data['data']?['kycStatus'];
+        final kycStatus =
+            data['data']?['kyc_status'] ?? data['data']?['kycStatus'];
 
         if (kycStatus is String) {
           FFAppState().kycStatus = kycStatus;
@@ -309,6 +309,11 @@ class _DashboardWidgetState extends State<DashboardWidget>
   bool get hasKycSubmission {
     final status = FFAppState().kycStatus.trim().toLowerCase();
     return ['pending', 'rejected', 'under review', 'review'].contains(status);
+  }
+
+  bool get shouldShowVerifyKycButton {
+    final status = FFAppState().kycStatus.trim().toLowerCase();
+    return !['verified', 'approved', 'complete', 'success'].contains(status);
   }
 
   Future<void> _guardKycAccess({
@@ -572,37 +577,45 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                           if (isKycApproved)
                                             Icon(
                                               Icons.verified_rounded,
-                                              color: FlutterFlowTheme.of(context)
-                                                  .primaryText,
+                                              color:
+                                                  FlutterFlowTheme.of(context)
+                                                      .primaryText,
                                               size: 18.0,
                                             ),
                                         ].divide(const SizedBox(width: 4.0)),
                                       ),
-                                      if (hasKycSubmission && !isKycApproved) ...[
+                                      if (shouldShowVerifyKycButton) ...[
                                         const SizedBox(height: 10.0),
                                         SizedBox(
                                           width: 160.0,
                                           child: ElevatedButton(
-                                            onPressed: () => context.pushNamed('KYCPAGE'),
+                                            onPressed: () =>
+                                                context.pushNamed('KYCPAGE'),
                                             style: ElevatedButton.styleFrom(
-                                              backgroundColor: FlutterFlowTheme.of(context)
-                                                  .primary,
-                                              foregroundColor: FlutterFlowTheme.of(context)
-                                                  .secondaryBackground,
-                                              padding: const EdgeInsets.symmetric(
+                                              backgroundColor:
+                                                  FlutterFlowTheme.of(context)
+                                                      .primary,
+                                              foregroundColor:
+                                                  FlutterFlowTheme.of(context)
+                                                      .secondaryBackground,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
                                                 vertical: 12.0,
                                               ),
                                               shape: RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.circular(12.0),
+                                                borderRadius:
+                                                    BorderRadius.circular(12.0),
                                               ),
                                             ),
                                             child: Text(
                                               'Verify KYC',
-                                              style: FlutterFlowTheme.of(context)
+                                              style: FlutterFlowTheme.of(
+                                                      context)
                                                   .titleSmall
                                                   .override(
                                                     fontWeight: FontWeight.w600,
-                                                    color: FlutterFlowTheme.of(context)
+                                                    color: FlutterFlowTheme.of(
+                                                            context)
                                                         .secondaryBackground,
                                                   ),
                                             ),
@@ -681,7 +694,8 @@ class _DashboardWidgetState extends State<DashboardWidget>
                               child: Container(
                                 height: 240.0,
                                 decoration: BoxDecoration(
-                                  color: Theme.of(context).brightness == Brightness.dark
+                                  color: Theme.of(context).brightness ==
+                                          Brightness.dark
                                       ? Colors.black
                                       : FlutterFlowTheme.of(context).primary,
                                   borderRadius: BorderRadius.circular(24.0),
@@ -698,9 +712,12 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                         width: 150.0,
                                         height: 150.0,
                                         decoration: BoxDecoration(
-                                          color: Theme.of(context).brightness == Brightness.dark
-                                              ? Colors.grey[900]!.withAlpha((0.3 * 255).toInt())
-                                              : FlutterFlowTheme.of(context).onPrimary6,
+                                          color: Theme.of(context).brightness ==
+                                                  Brightness.dark
+                                              ? Colors.grey[900]!.withAlpha(
+                                                  (0.3 * 255).toInt())
+                                              : FlutterFlowTheme.of(context)
+                                                  .onPrimary6,
                                           borderRadius:
                                               BorderRadius.circular(9999.0),
                                           shape: BoxShape.rectangle,
@@ -714,9 +731,12 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                         width: 100.0,
                                         height: 100.0,
                                         decoration: BoxDecoration(
-                                          color: Theme.of(context).brightness == Brightness.dark
-                                              ? Colors.grey[900]!.withAlpha((0.15 * 255).toInt())
-                                              : FlutterFlowTheme.of(context).onPrimary3,
+                                          color: Theme.of(context).brightness ==
+                                                  Brightness.dark
+                                              ? Colors.grey[900]!.withAlpha(
+                                                  (0.15 * 255).toInt())
+                                              : FlutterFlowTheme.of(context)
+                                                  .onPrimary3,
                                           borderRadius:
                                               BorderRadius.circular(9999.0),
                                           shape: BoxShape.rectangle,
@@ -768,9 +788,14 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                                     .labelSmall
                                                                     .fontStyle,
                                                           ),
-                                                          color: Theme.of(context).brightness == Brightness.dark
+                                                          color: Theme.of(context)
+                                                                      .brightness ==
+                                                                  Brightness
+                                                                      .dark
                                                               ? Colors.white70
-                                                              : FlutterFlowTheme.of(context).onPrimary70,
+                                                              : FlutterFlowTheme
+                                                                      .of(context)
+                                                                  .onPrimary70,
                                                           letterSpacing: 0.0,
                                                           fontWeight:
                                                               FontWeight.w600,
@@ -790,60 +815,67 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                     ? 'Loading...'
                                                     : walletBalance
                                                         .toStringAsFixed(2),
-                                                style:
-                                                    FlutterFlowTheme.of(context)
-                                                        .headlineLarge
-                                                        .override(
-                                                          font: GoogleFonts
-                                                              .plusJakartaSans(
-                                                            fontWeight:
-                                                                FontWeight.w800,
-                                                          ),
-                                                          color: Theme.of(context).brightness == Brightness.dark
-                                                              ? Colors.white
-                                                              : FlutterFlowTheme.of(context).onPrimary,
-                                                          letterSpacing: 0.0,
-                                                          fontWeight:
-                                                              FontWeight.w800,
-                                                          lineHeight: 1.2,
-                                                        ),
+                                                style: FlutterFlowTheme.of(
+                                                        context)
+                                                    .headlineLarge
+                                                    .override(
+                                                      font: GoogleFonts
+                                                          .plusJakartaSans(
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                      ),
+                                                      color: Theme.of(context)
+                                                                  .brightness ==
+                                                              Brightness.dark
+                                                          ? Colors.white
+                                                          : FlutterFlowTheme.of(
+                                                                  context)
+                                                              .onPrimary,
+                                                      letterSpacing: 0.0,
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                      lineHeight: 1.2,
+                                                    ),
                                               ),
                                               Padding(
-                                                padding: const EdgeInsets.only(top: 8.0),
+                                                padding: const EdgeInsets.only(
+                                                    top: 8.0),
                                                 child: Text(
                                                   'a loop of growth',
                                                   overflow:
                                                       TextOverflow.ellipsis,
                                                   maxLines: 1,
-                                                  style:
-                                                      FlutterFlowTheme.of(
-                                                              context)
-                                                          .labelSmall
-                                                          .override(
-                                                            font: GoogleFonts
-                                                                .plusJakartaSans(
-                                                              fontWeight: FlutterFlowTheme.of(
+                                                  style: FlutterFlowTheme.of(
+                                                          context)
+                                                      .labelSmall
+                                                      .override(
+                                                        font: GoogleFonts
+                                                            .plusJakartaSans(
+                                                          fontWeight:
+                                                              FlutterFlowTheme.of(
                                                                       context)
                                                                   .labelSmall
                                                                   .fontWeight,
-                                                              fontStyle:
-                                                                  FontStyle
-                                                                      .italic,
-                                                            ),
-                                                            color: Theme.of(context).brightness == Brightness.dark
-                                                                ? Colors.white60
-                                                                : FlutterFlowTheme.of(context).onPrimary50,
-                                                            letterSpacing:
-                                                                0.0,
-                                                            fontWeight: FlutterFlowTheme.of(
+                                                          fontStyle:
+                                                              FontStyle.italic,
+                                                        ),
+                                                        color: Theme.of(context)
+                                                                    .brightness ==
+                                                                Brightness.dark
+                                                            ? Colors.white60
+                                                            : FlutterFlowTheme
+                                                                    .of(context)
+                                                                .onPrimary50,
+                                                        letterSpacing: 0.0,
+                                                        fontWeight:
+                                                            FlutterFlowTheme.of(
                                                                     context)
                                                                 .labelSmall
                                                                 .fontWeight,
-                                                            fontStyle:
-                                                                FontStyle
-                                                                    .italic,
-                                                            lineHeight: 1.2,
-                                                          ),
+                                                        fontStyle:
+                                                            FontStyle.italic,
+                                                        lineHeight: 1.2,
+                                                      ),
                                                 ),
                                               ),
                                             ].divide(
@@ -868,18 +900,17 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                     onTap: onTap,
                                                     child: Container(
                                                       width: isCompact
-                                                          ? (screenWidth - 20) / 2
+                                                          ? (screenWidth - 20) /
+                                                              2
                                                           : 100.0,
-                                                      decoration:
-                                                          BoxDecoration(
+                                                      decoration: BoxDecoration(
                                                         color: color,
                                                         borderRadius:
                                                             BorderRadius
                                                                 .circular(12.0),
                                                       ),
-                                                      padding:
-                                                          const EdgeInsets
-                                                              .symmetric(
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
                                                         horizontal: 8.0,
                                                         vertical: 8.0,
                                                       ),
@@ -905,9 +936,11 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                                       .ellipsis,
                                                               style:
                                                                   const TextStyle(
-                                                                color: Colors.white,
+                                                                color: Colors
+                                                                    .white,
                                                                 fontWeight:
-                                                                    FontWeight.w600,
+                                                                    FontWeight
+                                                                        .w600,
                                                               ),
                                                             ),
                                                           ),
@@ -918,8 +951,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                 }
 
                                                 return Wrap(
-                                                  alignment:
-                                                      WrapAlignment.end,
+                                                  alignment: WrapAlignment.end,
                                                   spacing: 8.0,
                                                   runSpacing: 8.0,
                                                   crossAxisAlignment:
@@ -998,8 +1030,9 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                             action: 'navigate:SendReceive',
                                             icon: Icon(
                                               Icons.north_east_rounded,
-                                              color: FlutterFlowTheme.of(context)
-                                                  .primaryText,
+                                              color:
+                                                  FlutterFlowTheme.of(context)
+                                                      .primaryText,
                                               size: 24.0,
                                             ),
                                             label: 'Send',

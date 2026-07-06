@@ -55,7 +55,6 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
   void initState() {
     super.initState();
     _model = createModel(context, () => LoginpageModel());
-    FFAppState().themeMode = ThemeMode.light;
     _initializeBiometric();
   }
 
