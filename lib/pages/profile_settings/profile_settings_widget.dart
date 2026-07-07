@@ -48,11 +48,6 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget> {
   bool securityLoading = true;
   bool accountLocked = false;
 
-  bool get isKycApproved {
-    final status = kycStatus.trim().toLowerCase();
-    return ['verified', 'approved', 'complete', 'success'].contains(status);
-  }
-
   @override
   void initState() {
     super.initState();
@@ -98,7 +93,6 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget> {
           email = user['email'] ?? '';
           phone = user['phone'] ?? '';
           kycStatus = user['kyc_status'] ?? 'none';
-          FFAppState().kycStatus = kycStatus;
 
           profileImage = user['profile_image'] ?? '';
 
@@ -259,67 +253,6 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget> {
     );
   }
 
-  Future<void> _showEditUsernameDialog() async {
-    final formKey = GlobalKey<FormState>();
-    final usernameController = TextEditingController(text: username);
-
-    await showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Edit Username'),
-          content: Form(
-            key: formKey,
-            child: TextFormField(
-              controller: usernameController,
-              decoration: const InputDecoration(labelText: 'Username'),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Please enter a username';
-                }
-                final trimmed = value.trim();
-                if (trimmed.length < 3) {
-                  return 'Username must be at least 3 characters';
-                }
-                if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(trimmed)) {
-                  return 'Use letters, numbers, or underscore only';
-                }
-                return null;
-              },
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (!formKey.currentState!.validate()) return;
-
-                final newUsername = usernameController.text.trim();
-                try {
-                  await ApiService.updateProfile(username: newUsername);
-                  await fetchProfile();
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Username updated successfully')),
-                  );
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Update failed: $e')),
-                  );
-                }
-              },
-              child: Text('Save'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   Future<void> logoutUser() async {
     try {
       await AuthService().logout();
@@ -332,54 +265,6 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget> {
     }
 
     context.goNamed('loginpage');
-  }
-
-  Future<void> deleteAccount() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Delete account?'),
-          content: const Text(
-            'This action is permanent. Your account, saved data, and active sessions will be removed.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              style:
-                  FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Delete account'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed != true) {
-      return;
-    }
-
-    try {
-      await AuthService().deleteAccount();
-
-      if (!mounted) {
-        return;
-      }
-
-      context.goNamed('loginpage');
-    } catch (e) {
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Delete account failed: $e')),
-      );
-    }
   }
 
   @override
@@ -454,36 +339,6 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget> {
                                         overflow: TextOverflow.clip,
                                       ),
                                     ),
-                              Align(
-                                alignment: const AlignmentDirectional(1.0, 1.0),
-                                child: GestureDetector(
-                                  onTap: _showEditUsernameDialog,
-                                  child: Container(
-                                    width: 28.0,
-                                    height: 28.0,
-                                    decoration: BoxDecoration(
-                                      color: FlutterFlowTheme.of(context)
-                                          .secondaryBackground,
-                                      borderRadius:
-                                          BorderRadius.circular(9999.0),
-                                      shape: BoxShape.rectangle,
-                                      border: Border.all(
-                                        color: FlutterFlowTheme.of(context)
-                                            .primaryBackground,
-                                        width: 2.0,
-                                      ),
-                                    ),
-                                    alignment:
-                                        const AlignmentDirectional(0.0, 0.0),
-                                    child: Icon(
-                                      Icons.edit_rounded,
-                                      color: FlutterFlowTheme.of(context)
-                                          .primaryText,
-                                      size: 16.0,
-                                    ),
-                                  ),
-                                ),
-                              ),
                             ],
                           ),
                           Column(
@@ -704,11 +559,9 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget> {
                                 model: _model.profileInfoTileModel3,
                                 updateCallback: () => safeSetState(() {}),
                                 child: GestureDetector(
-                                  onTap: isKycApproved
-                                      ? null
-                                      : () {
-                                          context.pushNamed('KYCPAGE');
-                                        },
+                                  onTap: () {
+                                    context.pushNamed('KYCPAGE');
+                                  },
                                   child: ProfileInfoTileWidget(
                                     icon: Icon(
                                       Icons.fingerprint_rounded,
@@ -717,7 +570,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget> {
                                       size: 20.0,
                                     ),
                                     label: 'KYC Status',
-                                    show_arrow: !isKycApproved,
+                                    show_arrow: true,
                                     value: kycStatus.toUpperCase(),
                                   ),
                                 ),
@@ -936,18 +789,19 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget> {
                               SwitchListTile(
                                 contentPadding: EdgeInsets.zero,
                                 activeThumbColor: Colors.green,
-                                value: FFAppState().themeMode == ThemeMode.dark,
-                                onChanged: (value) async {
-                                  await FFAppState().setThemeMode(
-                                    value ? ThemeMode.dark : ThemeMode.light,
-                                  );
-                                  if (mounted) {
-                                    setState(() {});
-                                  }
+                                value: Theme.of(context).brightness ==
+                                    Brightness.dark,
+                                onChanged: (value) {
+                                  setState(() {
+                                    FFAppState().setThemeMode(value
+                                        ? ThemeMode.dark
+                                        : ThemeMode.light);
+                                  });
                                 },
-                                title: const Text('Dark Mode'),
+                                title: Text('Dark Mode'),
                                 subtitle: Text(
-                                  FFAppState().themeMode == ThemeMode.dark
+                                  Theme.of(context).brightness ==
+                                          Brightness.dark
                                       ? 'Dark theme enabled'
                                       : 'Light theme enabled',
                                 ),
@@ -1058,57 +912,34 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget> {
               ),
               Padding(
                 padding:
-                    const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 12.0),
+                    const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 32.0),
                 child: Container(
                   child: Container(
                     child: Padding(
                       padding: const EdgeInsets.all(24.0),
-                      child: Column(
-                        children: [
-                          SizedBox(
-                            width: double.infinity,
-                            child: TextButton.icon(
-                              onPressed: deleteAccount,
-                              icon: const Icon(Icons.delete_forever_rounded,
-                                  color: Colors.red),
-                              label: const Text(
-                                'Delete Account',
-                                style: TextStyle(color: Colors.red),
-                              ),
-                              style: TextButton.styleFrom(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 14),
-                                side: const BorderSide(color: Colors.redAccent),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          wrapWithModel(
-                            model: _model.buttonModel,
-                            updateCallback: () => safeSetState(() {}),
-                            child: ButtonWidget(
-                              content: 'Sign Out',
-                              icon: Icon(
-                                Icons.logout_rounded,
-                                color: FlutterFlowTheme.of(context).primaryText,
-                                size: 16.0,
-                              ),
-                              icon_present: true,
-                              icon_end_present: false,
-                              on_tap: '',
-                              onTapCallback: logoutUser,
+                      child: Container(
+                        child: wrapWithModel(
+                          model: _model.buttonModel,
+                          updateCallback: () => safeSetState(() {}),
+                          child: ButtonWidget(
+                            content: 'Sign Out',
+                            icon: Icon(
+                              Icons.logout_rounded,
                               color: FlutterFlowTheme.of(context).primaryText,
-                              variant: 'outline',
-                              size: 'medium',
-                              full_width: true,
-                              loading: false,
-                              disabled: false,
+                              size: 16.0,
                             ),
+                            icon_present: true,
+                            icon_end_present: false,
+                            on_tap: '',
+                            onTapCallback: logoutUser,
+                            color: FlutterFlowTheme.of(context).primaryText,
+                            variant: 'outline',
+                            size: 'medium',
+                            full_width: true,
+                            loading: false,
+                            disabled: false,
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   ),

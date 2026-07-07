@@ -54,27 +54,25 @@ class _AdminShellState extends State<AdminShell> {
     _NavItem(icon: Icons.badge_rounded, label: 'Merchant KYB'),
   ];
 
+  void _goToDashboard() {
+    if (_selectedIndex != 0) {
+      setState(() => _selectedIndex = 0);
+    }
+  }
+
   List<Widget> get _pages => [
-        const AdminDashboardPage(),
-        SuperadminsManagementPage(
-            onGoBack: () => setState(() => _selectedIndex = 0)),
-        UserManagementPage(onGoBack: () => setState(() => _selectedIndex = 0)),
-        KycManagementPage(onGoBack: () => setState(() => _selectedIndex = 0)),
-        TransactionsManagementPage(
-            onGoBack: () => setState(() => _selectedIndex = 0)),
-        EscrowManagementPage(
-            onGoBack: () => setState(() => _selectedIndex = 0)),
-        DepositsManagementPage(
-            onGoBack: () => setState(() => _selectedIndex = 0)),
-        WithdrawalsManagementPage(
-            onGoBack: () => setState(() => _selectedIndex = 0)),
-        NotificationsManagementPage(
-            onGoBack: () => setState(() => _selectedIndex = 0)),
-        SettingsManagementPage(
-            onGoBack: () => setState(() => _selectedIndex = 0)),
-        FeeManagementPage(onGoBack: () => setState(() => _selectedIndex = 0)),
-        MerchantKybManagementPage(
-            onGoBack: () => setState(() => _selectedIndex = 0)),
+        AdminDashboardPage(onGoBack: _goToDashboard),
+        SuperadminsManagementPage(onGoBack: _goToDashboard),
+        UserManagementPage(onGoBack: _goToDashboard),
+        KycManagementPage(onGoBack: _goToDashboard),
+        TransactionsManagementPage(onGoBack: _goToDashboard),
+        EscrowManagementPage(onGoBack: _goToDashboard),
+        DepositsManagementPage(onGoBack: _goToDashboard),
+        WithdrawalsManagementPage(onGoBack: _goToDashboard),
+        NotificationsManagementPage(onGoBack: _goToDashboard),
+        SettingsManagementPage(onGoBack: _goToDashboard),
+        FeeManagementPage(onGoBack: _goToDashboard),
+        MerchantKybManagementPage(onGoBack: _goToDashboard),
       ];
 
   Future<void> _logout() async {

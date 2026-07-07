@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:math';
+
 import 'package:http/http.dart' as http;
 import '/core/app_config.dart';
 import '/components/quick_action/quick_action_widget.dart';
@@ -12,7 +15,6 @@ import '/pages/withdrawpage/withdrawpage_widget.dart';
 import '/pages/send_receive/send_receive_widget.dart';
 import '/pages/all_transactions/all_transactions_widget.dart';
 import '/pages/merchant_dashboard/merchant_dashboard_widget.dart';
-import '/services/auth/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -38,6 +40,8 @@ class _DashboardWidgetState extends State<DashboardWidget>
   double walletBalance = 0.0;
   double kesEquivalent = 0.0;
   bool isBalanceLoading = true;
+
+  double get projectedWalletBalance => walletBalance * 1.125;
 
   String? profileImageUrl;
 
@@ -79,10 +83,29 @@ class _DashboardWidgetState extends State<DashboardWidget>
 
   Future<void> logoutUser() async {
     try {
-      await AuthService().logout();
+      final response = await http.post(
+        Uri.parse('${AppConfig.api}/auth/logout'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${FFAppState().accessToken}',
+        },
+      );
+
+      print('LOGOUT STATUS: ${response.statusCode}');
+      print('LOGOUT BODY: ${response.body}');
+
+      // Clear local session ALWAYS (even if backend fails)
+      FFAppState().accessToken = '';
+      FFAppState().userName = '';
+      FFAppState().isLoggedIn = false;
+
+      if (mounted) {
+        context.goNamed('loginpage');
+      }
     } catch (e) {
-      debugPrint('LOGOUT ERROR: $e');
-    } finally {
+      print('LOGOUT ERROR: $e');
+
+      // still force logout locally
       FFAppState().accessToken = '';
       FFAppState().userName = '';
       FFAppState().isLoggedIn = false;
@@ -273,9 +296,11 @@ class _DashboardWidgetState extends State<DashboardWidget>
         setState(() {
           growthYValues = history
               .map<double>(
-                (e) => double.parse(
-                  e['total'].toString(),
-                ),
+                (e) => (double.parse(
+                          e['total'].toString(),
+                        ) *
+                        1.125)
+                    .clamp(0.0, double.infinity),
               )
               .toList();
 
@@ -309,11 +334,6 @@ class _DashboardWidgetState extends State<DashboardWidget>
   bool get hasKycSubmission {
     final status = FFAppState().kycStatus.trim().toLowerCase();
     return ['pending', 'rejected', 'under review', 'review'].contains(status);
-  }
-
-  bool get shouldShowVerifyKycButton {
-    final status = FFAppState().kycStatus.trim().toLowerCase();
-    return !['verified', 'approved', 'complete', 'success'].contains(status);
   }
 
   Future<void> _guardKycAccess({
@@ -584,7 +604,8 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                             ),
                                         ].divide(const SizedBox(width: 4.0)),
                                       ),
-                                      if (shouldShowVerifyKycButton) ...[
+                                      if (hasKycSubmission &&
+                                          !isKycApproved) ...[
                                         const SizedBox(height: 10.0),
                                         SizedBox(
                                           width: 160.0,
@@ -878,6 +899,85 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                       ),
                                                 ),
                                               ),
+                                              GestureDetector(
+                                                onTap: () {
+                                                  final isDark =
+                                                      Theme.of(context)
+                                                              .brightness ==
+                                                          Brightness.dark;
+                                                  FFAppState().themeMode =
+                                                      isDark
+                                                          ? ThemeMode.light
+                                                          : ThemeMode.dark;
+                                                },
+                                                child: Container(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                    horizontal: 12.0,
+                                                    vertical: 8.0,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: Theme.of(context)
+                                                                .brightness ==
+                                                            Brightness.dark
+                                                        ? Colors.white10
+                                                        : Colors.black12,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            16.0),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        Theme.of(context)
+                                                                    .brightness ==
+                                                                Brightness.dark
+                                                            ? Icons
+                                                                .light_mode_rounded
+                                                            : Icons
+                                                                .dark_mode_rounded,
+                                                        color: Theme.of(context)
+                                                                    .brightness ==
+                                                                Brightness.dark
+                                                            ? Colors.white
+                                                            : FlutterFlowTheme
+                                                                    .of(context)
+                                                                .primary,
+                                                        size: 16.0,
+                                                      ),
+                                                      const SizedBox(
+                                                          width: 6.0),
+                                                      Text(
+                                                        Theme.of(context)
+                                                                    .brightness ==
+                                                                Brightness.dark
+                                                            ? 'Switch to Light'
+                                                            : 'Switch to Dark',
+                                                        style:
+                                                            FlutterFlowTheme.of(
+                                                                    context)
+                                                                .bodySmall
+                                                                .override(
+                                                                  color: Theme.of(context)
+                                                                              .brightness ==
+                                                                          Brightness
+                                                                              .dark
+                                                                      ? Colors
+                                                                          .white70
+                                                                      : FlutterFlowTheme.of(
+                                                                              context)
+                                                                          .primary,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w600,
+                                                                ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
                                             ].divide(
                                                 const SizedBox(height: 4.0)),
                                           ),
@@ -1001,311 +1101,282 @@ class _DashboardWidgetState extends State<DashboardWidget>
                         ),
                         Padding(
                           padding: const EdgeInsetsDirectional.fromSTEB(
-                              24.0, 0.0, 24.0, 0.0),
+                              24.0, 24.0, 24.0, 24.0),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.max,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              GestureDetector(
+                                onTap: () => _guardKycAccess(
+                                  feature: 'send & receive',
+                                  onAllowed: () => context.pushNamed(
+                                    SendReceiveWidget.routeName,
+                                  ),
+                                ),
+                                child: wrapWithModel(
+                                  model: _model.quickActionModel1,
+                                  updateCallback: () => safeSetState(() {}),
+                                  child: QuickActionWidget(
+                                    action: 'navigate:SendReceive',
+                                    icon: Icon(
+                                      Icons.north_east_rounded,
+                                      color: FlutterFlowTheme.of(context)
+                                          .primaryText,
+                                      size: 24.0,
+                                    ),
+                                    label: 'Send',
+                                  ),
+                                ),
+                              ),
+                              wrapWithModel(
+                                model: _model.quickActionModel2,
+                                updateCallback: () => safeSetState(() {}),
+                                child: QuickActionWidget(
+                                  action:
+                                      'navigate:${QRScannerWidget.routeName}',
+                                  icon: Icon(
+                                    Icons.qr_code_scanner_rounded,
+                                    color: FlutterFlowTheme.of(context)
+                                        .primaryText,
+                                    size: 24.0,
+                                  ),
+                                  label: 'Scan',
+                                ),
+                              ),
+                              wrapWithModel(
+                                model: _model.quickActionModel3,
+                                updateCallback: () => safeSetState(() {}),
+                                child: QuickActionWidget(
+                                  action: 'navigate:EscrowHub',
+                                  icon: Icon(
+                                    Icons.shield_outlined,
+                                    color: FlutterFlowTheme.of(context)
+                                        .primaryText,
+                                    size: 24.0,
+                                  ),
+                                  label: 'Escrow',
+                                ),
+                              ),
+                              wrapWithModel(
+                                model: _model.quickActionModel4,
+                                updateCallback: () => safeSetState(() {}),
+                                child: QuickActionWidget(
+                                  action: 'navigate:InvestmentMarketplace',
+                                  icon: Icon(
+                                    Icons.account_balance_rounded,
+                                    color: FlutterFlowTheme.of(context)
+                                        .primaryText,
+                                    size: 24.0,
+                                  ),
+                                  label: 'Invest',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsetsDirectional.fromSTEB(
+                              24.0, 0.0, 24.0, 24.0),
                           child: Container(
-                            child: Container(
-                              child: Padding(
-                                padding: const EdgeInsetsDirectional.fromSTEB(
-                                    0.0, 24.0, 0.0, 24.0),
-                                child: Container(
-                                  child: Row(
+                            decoration: BoxDecoration(
+                              color: FlutterFlowTheme.of(context)
+                                  .secondaryBackground,
+                              borderRadius: BorderRadius.circular(20.0),
+                              shape: BoxShape.rectangle,
+                              border: Border.all(
+                                color: FlutterFlowTheme.of(context).alternate,
+                                width: 1.0,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: FlutterFlowTheme.of(context)
+                                      .primaryText
+                                      .withValues(alpha: 0.06),
+                                  blurRadius: 18.0,
+                                  offset: const Offset(0.0, 10.0),
+                                ),
+                              ],
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(24.0),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Row(
                                     mainAxisSize: MainAxisSize.max,
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceBetween,
                                     crossAxisAlignment:
                                         CrossAxisAlignment.center,
                                     children: [
-                                      GestureDetector(
-                                        onTap: () => _guardKycAccess(
-                                          feature: 'send & receive',
-                                          onAllowed: () => context.pushNamed(
-                                            SendReceiveWidget.routeName,
-                                          ),
-                                        ),
-                                        child: wrapWithModel(
-                                          model: _model.quickActionModel1,
-                                          updateCallback: () =>
-                                              safeSetState(() {}),
-                                          child: QuickActionWidget(
-                                            action: 'navigate:SendReceive',
-                                            icon: Icon(
-                                              Icons.north_east_rounded,
+                                      Text(
+                                        'Growth History',
+                                        style: FlutterFlowTheme.of(context)
+                                            .titleMedium
+                                            .override(
+                                              font: GoogleFonts.plusJakartaSans(
+                                                fontWeight: FontWeight.bold,
+                                                fontStyle:
+                                                    FlutterFlowTheme.of(context)
+                                                        .titleMedium
+                                                        .fontStyle,
+                                              ),
+                                              letterSpacing: 0.0,
+                                              fontWeight: FontWeight.bold,
+                                              fontStyle:
+                                                  FlutterFlowTheme.of(context)
+                                                      .titleMedium
+                                                      .fontStyle,
+                                              lineHeight: 1.4,
+                                            ),
+                                      ),
+                                      Text(
+                                        '+12.5%',
+                                        style: FlutterFlowTheme.of(context)
+                                            .labelLarge
+                                            .override(
+                                              font: GoogleFonts.plusJakartaSans(
+                                                fontWeight: FontWeight.w600,
+                                                fontStyle:
+                                                    FlutterFlowTheme.of(context)
+                                                        .labelLarge
+                                                        .fontStyle,
+                                              ),
                                               color:
                                                   FlutterFlowTheme.of(context)
-                                                      .primaryText,
-                                              size: 24.0,
+                                                      .success,
+                                              letterSpacing: 0.0,
+                                              fontWeight: FontWeight.w600,
+                                              fontStyle:
+                                                  FlutterFlowTheme.of(context)
+                                                      .labelLarge
+                                                      .fontStyle,
+                                              lineHeight: 1.3,
                                             ),
-                                            label: 'Send',
-                                          ),
-                                        ),
-                                      ),
-                                      wrapWithModel(
-                                        model: _model.quickActionModel2,
-                                        updateCallback: () =>
-                                            safeSetState(() {}),
-                                        child: QuickActionWidget(
-                                          action:
-                                              'navigate:${QRScannerWidget.routeName}',
-                                          icon: Icon(
-                                            Icons.qr_code_scanner_rounded,
-                                            color: FlutterFlowTheme.of(context)
-                                                .primaryText,
-                                            size: 24.0,
-                                          ),
-                                          label: 'Scan',
-                                        ),
-                                      ),
-                                      wrapWithModel(
-                                        model: _model.quickActionModel3,
-                                        updateCallback: () =>
-                                            safeSetState(() {}),
-                                        child: QuickActionWidget(
-                                          action: 'navigate:EscrowHub',
-                                          icon: Icon(
-                                            Icons.shield_outlined,
-                                            color: FlutterFlowTheme.of(context)
-                                                .primaryText,
-                                            size: 24.0,
-                                          ),
-                                          label: 'Escrow',
-                                        ),
-                                      ),
-                                      wrapWithModel(
-                                        model: _model.quickActionModel4,
-                                        updateCallback: () =>
-                                            safeSetState(() {}),
-                                        child: QuickActionWidget(
-                                          action:
-                                              'navigate:InvestmentMarketplace',
-                                          icon: Icon(
-                                            Icons.account_balance_rounded,
-                                            color: FlutterFlowTheme.of(context)
-                                                .primaryText,
-                                            size: 24.0,
-                                          ),
-                                          label: 'Invest',
-                                        ),
                                       ),
                                     ],
                                   ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsetsDirectional.fromSTEB(
-                              0.0, 0.0, 0.0, 24.0),
-                          child: Container(
-                            child: Container(
-                              child: Padding(
-                                padding: const EdgeInsetsDirectional.fromSTEB(
-                                    24.0, 0.0, 24.0, 0.0),
-                                child: Container(
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: FlutterFlowTheme.of(context)
-                                          .secondaryBackground,
-                                      borderRadius: BorderRadius.circular(20.0),
-                                      shape: BoxShape.rectangle,
-                                      border: Border.all(
-                                        color: FlutterFlowTheme.of(context)
-                                            .alternate,
-                                        width: 1.0,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: FlutterFlowTheme.of(context)
-                                              .primaryText
-                                              .withValues(alpha: 0.06),
-                                          blurRadius: 18.0,
-                                          offset: const Offset(0.0, 10.0),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(24.0),
-                                      child: Container(
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.start,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.stretch,
-                                          children: [
-                                            Row(
-                                              mainAxisSize: MainAxisSize.max,
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment
-                                                      .spaceBetween,
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.center,
-                                              children: [
-                                                Text(
-                                                  'Growth History',
-                                                  style: FlutterFlowTheme.of(
-                                                          context)
-                                                      .titleMedium
-                                                      .override(
-                                                        font: GoogleFonts
-                                                            .plusJakartaSans(
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          fontStyle:
-                                                              FlutterFlowTheme.of(
-                                                                      context)
-                                                                  .titleMedium
-                                                                  .fontStyle,
-                                                        ),
-                                                        letterSpacing: 0.0,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        fontStyle:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .titleMedium
-                                                                .fontStyle,
-                                                        lineHeight: 1.4,
-                                                      ),
+                                  SizedBox(
+                                    height: 120.0,
+                                    child: isGrowthLoading
+                                        ? const Center(
+                                            child: CircularProgressIndicator(),
+                                          )
+                                        : FlutterFlowLineChart(
+                                            data: [
+                                              FFLineChartData(
+                                                xData: List.generate(
+                                                  growthYValues.length,
+                                                  (index) => index.toDouble(),
                                                 ),
-                                                Text(
-                                                  '+12.5%',
-                                                  style: FlutterFlowTheme.of(
+                                                yData: growthYValues,
+                                                settings: LineChartBarData(
+                                                  color: FlutterFlowTheme.of(
                                                           context)
-                                                      .labelLarge
+                                                      .primary,
+                                                  barWidth: 2.0,
+                                                  isCurved: true,
+                                                  dotData: const FlDotData(
+                                                      show: false),
+                                                  belowBarData: BarAreaData(
+                                                    show: true,
+                                                    color: FlutterFlowTheme.of(
+                                                            context)
+                                                        .primary10,
+                                                  ),
+                                                ),
+                                              )
+                                            ],
+                                            chartStylingInfo:
+                                                const ChartStylingInfo(
+                                              backgroundColor:
+                                                  Colors.transparent,
+                                              showBorder: false,
+                                            ),
+                                            axisBounds: AxisBounds(
+                                              minX: 0.0,
+                                              minY: 0.0,
+                                              maxX: growthYValues.isNotEmpty
+                                                  ? max(
+                                                      6.0,
+                                                      (growthYValues.length - 1)
+                                                          .toDouble())
+                                                  : 6.0,
+                                              maxY: growthYValues.isNotEmpty
+                                                  ? max(
+                                                      72.0,
+                                                      growthYValues
+                                                              .reduce(max) *
+                                                          1.2)
+                                                  : 72.0,
+                                            ),
+                                            xLabels: growthXLabels,
+                                            xAxisLabelInfo: AxisLabelInfo(
+                                              showLabels: true,
+                                              labelTextStyle:
+                                                  FlutterFlowTheme.of(context)
+                                                      .bodySmall
                                                       .override(
-                                                        font: GoogleFonts
-                                                            .plusJakartaSans(
+                                                        font: GoogleFonts.inter(
                                                           fontWeight:
-                                                              FontWeight.w600,
+                                                              FlutterFlowTheme.of(
+                                                                      context)
+                                                                  .bodySmall
+                                                                  .fontWeight,
                                                           fontStyle:
                                                               FlutterFlowTheme.of(
                                                                       context)
-                                                                  .labelLarge
+                                                                  .bodySmall
                                                                   .fontStyle,
                                                         ),
                                                         color:
                                                             FlutterFlowTheme.of(
                                                                     context)
-                                                                .success,
+                                                                .secondaryText,
+                                                        fontSize: 10.0,
                                                         letterSpacing: 0.0,
                                                         fontWeight:
-                                                            FontWeight.w600,
-                                                        fontStyle:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .labelLarge
-                                                                .fontStyle,
-                                                        lineHeight: 1.3,
-                                                      ),
-                                                ),
-                                              ],
-                                            ),
-                                            SizedBox(
-                                              height: 120.0,
-                                              child: isGrowthLoading
-                                                  ? const Center(
-                                                      child:
-                                                          CircularProgressIndicator(),
-                                                    )
-                                                  : FlutterFlowLineChart(
-                                                      data: [
-                                                        FFLineChartData(
-                                                          xData: List.generate(
-                                                            growthYValues
-                                                                .length,
-                                                            (index) => index
-                                                                .toDouble(),
-                                                          ),
-                                                          yData: growthYValues,
-                                                          settings:
-                                                              LineChartBarData(
-                                                            color: FlutterFlowTheme
-                                                                    .of(context)
-                                                                .primary,
-                                                            barWidth: 2.0,
-                                                            isCurved: true,
-                                                            dotData:
-                                                                const FlDotData(
-                                                                    show:
-                                                                        false),
-                                                            belowBarData:
-                                                                BarAreaData(
-                                                              show: true,
-                                                              color: FlutterFlowTheme
-                                                                      .of(context)
-                                                                  .primary10,
-                                                            ),
-                                                          ),
-                                                        )
-                                                      ],
-                                                      chartStylingInfo:
-                                                          const ChartStylingInfo(
-                                                        backgroundColor:
-                                                            Colors.transparent,
-                                                        showBorder: false,
-                                                      ),
-                                                      axisBounds:
-                                                          const AxisBounds(
-                                                        minX: 0.0,
-                                                        minY: 0.0,
-                                                        maxX: 6.0,
-                                                        maxY: 72.0,
-                                                      ),
-                                                      xLabels: growthXLabels,
-                                                      xAxisLabelInfo:
-                                                          AxisLabelInfo(
-                                                        showLabels: true,
-                                                        labelTextStyle:
                                                             FlutterFlowTheme.of(
                                                                     context)
                                                                 .bodySmall
-                                                                .override(
-                                                                  font:
-                                                                      GoogleFonts
-                                                                          .inter(
-                                                                    fontWeight: FlutterFlowTheme.of(
-                                                                            context)
-                                                                        .bodySmall
-                                                                        .fontWeight,
-                                                                    fontStyle: FlutterFlowTheme.of(
-                                                                            context)
-                                                                        .bodySmall
-                                                                        .fontStyle,
-                                                                  ),
-                                                                  color: FlutterFlowTheme.of(
-                                                                          context)
-                                                                      .secondaryText,
-                                                                  fontSize:
-                                                                      10.0,
-                                                                  letterSpacing:
-                                                                      0.0,
-                                                                  fontWeight: FlutterFlowTheme.of(
-                                                                          context)
-                                                                      .bodySmall
-                                                                      .fontWeight,
-                                                                  fontStyle: FlutterFlowTheme.of(
-                                                                          context)
-                                                                      .bodySmall
-                                                                      .fontStyle,
-                                                                  lineHeight:
-                                                                      1.0,
-                                                                ),
-                                                        reservedSize: 28.0,
+                                                                .fontWeight,
+                                                        fontStyle:
+                                                            FlutterFlowTheme.of(
+                                                                    context)
+                                                                .bodySmall
+                                                                .fontStyle,
+                                                        lineHeight: 1.3,
                                                       ),
-                                                      yAxisLabelInfo:
-                                                          const AxisLabelInfo(
-                                                        reservedSize: 0.0,
-                                                      ),
-                                                    ),
+                                              labelInterval: 1.0,
+                                              reservedSize: 26.0,
                                             ),
-                                          ].divide(
-                                              const SizedBox(height: 16.0)),
-                                        ),
+                                            yAxisLabelInfo: const AxisLabelInfo(
+                                              reservedSize: 0,
+                                            ),
+                                          ),
+                                  ),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton(
+                                      onPressed: () => context
+                                          .pushNamed('GrowthTrackingPage'),
+                                      child: Text(
+                                        'View full growth history',
+                                        style: FlutterFlowTheme.of(context)
+                                            .labelSmall
+                                            .override(
+                                              color:
+                                                  FlutterFlowTheme.of(context)
+                                                      .primary,
+                                              fontWeight: FontWeight.w700,
+                                            ),
                                       ),
                                     ),
                                   ),
-                                ),
+                                ].divide(const SizedBox(height: 16.0)),
                               ),
                             ),
                           ),

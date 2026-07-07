@@ -10,7 +10,9 @@ import 'user_management_page.dart';
 import 'withdrawals_management_page.dart';
 
 class AdminDashboardPage extends StatefulWidget {
-  const AdminDashboardPage({super.key});
+  final VoidCallback? onGoBack;
+
+  const AdminDashboardPage({super.key, this.onGoBack});
 
   @override
   State<AdminDashboardPage> createState() => _AdminDashboardPageState();

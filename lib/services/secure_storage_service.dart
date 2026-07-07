@@ -29,20 +29,20 @@ class SecureStorageService {
     await prefs.remove('device_id');
   }
 
-  static Future<void> writeAccessToken(String value) async {
+  // Convenience methods used across the app for token persistence
+  static Future<void> writeAccessToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('accessToken', value);
+    await prefs.setString('accessToken', token);
   }
 
-  static Future<void> writeRefreshToken(String value) async {
+  static Future<void> writeRefreshToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('refreshToken', value);
+    await prefs.setString('refreshToken', token);
   }
 
   static Future<void> clearAuthData() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('accessToken');
     await prefs.remove('refreshToken');
-    await clearBiometricData();
   }
 }

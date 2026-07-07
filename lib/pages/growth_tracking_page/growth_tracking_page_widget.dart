@@ -1,10 +1,12 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '/backend/services/api_service.dart';
 import '/flutter_flow/flutter_flow_charts.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/core/theme_extensions.dart';
 import 'growth_tracking_page_model.dart';
 
 export 'growth_tracking_page_model.dart';
@@ -16,7 +18,8 @@ class GrowthTrackingPageWidget extends StatefulWidget {
   static String routePath = '/growthTracking';
 
   @override
-  State<GrowthTrackingPageWidget> createState() => _GrowthTrackingPageWidgetState();
+  State<GrowthTrackingPageWidget> createState() =>
+      _GrowthTrackingPageWidgetState();
 }
 
 class _GrowthTrackingPageWidgetState extends State<GrowthTrackingPageWidget> {
@@ -28,6 +31,9 @@ class _GrowthTrackingPageWidgetState extends State<GrowthTrackingPageWidget> {
   List<double> _values = [];
   List<String> _labels = [];
   double _growth = 0.0;
+
+  double get _chartMaxY =>
+      _values.isNotEmpty ? max(72.0, _values.reduce(max) * 1.2) : 72.0;
 
   @override
   void initState() {
@@ -50,19 +56,35 @@ class _GrowthTrackingPageWidgetState extends State<GrowthTrackingPageWidget> {
     });
 
     try {
-      // Simulate growth history data
-      final payload = [];
-      final history = payload;
+      final period = {
+        'daily': 7,
+        'weekly': 30,
+        'monthly': 90,
+        'yearly': 365,
+      }[_selectedPeriod]!;
+
+      final payload = await ApiService.getGrowthHistory(days: period);
+      final history =
+          payload['data'] is List ? payload['data'] as List : <dynamic>[];
 
       final values = history
-          .map<double>((item) => double.tryParse((item['total'] ?? item['value'] ?? item['amount'] ?? 0).toString()) ?? 0.0)
+          .map<double>((item) =>
+              double.tryParse(
+                  (item['total'] ?? item['value'] ?? item['amount'] ?? 0)
+                      .toString()) ??
+              0.0)
           .toList();
       final labels = history
-          .map<String>((item) => item['date']?.toString() ?? item['day']?.toString() ?? item['label']?.toString() ?? '')
+          .map<String>((item) =>
+              item['date']?.toString() ??
+              item['day']?.toString() ??
+              item['label']?.toString() ??
+              '')
           .toList();
-      final growth = (values.length > 1 && values.isNotEmpty && values.first > 0)
-          ? ((values.last - values.first) / values.first) * 100
-          : 0.0;
+      final growth =
+          (values.length > 1 && values.isNotEmpty && values.first > 0)
+              ? ((values.last - values.first) / values.first) * 100
+              : 0.0;
 
       if (!mounted) return;
       setState(() {
@@ -98,7 +120,9 @@ class _GrowthTrackingPageWidgetState extends State<GrowthTrackingPageWidget> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Your growth overview', style: theme.titleMedium.copyWith(fontWeight: FontWeight.w700)),
+              Text('Your growth overview',
+                  style:
+                      theme.titleMedium.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
@@ -111,7 +135,10 @@ class _GrowthTrackingPageWidgetState extends State<GrowthTrackingPageWidget> {
               ),
               const SizedBox(height: 16),
               Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                color: theme.primaryBackground,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20)),
+                elevation: 0,
                 child: Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(
@@ -120,28 +147,41 @@ class _GrowthTrackingPageWidgetState extends State<GrowthTrackingPageWidget> {
                       Row(
                         children: [
                           Expanded(
-                            child: Text('Performance', style: theme.titleMedium.copyWith(fontWeight: FontWeight.w700)),
+                            child: Text('Performance',
+                                style: theme.titleMedium
+                                    .copyWith(fontWeight: FontWeight.w700)),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(
-                              color: context.successColor.withAlpha((0.12 * 255).round()),
+                              color: theme.success.withAlpha(32),
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text(
                               '${_growth.toStringAsFixed(1)}%',
-                              style: TextStyle(color: context.successColor, fontWeight: FontWeight.w700),
+                              style: theme.labelLarge.override(
+                                fontWeight: FontWeight.w700,
+                                color: theme.success,
+                              ),
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 12),
                       if (_loading)
-                        Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 24), child: CircularProgressIndicator()))
+                        Center(
+                            child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 24),
+                                child: CircularProgressIndicator()))
                       else if (_error.isNotEmpty)
-                        Text(_error, style: TextStyle(color: context.errorColorAccent))
+                        Text(_error,
+                            style:
+                                theme.bodyMedium.override(color: theme.error))
                       else if (_values.isEmpty)
-                        Text('No growth data available yet.', style: theme.bodyMedium)
+                        Text('No growth data available yet.',
+                            style: theme.bodyMedium)
                       else
                         SizedBox(
                           height: 220,
@@ -150,25 +190,61 @@ class _GrowthTrackingPageWidgetState extends State<GrowthTrackingPageWidget> {
                             child: FlutterFlowLineChart(
                               data: [
                                 FFLineChartData(
-                                  xData: List.generate(_values.length, (index) => index.toDouble()),
+                                  xData: List.generate(_values.length,
+                                      (index) => index.toDouble()),
                                   yData: _values,
                                   settings: LineChartBarData(
                                     color: theme.primary,
                                     barWidth: 2.5,
                                     isCurved: true,
                                     dotData: const FlDotData(show: false),
-                                    belowBarData: BarAreaData(show: true, color: theme.primary10),
+                                    belowBarData: BarAreaData(
+                                        show: true, color: theme.primary10),
                                   ),
                                 )
                               ],
-                              chartStylingInfo: const ChartStylingInfo(backgroundColor: Colors.transparent, showBorder: false),
-                              axisBounds: AxisBounds(minX: 0, minY: 0, maxX: (_values.length - 1).toDouble(), maxY: _values.isNotEmpty ? _values.reduce((a, b) => a > b ? a : b) * 1.2 : 100),
+                              chartStylingInfo: ChartStylingInfo(
+                                backgroundColor: theme.primaryBackground,
+                                showBorder: false,
+                              ),
+                              axisBounds: AxisBounds(
+                                minX: 0,
+                                minY: 0,
+                                maxX: _values.isNotEmpty
+                                    ? max(6.0, (_values.length - 1).toDouble())
+                                    : 6.0,
+                                maxY: _chartMaxY,
+                              ),
                               xLabels: _labels,
-                              xAxisLabelInfo: AxisLabelInfo(showLabels: true, labelTextStyle: theme.bodySmall.override(font: GoogleFonts.inter()), reservedSize: 28),
-                              yAxisLabelInfo: const AxisLabelInfo(reservedSize: 0),
+                              xAxisLabelInfo: AxisLabelInfo(
+                                showLabels: true,
+                                labelTextStyle: theme.bodySmall.override(
+                                    font: GoogleFonts.inter(),
+                                    color: theme.secondaryText),
+                                labelInterval: 1.0,
+                                reservedSize: 26.0,
+                              ),
+                              yAxisLabelInfo: AxisLabelInfo(
+                                showLabels: true,
+                                labelTextStyle: theme.bodySmall.override(
+                                    font: GoogleFonts.inter(),
+                                    color: theme.secondaryText),
+                              ),
                             ),
                           ),
                         ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          _periodChip('Daily', 'daily'),
+                          const SizedBox(width: 8),
+                          _periodChip('Weekly', 'weekly'),
+                          const SizedBox(width: 8),
+                          _periodChip('Monthly', 'monthly'),
+                          const SizedBox(width: 8),
+                          _periodChip('Yearly', 'yearly'),
+                        ],
+                      ),
                     ],
                   ),
                 ),

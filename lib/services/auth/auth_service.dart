@@ -84,40 +84,63 @@ class AuthService {
     }
   }
 
-  /// Log in with email and password.
+  /// Log in with email or phone and password.
   ///
-  /// Flow:
-  /// 1. Authenticate with Supabase
-  /// 2. Get Supabase access token
-  /// 3. Exchange token with backend (/auth/supabase)
-  /// 4. Backend verifies and issues FARM JWT
-  /// 5. Return FARM JWT for storage
+  /// Email-based login continues to use Supabase + backend token exchange.
+  /// Phone/username login uses the backend login route directly.
   Future<Map<String, dynamic>> login({
-    required String email,
+    required String identifier,
     required String password,
     String? turnstileToken,
   }) async {
     try {
-      // Step 1: Authenticate with Supabase
-      final authResponse = await _supabase.auth.signInWithPassword(
-        email: email,
-        password: password,
-      );
+      final isEmail = identifier.contains('@');
 
-      if (authResponse.session == null) {
-        throw Exception('Login failed: No session returned');
+      if (isEmail) {
+        final authResponse = await _supabase.auth.signInWithPassword(
+          email: identifier,
+          password: password,
+        );
+
+        if (authResponse.session == null) {
+          throw Exception('Login failed: No session returned');
+        }
+
+        final supabaseToken = authResponse.session!.accessToken;
+        final backendData = await exchangeSupabaseToken(
+          supabaseToken,
+          turnstileToken: turnstileToken,
+        );
+        final farmJwt = backendData['access_token'] as String? ?? '';
+        final refreshToken = backendData['refresh_token'] as String? ?? '';
+        final backendUser = backendData['user'];
+
+        if (farmJwt.isNotEmpty) {
+          FFAppState().accessToken = farmJwt;
+        }
+        if (refreshToken.isNotEmpty) {
+          FFAppState().refreshToken = refreshToken;
+        }
+
+        return {
+          'success': true,
+          'farmJwt': farmJwt,
+          'refreshToken': refreshToken,
+          'supabaseToken': supabaseToken,
+          'user': backendUser ?? authResponse.user,
+        };
       }
 
-      final supabaseToken = authResponse.session!.accessToken;
-
-      // Step 2: Exchange Supabase token for FARM JWT
-      final backendData = await exchangeSupabaseToken(
-        supabaseToken,
+      final response = await ApiService.login(
+        identifier: identifier,
+        password: password,
         turnstileToken: turnstileToken,
       );
-      final farmJwt = backendData['access_token'] as String? ?? '';
-      final refreshToken = backendData['refresh_token'] as String? ?? '';
-      final backendUser = backendData['user'];
+
+      final responseData = response['data'] as Map<String, dynamic>? ?? {};
+      final farmJwt = responseData['access_token'] as String? ?? '';
+      final refreshToken = responseData['refresh_token'] as String? ?? '';
+      final backendUser = responseData['user'] as Map<String, dynamic>?;
 
       if (farmJwt.isNotEmpty) {
         FFAppState().accessToken = farmJwt;
@@ -130,8 +153,7 @@ class AuthService {
         'success': true,
         'farmJwt': farmJwt,
         'refreshToken': refreshToken,
-        'supabaseToken': supabaseToken,
-        'user': backendUser ?? authResponse.user,
+        'user': backendUser,
       };
     } on AuthException catch (e) {
       throw Exception('Login error: ${e.message}');
