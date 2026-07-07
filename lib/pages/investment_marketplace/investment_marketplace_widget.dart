@@ -170,6 +170,41 @@ class _InvestmentMarketplaceWidgetState
                 ],
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24.0),
+                decoration: BoxDecoration(
+                  color: FlutterFlowTheme.of(context).primary,
+                  borderRadius: BorderRadius.circular(24.0),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'COMING SOON',
+                      style: FlutterFlowTheme.of(context).headlineMedium.override(
+                            font: GoogleFonts.plusJakartaSans(
+                              fontWeight: FontWeight.bold,
+                            ),
+                            color: FlutterFlowTheme.of(context).onPrimary,
+                            letterSpacing: 0.0,
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 12.0),
+                    Text(
+                      'This page is under development and will start operating soon.',
+                      style: FlutterFlowTheme.of(context).bodyMedium.override(
+                            color: FlutterFlowTheme.of(context).onPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             Expanded(
               child: SingleChildScrollView(
                 child: Padding(
