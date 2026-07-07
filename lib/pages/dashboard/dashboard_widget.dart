@@ -10,7 +10,9 @@ import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/q_r_scanner/q_r_scanner_widget.dart';
+import '/backend/services/api_service.dart';
 import '/pages/depositpage/depositpage_widget.dart';
+import '/pages/notifications/user_notifications_page_widget.dart';
 import '/pages/withdrawpage/withdrawpage_widget.dart';
 import '/pages/send_receive/send_receive_widget.dart';
 import '/pages/all_transactions/all_transactions_widget.dart';
@@ -40,6 +42,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
   double walletBalance = 0.0;
   double kesEquivalent = 0.0;
   bool isBalanceLoading = true;
+  int unreadNotificationCount = 0;
 
   double get projectedWalletBalance => walletBalance * 1.125;
 
@@ -62,6 +65,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
 
     fetchWalletBalance();
     fetchUserProfile();
+    fetchNotificationsCount();
     fetchTransactions();
     fetchGrowthHistory();
   }
@@ -223,9 +227,34 @@ class _DashboardWidgetState extends State<DashboardWidget>
     await Future.wait([
       fetchWalletBalance(),
       fetchUserProfile(),
+      fetchNotificationsCount(),
       fetchTransactions(),
       fetchGrowthHistory(),
     ]);
+  }
+
+  Future<void> fetchNotificationsCount() async {
+    try {
+      final response = await ApiService.getNotifications();
+      final rawNotifications = response['data'];
+      final items = rawNotifications is List
+          ? rawNotifications.cast<Map<String, dynamic>>()
+          : <Map<String, dynamic>>[];
+      setState(() {
+        unreadNotificationCount = items.where((item) {
+          final read = item['read'] is bool
+              ? item['read'] as bool
+              : item['is_read'] is bool
+                  ? item['is_read'] as bool
+                  : item['isRead'] is bool
+                      ? item['isRead'] as bool
+                      : false;
+          return !read;
+        }).length;
+      });
+    } catch (e) {
+      debugPrint('Failed to fetch notification count: $e');
+    }
   }
 
   Future<void> sendTransaction({
@@ -604,8 +633,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                             ),
                                         ].divide(const SizedBox(width: 4.0)),
                                       ),
-                                      if (hasKycSubmission &&
-                                          !isKycApproved) ...[
+                                        if (!isKycApproved) ...[
                                         const SizedBox(height: 10.0),
                                         SizedBox(
                                           width: 160.0,
@@ -645,61 +673,127 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                       ],
                                     ],
                                   ),
-                                  FlutterFlowIconButton(
-                                    borderRadius: 8.0,
-                                    buttonSize: 44.0,
-                                    fillColor: Colors.transparent,
-                                    icon: (profileImageUrl?.isNotEmpty ?? false)
-                                        ? ClipRRect(
-                                            borderRadius:
-                                                BorderRadius.circular(100),
-                                            child: Image.network(
-                                              profileImageUrl!,
-                                              width: 28,
-                                              height: 28,
-                                              fit: BoxFit.cover,
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      GestureDetector(
+                                        behavior: HitTestBehavior.translucent,
+                                        onTap: () async {
+                                          await context.pushNamed(
+                                              UserNotificationsPageWidget
+                                                  .routeName);
+                                          await fetchNotificationsCount();
+                                        },
+                                        child: Stack(
+                                          clipBehavior: Clip.none,
+                                          children: [
+                                            Icon(
+                                              Icons.notifications_none_rounded,
+                                              color:
+                                                  FlutterFlowTheme.of(context)
+                                                      .primaryText,
+                                              size: 28.0,
                                             ),
-                                          )
-                                        : Icon(
-                                            Icons.account_circle_outlined,
-                                            color: FlutterFlowTheme.of(context)
-                                                .primaryText,
-                                            size: 28.0,
-                                          ),
-                                    onPressed: () {
-                                      showModalBottomSheet(
-                                        context: context,
-                                        builder: (context) {
-                                          return Container(
-                                            padding: const EdgeInsets.all(20),
-                                            child: Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                ListTile(
-                                                  leading:
-                                                      const Icon(Icons.person),
-                                                  title: const Text('Profile'),
-                                                  onTap: () {
-                                                    Navigator.pop(context);
-                                                    context.pushNamed(
-                                                        'ProfileSettings');
-                                                  },
+                                            if (unreadNotificationCount > 0)
+                                              Positioned(
+                                                right: 8,
+                                                top: 8,
+                                                child: IgnorePointer(
+                                                  ignoring: true,
+                                                  child: Container(
+                                                    padding:
+                                                        const EdgeInsets.all(
+                                                            4.0),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.red,
+                                                      shape: BoxShape.circle,
+                                                    ),
+                                                    constraints:
+                                                        const BoxConstraints(
+                                                      minWidth: 18,
+                                                      minHeight: 18,
+                                                    ),
+                                                    child: Center(
+                                                      child: Text(
+                                                        unreadNotificationCount >
+                                                                9
+                                                            ? '9+'
+                                                            : unreadNotificationCount
+                                                                .toString(),
+                                                        style: const TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 10,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
                                                 ),
-                                                ListTile(
-                                                  leading:
-                                                      const Icon(Icons.logout),
-                                                  title: const Text('Logout'),
-                                                  onTap: () {
-                                                    Navigator.pop(context);
-                                                    logoutUser();
-                                                  },
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8.0),
+                                      FlutterFlowIconButton(
+                                        borderRadius: 8.0,
+                                        buttonSize: 44.0,
+                                        fillColor: Colors.transparent,
+                                        icon: (profileImageUrl?.isNotEmpty ?? false)
+                                            ? ClipRRect(
+                                                borderRadius:
+                                                    BorderRadius.circular(100),
+                                                child: Image.network(
+                                                  profileImageUrl!,
+                                                  width: 28,
+                                                  height: 28,
+                                                  fit: BoxFit.cover,
                                                 ),
-                                              ],
-                                            ),
+                                              )
+                                            : Icon(
+                                                Icons.account_circle_outlined,
+                                                color:
+                                                    FlutterFlowTheme.of(context)
+                                                        .primaryText,
+                                                size: 28.0,
+                                              ),
+                                        onPressed: () {
+                                          showModalBottomSheet(
+                                            context: context,
+                                            builder: (context) {
+                                              return Container(
+                                                padding: const EdgeInsets.all(20),
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    ListTile(
+                                                      leading:
+                                                          const Icon(Icons.person),
+                                                      title: const Text('Profile'),
+                                                      onTap: () {
+                                                        Navigator.pop(context);
+                                                        context.pushNamed(
+                                                            'ProfileSettings');
+                                                      },
+                                                    ),
+                                                    ListTile(
+                                                      leading:
+                                                          const Icon(Icons.logout),
+                                                      title: const Text('Logout'),
+                                                      onTap: () {
+                                                        Navigator.pop(context);
+                                                        logoutUser();
+                                                      },
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                            },
                                           );
                                         },
-                                      );
-                                    },
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),

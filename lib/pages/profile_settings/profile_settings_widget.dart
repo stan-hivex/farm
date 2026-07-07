@@ -559,9 +559,11 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget> {
                                 model: _model.profileInfoTileModel3,
                                 updateCallback: () => safeSetState(() {}),
                                 child: GestureDetector(
-                                  onTap: () {
-                                    context.pushNamed('KYCPAGE');
-                                  },
+                                  onTap: (kycStatus.trim().toLowerCase()=='verified' || kycStatus.trim().toLowerCase()=='approved' || kycStatus.trim().toLowerCase()=='complete' || kycStatus.trim().toLowerCase()=='success')
+                                      ? null
+                                      : () {
+                                          context.pushNamed('KYCPAGE');
+                                        },
                                   child: ProfileInfoTileWidget(
                                     icon: Icon(
                                       Icons.fingerprint_rounded,

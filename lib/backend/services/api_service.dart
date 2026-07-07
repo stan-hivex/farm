@@ -545,6 +545,28 @@ class ApiService {
   static Future<Map<String, dynamic>> getNotifications() =>
       _request(method: 'GET', path: '/users/notifications');
 
+  static Future<Map<String, dynamic>> markNotificationRead({
+    required String notificationId,
+  }) =>
+      _request(
+        method: 'PUT',
+        path: '/users/notifications/$notificationId/read',
+      );
+
+  static Future<Map<String, dynamic>> markAllNotificationsRead() =>
+      _request(
+        method: 'PUT',
+        path: '/users/notifications/read-all',
+      );
+
+  static Future<Map<String, dynamic>> deleteNotification({
+    required String notificationId,
+  }) =>
+      _request(
+        method: 'DELETE',
+        path: '/users/notifications/$notificationId',
+      );
+
   // ── Health check ──────────────────────────────────────────────────────────
   static Future<bool> isBackendAlive() async {
     try {
