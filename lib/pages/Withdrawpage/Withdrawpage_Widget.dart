@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -137,7 +137,12 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
         // Support different backend shapes: { data: { available_balance } } or { balance }
         double bal = 0;
         if (body is Map<String, dynamic>) {
-          bal = (body['data']?['available_balance'] ?? body['data']?['balance'] ?? body['available_balance'] ?? body['balance'] ?? 0).toDouble();
+          bal = (body['data']?['available_balance'] ??
+                  body['data']?['balance'] ??
+                  body['available_balance'] ??
+                  body['balance'] ??
+                  0)
+              .toDouble();
         } else {
           bal = 0;
         }
@@ -217,10 +222,15 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
       context: context,
       builder: (c) => AlertDialog(
         title: const Text('Confirm Withdrawal'),
-        content: Text('Withdraw ${amount.toStringAsFixed(4)} FARM via ${selectedMethod.replaceAll('_', ' ')}?'),
+        content: Text(
+            'Withdraw ${amount.toStringAsFixed(4)} FARM via ${selectedMethod.replaceAll('_', ' ')}?'),
         actions: [
-          TextButton(onPressed: () => Navigator.of(c).pop(false), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.of(c).pop(true), child: const Text('Confirm')),
+          TextButton(
+              onPressed: () => Navigator.of(c).pop(false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+              onPressed: () => Navigator.of(c).pop(true),
+              child: const Text('Confirm')),
         ],
       ),
     );
@@ -279,7 +289,9 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
         await _fetchWallet();
         await _fetchHistory();
       } else {
-        final errorMsg = data['message'] ?? data['error'] ?? 'Withdrawal failed. Please try again.';
+        final errorMsg = data['message'] ??
+            data['error'] ??
+            'Withdrawal failed. Please try again.';
         print('[WITHDRAW] Backend Error: $errorMsg');
         _snack(errorMsg);
       }
@@ -322,7 +334,8 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   }
 
   // ── Method card ───────────────────────────────────────────────────────────
-  Widget _methodCard(BuildContext context, {
+  Widget _methodCard(
+    BuildContext context, {
     required String method,
     required IconData icon,
     required String title,
@@ -338,9 +351,7 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
         ? (isDark ? const Color(0xFF2A2A2A) : Colors.black)
         : theme.secondaryText.withAlpha(90);
     final textColor = selected ? Colors.white : theme.primaryText;
-    final subtitleColor = selected
-        ? Colors.white70
-        : theme.secondaryText;
+    final subtitleColor = selected ? Colors.white70 : theme.secondaryText;
 
     return GestureDetector(
       onTap: () => setState(() => selectedMethod = method),
@@ -363,8 +374,7 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                 children: [
                   Text(title,
                       style: GoogleFonts.plusJakartaSans(
-                          fontWeight: FontWeight.bold,
-                          color: textColor)),
+                          fontWeight: FontWeight.bold, color: textColor)),
                   const SizedBox(height: 4),
                   Text(subtitle,
                       style: GoogleFonts.plusJakartaSans(
@@ -380,7 +390,6 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   }
 
   // ── Notification settings ───────────────────────────────────────────────
-  
 
   // ── Destination fields ────────────────────────────────────────────────────
   Widget _buildDestinationFields() {
@@ -399,7 +408,8 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
               value: _selectedBank,
               hint: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text('Select Bank', style: TextStyle(color: theme.secondaryText)),
+                child: Text('Select Bank',
+                    style: TextStyle(color: theme.secondaryText)),
               ),
               isExpanded: true,
               underline: const SizedBox(),
@@ -442,7 +452,8 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                 value: selectedCryptoAsset,
                 hint: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text('Select Crypto Asset', style: TextStyle(color: theme.secondaryText)),
+                  child: Text('Select Crypto Asset',
+                      style: TextStyle(color: theme.secondaryText)),
                 ),
                 isExpanded: true,
                 underline: const SizedBox(),
@@ -452,7 +463,8 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(asset,
-                          style: GoogleFonts.plusJakartaSans(color: theme.primaryText)),
+                          style: GoogleFonts.plusJakartaSans(
+                              color: theme.primaryText)),
                     ),
                   );
                 }).toList(),
@@ -476,7 +488,8 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                 value: selectedCryptoNetwork,
                 hint: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text('Select Network', style: TextStyle(color: theme.secondaryText)),
+                  child: Text('Select Network',
+                      style: TextStyle(color: theme.secondaryText)),
                 ),
                 isExpanded: true,
                 underline: const SizedBox(),
@@ -486,11 +499,13 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: Text(network,
-                                style: GoogleFonts.plusJakartaSans(color: theme.primaryText)),
+                                style: GoogleFonts.plusJakartaSans(
+                                    color: theme.primaryText)),
                           ),
                         ))
                     .toList(),
-                onChanged: (value) => setState(() => selectedCryptoNetwork = value),
+                onChanged: (value) =>
+                    setState(() => selectedCryptoNetwork = value),
               ),
             ),
             const SizedBox(height: 12),
@@ -519,7 +534,9 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
         fillColor: FlutterFlowTheme.of(context).secondaryBackground,
         border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: FlutterFlowTheme.of(context).secondaryText.withAlpha(90))),
+            borderSide: BorderSide(
+                color:
+                    FlutterFlowTheme.of(context).secondaryText.withAlpha(90))),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
@@ -588,212 +605,187 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF111111) : Colors.black,
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: loadingWallet
-                          ? const Center(
-                              child:
-                                  CircularProgressIndicator(color: Colors.white))
-                          : Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('AVAILABLE BALANCE',
-                                    style: GoogleFonts.plusJakartaSans(
-                                        color: Colors.white70,
-                                        fontSize: 11,
-                                        letterSpacing: 1)),
-                                const SizedBox(height: 8),
-                                Text(
-                                  '${walletBalance.toStringAsFixed(4)} FARM',
-                                  style: GoogleFonts.plusJakartaSans(
-                                      color: Colors.white,
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                              ],
-                            ),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF111111) : Colors.black,
+                      borderRadius: BorderRadius.circular(24),
                     ),
-
-                    const SizedBox(height: 28),
-
-                    // Amount input card
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: theme.secondaryText.withAlpha(60)),
-                      ),
-                      child: Column(
-                        children: [
-                          Text('Withdrawal Amount',
-                              style: GoogleFonts.plusJakartaSans(
-                                  color: theme.secondaryText, fontSize: 13)),
-                          const SizedBox(height: 16),
-                          TextField(
-                            controller: _amountCtrl,
-                            keyboardType: const TextInputType.numberWithOptions(
-                                decimal: true),
-                            textAlign: TextAlign.center,
-                            onChanged: (_) => setState(() {}),
-                            style: GoogleFonts.plusJakartaSans(
-                                fontSize: 36,
-                                fontWeight: FontWeight.bold,
-                                color: theme.primaryText),
-                            decoration: InputDecoration(
-                                border: InputBorder.none,
-                                hintText: '0.00',
-                                hintStyle: TextStyle(color: theme.secondaryText)),
-                          ),
-                          const Divider(),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    child: loadingWallet
+                        ? const Center(
+                            child:
+                                CircularProgressIndicator(color: Colors.white))
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Min: FARM 10',
+                              Text('AVAILABLE BALANCE',
                                   style: GoogleFonts.plusJakartaSans(
-                                      color: theme.secondaryText, fontSize: 12)),
-                              Text('Max: FARM 70,000',
-                                  style: GoogleFonts.plusJakartaSans(
-                                      color: theme.secondaryText, fontSize: 12)),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 28),
-
-                    // Method selection
-                    Text('Select Method',
-                        style: GoogleFonts.plusJakartaSans(
-                            fontWeight: FontWeight.bold, fontSize: 16, color: theme.primaryText)),
-                    const SizedBox(height: 14),
-
-                    _methodCard(
-                        context,
-                        method: 'BANK',
-                        icon: Icons.account_balance,
-                        title: 'Bank Transfer',
-                        subtitle: 'Instant • No fee'),
-                    _methodCard(
-                        context,
-                        method: 'MOBILE_MONEY',
-                        icon: Icons.phone_android,
-                        title: 'Mobile Money',
-                        subtitle: 'Instant • No fee'),
-                    _methodCard(
-                        context,
-                        method: 'CRYPTO',
-                        icon: Icons.currency_bitcoin,
-                        title: 'Crypto Wallet',
-                        subtitle: 'Near instant • No fee — via Ivorypay'),
-
-                    const SizedBox(height: 20),
-
-                    // Destination inputs
-                    _buildDestinationFields(),
-
-                    const SizedBox(height: 16),
-
-                    TextField(
-                      controller: _pinCtrl,
-                      keyboardType: TextInputType.number,
-                      obscureText: true,
-                      maxLength: 6,
-                      decoration: InputDecoration(
-                        hintText: 'Transaction PIN',
-                        hintStyle: TextStyle(color: theme.secondaryText),
-                        filled: true,
-                        fillColor: theme.secondaryBackground,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide(color: theme.secondaryText.withAlpha(90)),
-                        ),
-                        counterText: '',
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Fee breakdown
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: theme.secondaryBackground,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: theme.secondaryText.withAlpha(80)),
-                      ),
-                      child: Column(
-                        children: [
-                          _feeRow('FARM Amount',
-                              '${amount.toStringAsFixed(4)} FARM'),
-                          const SizedBox(height: 12),
-                          _feeRow(
-                              'Fee (${(feeRate * 100).toStringAsFixed(1)}%)',
-                              '${fee.toStringAsFixed(4)} FARM'),
-                          const Divider(height: 24),
-                          _feeRow(
-                              'You Receive',
-                              '${settlement.toStringAsFixed(4)} FARM',
-                              bold: true),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Security note
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: theme.secondaryBackground,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.verified_user_outlined, size: 18, color: theme.primary),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Withdrawal is secured by FARM multi-layer verification. '
-                              'Funds are locked until processed.',
-                              style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 12, color: theme.secondaryText),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 28),
-                    // Submit button
-                    SizedBox(
-                                        width: double.infinity,
-                                        height: 58,
-                                        child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: isDark ? const Color(0xFF1F1F1F) : Colors.black,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
-                        ),
-                        onPressed:
-                            (isLoading || amount <= 0) ? null : _createWithdraw,
-                        child: isLoading
-                            ? const CircularProgressIndicator(
-                                color: Colors.white)
-                            : Text('Withdraw Funds',
+                                      color: Colors.white70,
+                                      fontSize: 11,
+                                      letterSpacing: 1)),
+                              const SizedBox(height: 8),
+                              Text(
+                                '${walletBalance.toStringAsFixed(4)} FARM',
                                 style: GoogleFonts.plusJakartaSans(
                                     color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16)),
-                      ),
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                  ),
+
+                  const SizedBox(height: 28),
+
+                  // Amount input card
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      border:
+                          Border.all(color: theme.secondaryText.withAlpha(60)),
                     ),
-                  ],
-                ),
+                    child: Column(
+                      children: [
+                        Text('Withdrawal Amount',
+                            style: GoogleFonts.plusJakartaSans(
+                                color: theme.secondaryText, fontSize: 13)),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _amountCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          textAlign: TextAlign.center,
+                          onChanged: (_) => setState(() {}),
+                          style: GoogleFonts.plusJakartaSans(
+                              fontSize: 36,
+                              fontWeight: FontWeight.bold,
+                              color: theme.primaryText),
+                          decoration: InputDecoration(
+                              border: InputBorder.none,
+                              hintText: '0.00',
+                              hintStyle: TextStyle(color: theme.secondaryText)),
+                        ),
+                        const Divider(),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Min: FARM 10',
+                                style: GoogleFonts.plusJakartaSans(
+                                    color: theme.secondaryText, fontSize: 12)),
+                            Text('Max: FARM 70,000',
+                                style: GoogleFonts.plusJakartaSans(
+                                    color: theme.secondaryText, fontSize: 12)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 28),
+
+                  // Method selection
+                  Text('Select Method',
+                      style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: theme.primaryText)),
+                  const SizedBox(height: 14),
+
+                  _methodCard(context,
+                      method: 'BANK',
+                      icon: Icons.account_balance,
+                      title: 'Bank Transfer',
+                      subtitle: 'Instant'),
+                  _methodCard(context,
+                      method: 'MOBILE_MONEY',
+                      icon: Icons.phone_android,
+                      title: 'Mobile Money',
+                      subtitle: 'Instant'),
+                  _methodCard(context,
+                      method: 'CRYPTO',
+                      icon: Icons.currency_bitcoin,
+                      title: 'Crypto Wallet',
+                      subtitle: 'instant'),
+
+                  const SizedBox(height: 20),
+
+                  // Destination inputs
+                  _buildDestinationFields(),
+
+                  const SizedBox(height: 16),
+
+                  TextField(
+                    controller: _pinCtrl,
+                    keyboardType: TextInputType.number,
+                    obscureText: true,
+                    maxLength: 6,
+                    decoration: InputDecoration(
+                      hintText: 'Transaction PIN',
+                      hintStyle: TextStyle(color: theme.secondaryText),
+                      filled: true,
+                      fillColor: theme.secondaryBackground,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(
+                            color: theme.secondaryText.withAlpha(90)),
+                      ),
+                      counterText: '',
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Fee breakdown
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: theme.secondaryBackground,
+                      borderRadius: BorderRadius.circular(20),
+                      border:
+                          Border.all(color: theme.secondaryText.withAlpha(80)),
+                    ),
+                    child: Column(
+                      children: [
+                        _feeRow(
+                            'FARM Amount', '${amount.toStringAsFixed(4)} FARM'),
+                        const SizedBox(height: 12),
+                        _feeRow('Fee (${(feeRate * 100).toStringAsFixed(1)}%)',
+                            '${fee.toStringAsFixed(4)} FARM'),
+                        const Divider(height: 24),
+                        _feeRow('You Receive',
+                            '${settlement.toStringAsFixed(4)} FARM',
+                            bold: true),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 28),
+                  // Submit button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 58,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            isDark ? const Color(0xFF1F1F1F) : Colors.black,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
+                      ),
+                      onPressed:
+                          (isLoading || amount <= 0) ? null : _createWithdraw,
+                      child: isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : Text('Withdraw Funds',
+                              style: GoogleFonts.plusJakartaSans(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16)),
+                    ),
+                  ),
+                ],
+              ),
 
               const SizedBox(height: 32),
 
@@ -820,26 +812,29 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                   decoration: BoxDecoration(
                     color: theme.secondaryBackground,
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: theme.secondaryText.withAlpha(70)),
+                    border:
+                        Border.all(color: theme.secondaryText.withAlpha(70)),
                   ),
                   child: Center(
                       child: Text('No withdrawal history',
-                          style:
-                              GoogleFonts.plusJakartaSans(color: theme.secondaryText))),
+                          style: GoogleFonts.plusJakartaSans(
+                              color: theme.secondaryText))),
                 )
               else
                 ...history.map((w) {
                   final meta = w['metadata'] as Map<String, dynamic>? ?? {};
                   final statusRaw = (w['status'] ?? 'pending').toString();
                   final status = statusRaw.toLowerCase();
-                  final isComplete = status == 'completed' || status == 'success';
+                  final isComplete =
+                      status == 'completed' || status == 'success';
                   return Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: theme.secondaryBackground,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: theme.secondaryText.withAlpha(70)),
+                      border:
+                          Border.all(color: theme.secondaryText.withAlpha(70)),
                     ),
                     child: Row(
                       children: [
@@ -874,7 +869,7 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                                     color: theme.primaryText),
                               ),
                               Text(status.toUpperCase(),
-                                    style: GoogleFonts.plusJakartaSans(
+                                  style: GoogleFonts.plusJakartaSans(
                                       fontSize: 12,
                                       color: theme.secondaryText)),
                             ],

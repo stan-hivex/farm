@@ -24,7 +24,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
   final TextEditingController amountController = TextEditingController();
 
   String selectedCurrency = 'KES';
-  String selectedMethod = 'CARD';   // CARD | MOBILE_MONEY | CRYPTO
+  String selectedMethod = 'CARD'; // CARD | MOBILE_MONEY | CRYPTO
 
   bool isLoading = false;
   bool loadingWallet = true;
@@ -74,8 +74,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
       if (res.statusCode == 200) {
         final body = jsonDecode(res.body);
         setState(() {
-          walletBalance =
-              (body['data']?['balance'] ?? 0).toDouble();
+          walletBalance = (body['data']?['balance'] ?? 0).toDouble();
         });
       }
     } catch (e) {
@@ -95,7 +94,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
       if (!mounted) return;
       if (res.statusCode == 200) {
         final body = jsonDecode(res.body);
-        
+
         if (body is List) {
           setState(() => recentDeposits = body);
         } else if (body is Map<String, dynamic>) {
@@ -116,7 +115,6 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
       return;
     }
 
-
     setState(() => isLoading = true);
 
     try {
@@ -136,7 +134,8 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
         'payment_method': paymentMethodRaw,
         'method': paymentMethodRaw,
         'payment_channel': paymentMethodRaw,
-        'payment_provider': selectedMethod == 'CRYPTO' ? 'ivorypay' : 'paystack',
+        'payment_provider':
+            selectedMethod == 'CRYPTO' ? 'ivorypay' : 'paystack',
         'provider': selectedMethod == 'CRYPTO' ? 'ivorypay' : 'paystack',
       };
 
@@ -162,11 +161,11 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                 data['data']?['authorization_url'] ??
                 data['data']?['payment_url'])
             ?.toString();
-        final farmAmount  = data['data']?['amount_farm'];
-        final depositRef = data['data']?['reference'] ?? 
-                          data['data']?['transaction_reference'] ??
-                          data['reference'] ??
-                          data['transaction_reference'];
+        final farmAmount = data['data']?['amount_farm'];
+        final depositRef = data['data']?['reference'] ??
+            data['data']?['transaction_reference'] ??
+            data['reference'] ??
+            data['transaction_reference'];
 
         if (paymentUrl != null) {
           // Launch Paystack / Ivorypay payment page in browser
@@ -180,7 +179,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
           // Poll with timeout and handle all statuses: completed, failed, cancelled
           int pollAttempts = 0;
           const maxAttempts = 60; // ~10 minutes (60 * 10 seconds)
-          
+
           Timer.periodic(const Duration(seconds: 10), (timer) async {
             if (!mounted) {
               timer.cancel();
@@ -208,16 +207,17 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
             Map<String, dynamic>? targetDeposit;
             if (depositRef != null) {
               targetDeposit = recentDeposits.firstWhere(
-                (d) => d['reference'] == depositRef || 
-                       d['transaction_reference'] == depositRef,
+                (d) =>
+                    d['reference'] == depositRef ||
+                    d['transaction_reference'] == depositRef,
                 orElse: () => {},
               );
               if ((targetDeposit?.isEmpty ?? false)) targetDeposit = null;
             }
-            
+
             // Fallback to latest if no specific reference found
-            final deposit = targetDeposit ?? 
-                           (recentDeposits.isNotEmpty ? recentDeposits.first : null);
+            final deposit = targetDeposit ??
+                (recentDeposits.isNotEmpty ? recentDeposits.first : null);
 
             if (deposit != null) {
               final status = (deposit['status'] ?? '').toString().toLowerCase();
@@ -231,7 +231,9 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                     if (mounted) context.go('/dashboard');
                   });
                 }
-              } else if (status == 'failed' || status == 'cancelled' || status == 'error') {
+              } else if (status == 'failed' ||
+                  status == 'cancelled' ||
+                  status == 'error') {
                 timer.cancel();
                 if (mounted) {
                   _snack(
@@ -271,7 +273,8 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
   }
 
   // ── Payment method card ──────────────────────────────────────────────────
-  Widget _methodCard(BuildContext context, {
+  Widget _methodCard(
+    BuildContext context, {
     required String method,
     required IconData icon,
     required String title,
@@ -287,9 +290,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
         ? (isDark ? const Color(0xFF2A2A2A) : Colors.black)
         : theme.secondaryText.withAlpha(90);
     final textColor = selected ? Colors.white : theme.primaryText;
-    final subtitleColor = selected
-        ? Colors.white70
-        : theme.secondaryText;
+    final subtitleColor = selected ? Colors.white70 : theme.secondaryText;
 
     return GestureDetector(
       onTap: () => setState(() => selectedMethod = method),
@@ -324,8 +325,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                 ],
               ),
             ),
-            if (selected)
-              Icon(Icons.check_circle, color: Colors.white),
+            if (selected) Icon(Icons.check_circle, color: Colors.white),
           ],
         ),
       ),
@@ -357,7 +357,6 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
               // Header
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -368,7 +367,9 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                   ),
                   Text('Deposit Funds',
                       style: GoogleFonts.plusJakartaSans(
-                          fontSize: 18, fontWeight: FontWeight.bold, color: theme.primaryText)),
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: theme.primaryText)),
                   Icon(Icons.help_outline, color: theme.secondaryText),
                 ],
               ),
@@ -431,7 +432,6 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
 
               const SizedBox(height: 24),
 
-
               // Payment method
               Text('Payment Method',
                   style: GoogleFonts.plusJakartaSans(
@@ -445,28 +445,28 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                 method: 'CARD',
                 icon: Icons.credit_card,
                 title: 'Bank Card',
-                subtitle: 'Instant • No fee — via Paystack',
+                subtitle: 'Instant',
               ),
               _methodCard(
                 context,
                 method: 'BANK_TRANSFER',
                 icon: Icons.account_balance,
                 title: 'Bank Transfer',
-                subtitle: '1–2 business days • No fee — via Paystack',
+                subtitle: 'Instant',
               ),
               _methodCard(
                 context,
                 method: 'MOBILE_MONEY',
                 icon: Icons.phone_android,
                 title: 'Mobile Money (M-Pesa)',
-                subtitle: '1–5 minutes • No fee — via Paystack',
+                subtitle: 'Instant',
               ),
               _methodCard(
                 context,
                 method: 'CRYPTO',
                 icon: Icons.currency_bitcoin,
                 title: 'Crypto',
-                subtitle: 'Network time • No fee — via Ivorypay',
+                subtitle: 'Instant',
               ),
 
               const SizedBox(height: 24),
@@ -483,37 +483,11 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                   children: [
                     _feeRow('Amount', 'KES ${amount.toStringAsFixed(2)}'),
                     const SizedBox(height: 10),
-                    _feeRow(
-                        'Fee (${(feeRate * 100).toStringAsFixed(1)}%)',
+                    _feeRow('Fee (${(feeRate * 100).toStringAsFixed(1)}%)',
                         'KES ${fee.toStringAsFixed(2)}'),
                     const Divider(height: 20),
                     _feeRow('Total', 'KES ${total.toStringAsFixed(2)}',
                         bold: true),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Security note
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: theme.secondaryBackground,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.lock_outline, size: 18, color: theme.primary),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Payments are processed securely via Paystack and Ivorypay. '
-                        'FARM tokens are credited to your wallet after confirmation.',
-                        style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12, color: theme.secondaryText),
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -569,7 +543,8 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: theme.secondaryBackground,
-                      border: Border.all(color: theme.secondaryText.withAlpha(70)),
+                      border:
+                          Border.all(color: theme.secondaryText.withAlpha(70)),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Row(
@@ -587,8 +562,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                             isComplete
                                 ? Icons.check_circle_outline
                                 : Icons.hourglass_top,
-                            color:
-                                isComplete ? Colors.green : Colors.orange,
+                            color: isComplete ? Colors.green : Colors.orange,
                             size: 20,
                           ),
                         ),
@@ -606,14 +580,14 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                               Text(
                                 '≈ ${d['amount']} FARM • $status',
                                 style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 12,
-                                    color: theme.secondaryText),
+                                    fontSize: 12, color: theme.secondaryText),
                               ),
                             ],
                           ),
                         ),
                         Text(
-                          d['description']?.toString().contains('CRYPTO') == true
+                          d['description']?.toString().contains('CRYPTO') ==
+                                  true
                               ? 'CRYPTO'
                               : 'FIAT',
                           style: GoogleFonts.plusJakartaSans(
