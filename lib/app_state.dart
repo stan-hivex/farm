@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'flutter_flow/flutter_flow_theme.dart';
+import 'services/secure_storage_service.dart';
 
 class FFAppState extends ChangeNotifier {
   static FFAppState _instance = FFAppState._internal();
@@ -52,6 +53,7 @@ class FFAppState extends ChangeNotifier {
     SharedPreferences.getInstance().then(
       (prefs) => prefs.setString('accessToken', value),
     );
+    SecureStorageService.writeAccessToken(value);
   }
 
   String get authToken => _accessToken;
@@ -60,9 +62,11 @@ class FFAppState extends ChangeNotifier {
   String get refreshToken => _refreshToken;
   set refreshToken(String value) {
     _refreshToken = value;
+    notifyListeners();
     SharedPreferences.getInstance().then(
       (prefs) => prefs.setString('refreshToken', value),
     );
+    SecureStorageService.writeRefreshToken(value);
   }
 
   String _userId = '';
@@ -183,5 +187,6 @@ class FFAppState extends ChangeNotifier {
     await prefs.remove('isLoggedIn');
     await prefs.remove('biometricsEnabled');
     await prefs.remove('role');
+    await SecureStorageService.clearAuthData();
   }
 }

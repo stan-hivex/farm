@@ -1,5 +1,6 @@
-2026/07/08-02:18:13.126 5a7c Reusing MANIFEST C:\Users\u\AppData\Local\Temp\flutter_tools.902a3613\flutter_tools_chrome_device.3d33afc\Default\Local Storage\leveldb/MANIFEST-000001
-2026/07/08-02:18:13.141 5a7c Recovering log #4
-2026/07/08-02:18:13.142 5a7c (ignoring error) C:\Users\u\AppData\Local\Temp\flutter_tools.902a3613\flutter_tools_chrome_device.3d33afc\Default\Local Storage\leveldb/000004.log: dropping 21962 bytes; Corruption: checksum mismatch
-2026/07/08-02:18:13.146 5a7c Reusing old log C:\Users\u\AppData\Local\Temp\flutter_tools.902a3613\flutter_tools_chrome_device.3d33afc\Default\Local Storage\leveldb/000004.log 
-2026/07/08-02:18:13.147 5a7c Delete type=0 #3
+2026/07/08-09:41:15.531 35fc Reusing MANIFEST C:\Users\u\AppData\Local\Temp\flutter_tools.8ac15156\flutter_tools_chrome_device.8e7e367c\Default\Local Storage\leveldb/MANIFEST-000001
+2026/07/08-09:41:15.837 35fc Recovering log #4
+2026/07/08-09:41:15.839 35fc (ignoring error) C:\Users\u\AppData\Local\Temp\flutter_tools.8ac15156\flutter_tools_chrome_device.8e7e367c\Default\Local Storage\leveldb/000004.log: dropping 27667 bytes; Corruption: checksum mismatch
+2026/07/08-09:41:15.839 35fc (ignoring error) C:\Users\u\AppData\Local\Temp\flutter_tools.8ac15156\flutter_tools_chrome_device.8e7e367c\Default\Local Storage\leveldb/000004.log: dropping 724 bytes; Corruption: missing start of fragmented record(2)
+2026/07/08-09:41:15.863 35fc Reusing old log C:\Users\u\AppData\Local\Temp\flutter_tools.8ac15156\flutter_tools_chrome_device.8e7e367c\Default\Local Storage\leveldb/000004.log 
+2026/07/08-09:41:15.894 35fc Delete type=0 #3

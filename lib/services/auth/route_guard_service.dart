@@ -47,11 +47,11 @@ class RouteGuardService {
 
   /// Check if user has a valid Backend JWT (FARM JWT).
   ///
-  /// Returns true if:
-  /// - FFAppState has a non-empty accessToken
+  /// Returns true if FFAppState has a non-empty accessToken and the user is
+  /// marked as logged in, or if there is a persisted backend token available.
   bool hasValidBackendJwt() {
     final token = FFAppState().accessToken;
-    return token.isNotEmpty;
+    return token.isNotEmpty && (FFAppState().isLoggedIn || token.isNotEmpty);
   }
 
   /// Check if user is fully authenticated (both Supabase + Backend).
@@ -64,12 +64,11 @@ class RouteGuardService {
   /// 3. User marked as logged in (isLoggedIn flag)
   Future<bool> isUserAuthenticated() async {
     try {
-      final hasSupabaseSession = await hasValidSupabaseSession();
       final hasBackendJwt = hasValidBackendJwt();
       final isLoggedInFlag = FFAppState().isLoggedIn;
+      final hasSupabaseSession = await hasValidSupabaseSession();
 
-      // All three conditions must be true
-      return hasSupabaseSession && hasBackendJwt && isLoggedInFlag;
+      return hasBackendJwt && (isLoggedInFlag || hasSupabaseSession);
     } catch (e) {
       debugPrint('Error checking authentication: $e');
       return false;

@@ -92,7 +92,33 @@ class WalletApiService {
         'Content-Type': 'application/json',
       },
     );
-    if (res.statusCode != 200) throw Exception('Failed to load transfer requests');
+    if (res.statusCode != 200)
+      throw Exception('Failed to load transfer requests');
+    final body = jsonDecode(res.body);
+    return List<dynamic>.from(body['data'] ?? []);
+  }
+
+  static Future<List<dynamic>> getTransferRequestHistory({
+    required String token,
+    int page = 1,
+    int limit = 10,
+  }) async {
+    final uri = Uri.parse(_transferBase).replace(
+      queryParameters: {
+        'page': page.toString(),
+        'limit': limit.toString(),
+      },
+    );
+    final res = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+    if (res.statusCode != 200) {
+      throw Exception('Failed to load transfer request history');
+    }
     final body = jsonDecode(res.body);
     return List<dynamic>.from(body['data'] ?? []);
   }
@@ -159,6 +185,24 @@ class WalletApiService {
     final body = jsonDecode(res.body);
     if (res.statusCode != 200 && res.statusCode != 201) {
       throw Exception(body['message'] ?? 'Failed to reject transfer request');
+    }
+    return body;
+  }
+
+  static Future<Map<String, dynamic>> cancelTransferRequest({
+    required String token,
+    required String requestId,
+  }) async {
+    final res = await http.post(
+      Uri.parse('$_transferBase/$requestId/cancel'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+    final body = jsonDecode(res.body);
+    if (res.statusCode != 200 && res.statusCode != 201) {
+      throw Exception(body['message'] ?? 'Failed to cancel transfer request');
     }
     return body;
   }

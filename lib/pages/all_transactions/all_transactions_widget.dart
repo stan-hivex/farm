@@ -66,18 +66,81 @@ class _AllTransactionsWidgetState extends State<AllTransactionsWidget> {
             }).toList()
           : <Map<String, dynamic>>[];
 
+      final filtered = items.where((tx) => _matchesFilters(tx)).toList();
       if (!mounted) return;
       setState(() {
-        _transactions = items;
+        _transactions = filtered;
         _loading = false;
       });
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-        _loading = false;
-      });
+      try {
+        final fallback = await ApiService.getTransactions(page: 1, limit: 100);
+        final rawAll = fallback['data'];
+        final all = rawAll is List
+            ? rawAll.map<Map<String, dynamic>>((item) {
+                if (item is Map) return Map<String, dynamic>.from(item);
+                return <String, dynamic>{};
+              }).toList()
+            : <Map<String, dynamic>>[];
+
+        final filtered = all.where((tx) => _matchesFilters(tx)).toList();
+        if (!mounted) return;
+        setState(() {
+          _transactions = filtered;
+          _loading = false;
+        });
+      } catch (inner) {
+        if (!mounted) return;
+        setState(() {
+          _error = e.toString();
+          _loading = false;
+        });
+      }
     }
+  }
+
+  bool _matchesFilters(Map<String, dynamic> tx) {
+    if (_selectedType != 'all') {
+      final type = (tx['transaction_type'] ?? tx['type'] ?? '').toString().toLowerCase();
+      final isOutgoing = (tx['is_outgoing'] == true) || type.contains('send') || type.contains('sent') || type.contains('outgoing');
+      final isIncoming = !isOutgoing || type.contains('receive') || type.contains('received') || type.contains('incoming');
+
+      switch (_selectedType) {
+        case 'send':
+          if (!isOutgoing) return false;
+          break;
+        case 'receive':
+          if (!isIncoming) return false;
+          break;
+        case 'deposit':
+          if (!(type.contains('deposit') || type.contains('topup'))) return false;
+          break;
+        case 'withdraw':
+          if (!(type.contains('withdraw') || type.contains('withdrawal'))) return false;
+          break;
+        default:
+          break;
+      }
+    }
+
+    if (_selectedStatus != 'all') {
+      final status = (tx['status'] ?? tx['state'] ?? '').toString().toLowerCase();
+      switch (_selectedStatus) {
+        case 'completed':
+          if (!(status.contains('complete') || status.contains('success') || status.contains('approved'))) return false;
+          break;
+        case 'pending':
+          if (!(status.contains('pending') || status.contains('processing'))) return false;
+          break;
+        case 'failed':
+          if (!(status.contains('fail') || status.contains('rejected') || status.contains('error'))) return false;
+          break;
+        default:
+          break;
+      }
+    }
+
+    return true;
   }
 
   String _formatDate(dynamic value) {

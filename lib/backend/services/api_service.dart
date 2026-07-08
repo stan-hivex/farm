@@ -1,16 +1,35 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import '/backend/services/turnstile_payload.dart';
 import 'package:http/http.dart' as http;
 import '/core/app_config.dart';
 import '/app_state.dart';
 
 class ApiService {
+  static http.Client _client = http.Client();
+
+  static set client(http.Client value) => _client = value;
+
+  static Future<Map<String, dynamic>> request({
+    required String method,
+    required String path,
+    Map<String, dynamic>? body,
+    bool requiresAuth = true,
+  }) =>
+      _request(
+        method: method,
+        path: path,
+        body: body,
+        requiresAuth: requiresAuth,
+      );
+
   // Central method — all requests go through here
   static Future<Map<String, dynamic>> _request({
     required String method,
     required String path,
     Map<String, dynamic>? body,
     bool requiresAuth = true,
+    bool isRetry = false,
   }) async {
     final uri = Uri.parse('${AppConfig.api}$path');
     final token = FFAppState().accessToken;
@@ -25,25 +44,41 @@ class ApiService {
 
     switch (method.toUpperCase()) {
       case 'GET':
-        response = await http.get(uri, headers: headers);
+        response = await _client.get(uri, headers: headers);
         break;
       case 'POST':
-        response = await http.post(uri,
+        response = await _client.post(uri,
             headers: headers, body: body != null ? jsonEncode(body) : null);
         break;
       case 'PUT':
-        response = await http.put(uri,
+        response = await _client.put(uri,
             headers: headers, body: body != null ? jsonEncode(body) : null);
         break;
       case 'PATCH':
-        response = await http.patch(uri,
+        response = await _client.patch(uri,
             headers: headers, body: body != null ? jsonEncode(body) : null);
         break;
       case 'DELETE':
-        response = await http.delete(uri, headers: headers);
+        response = await _client.delete(uri, headers: headers);
         break;
       default:
         throw Exception('Unknown HTTP method: $method');
+    }
+
+    if ((response.statusCode == 401 || response.statusCode == 403) &&
+        requiresAuth &&
+        !isRetry &&
+        FFAppState().refreshToken.isNotEmpty) {
+      final refreshed = await _refreshAccessToken();
+      if (refreshed) {
+        return _request(
+          method: method,
+          path: path,
+          body: body,
+          requiresAuth: requiresAuth,
+          isRetry: true,
+        );
+      }
     }
 
     Map<String, dynamic> decoded = {};
@@ -67,6 +102,48 @@ class ApiService {
     throw Exception(message.isNotEmpty
         ? message
         : 'Request failed (${response.statusCode})');
+  }
+
+  static Future<bool> _refreshAccessToken() async {
+    final refreshToken = FFAppState().refreshToken.trim();
+    if (refreshToken.isEmpty) {
+      return false;
+    }
+
+    try {
+      final response = await _client.post(
+        Uri.parse('${AppConfig.api}/auth/refresh'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({'refresh_token': refreshToken}),
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final body = response.body.isNotEmpty
+            ? jsonDecode(response.body) as Map<String, dynamic>
+            : <String, dynamic>{};
+        final payload = body['data'] is Map<String, dynamic>
+            ? body['data'] as Map<String, dynamic>
+            : body;
+        final newAccessToken = payload['access_token'] as String? ?? '';
+        final newRefreshToken = payload['refresh_token'] as String? ?? '';
+
+        if (newAccessToken.isNotEmpty) {
+          FFAppState().accessToken = newAccessToken;
+          if (newRefreshToken.isNotEmpty) {
+            FFAppState().refreshToken = newRefreshToken;
+          }
+          return true;
+        }
+      }
+    } catch (e) {
+      debugPrint('Session refresh failed: $e');
+    }
+
+    await FFAppState().clearAuthCredentials();
+    return false;
   }
 
   // ── Auth ──────────────────────────────────────────────────────────────────

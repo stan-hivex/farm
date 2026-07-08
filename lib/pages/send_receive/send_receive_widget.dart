@@ -41,6 +41,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
   bool showReceive = false;
   bool isRequesting = false;
   List<dynamic> pendingRequests = [];
+  List<dynamic> myTransferRequests = [];
 
   double balance = 0;
   List<dynamic> transactions = [];
@@ -61,6 +62,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
 
     fetchWallet();
     fetchPendingRequests();
+    fetchMyTransferRequests();
   }
 
   @override
@@ -355,6 +357,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
         amountController.clear();
         descriptionController.clear();
         await fetchPendingRequests();
+        await fetchMyTransferRequests();
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -379,6 +382,23 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
     }
   }
 
+  Future<void> fetchMyTransferRequests() async {
+    try {
+      final String token = context.read<FFAppState>().accessToken;
+      final requests = await WalletApiService.getTransferRequestHistory(
+        token: token,
+      );
+      if (mounted) {
+        setState(() => myTransferRequests = requests);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
+      }
+    }
+  }
+
   Future<void> acceptTransferRequest(String requestId, String pin) async {
     try {
       final token = context.read<FFAppState>().accessToken;
@@ -393,6 +413,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
       }
       fetchWallet();
       await fetchPendingRequests();
+      await fetchMyTransferRequests();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -414,6 +435,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Request rejected')));
       await fetchPendingRequests();
+      await fetchMyTransferRequests();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -421,6 +443,29 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
               content: Text('$e'),
               backgroundColor: Colors.red,
               behavior: SnackBarBehavior.floating),
+        );
+      }
+    }
+  }
+
+  Future<void> cancelTransferRequest(String requestId) async {
+    try {
+      final token = context.read<FFAppState>().accessToken;
+      await WalletApiService.cancelTransferRequest(
+        token: token,
+        requestId: requestId,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Request cancelled')),
+        );
+      }
+      await fetchPendingRequests();
+      await fetchMyTransferRequests();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e')),
         );
       }
     }
@@ -582,100 +627,437 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
         requester != null ? requester['username'] : 'unknown';
     final amount = req['amount'] as num;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        color: FlutterFlowTheme.of(context).secondaryBackground,
-        border: Border.all(color: Colors.orange.shade100),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.orange.shade100,
+    return GestureDetector(
+      onTap: () => _showRequestDetailSheet(req, incoming: true),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          color: FlutterFlowTheme.of(context).secondaryBackground,
+          border: Border.all(color: Colors.orange.shade100),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.orange.shade100,
+                  ),
+                  child: Icon(
+                    Icons.call_received,
+                    color: Colors.orange.shade700,
+                  ),
                 ),
-                child: Icon(
-                  Icons.call_received,
-                  color: Colors.orange.shade700,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$requesterName requested',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: theme.primaryText,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '@$requesterUsername',
+                        style: TextStyle(
+                          color: FlutterFlowTheme.of(context).secondaryText,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '$requesterName requested',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: theme.primaryText,
+                Text(
+                  '${amount.toStringAsFixed(2)} FARM',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      _showPinConfirmDialog(
+                        req['id'],
+                        requesterUsername,
+                        amount.toDouble(),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '@$requesterUsername',
-                      style: TextStyle(
-                        color: FlutterFlowTheme.of(context).secondaryText,
-                      ),
-                    ),
-                  ],
+                    child: const Text('Send'),
+                  ),
                 ),
-              ),
-              Text(
-                '${amount.toStringAsFixed(2)} FARM',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.orange,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
+                const SizedBox(width: 12),
+                OutlinedButton(
                   onPressed: () {
-                    _showPinConfirmDialog(
-                      req['id'],
-                      requesterUsername,
-                      amount.toDouble(),
-                    );
+                    rejectTransferRequest(req['id']);
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(18),
                     ),
                   ),
-                  child: const Text('Send'),
+                  child: const Text('Reject'),
                 ),
-              ),
-              const SizedBox(width: 12),
-              OutlinedButton(
-                onPressed: () {
-                  rejectTransferRequest(req['id']);
-                },
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget buildOutgoingRequestCard(dynamic req) {
+    final theme = FlutterFlowTheme.of(context);
+    final recipient = req['users_sender'];
+    final recipientName = recipient != null
+        ? '${recipient['first_name']} ${recipient['last_name']}'
+        : 'Recipient';
+    final recipientUsername =
+        recipient != null ? recipient['username'] : 'unknown';
+    final amount = req['amount'] as num;
+    final status = (req['status'] ?? 'pending').toString().toUpperCase();
+    final isPending = (req['status'] ?? 'pending').toString() == 'pending';
+
+    return GestureDetector(
+      onTap: () => _showRequestDetailSheet(req, incoming: false),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          color: FlutterFlowTheme.of(context).secondaryBackground,
+          border: Border.all(color: Colors.blue.shade100),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.blue.shade100,
+                  ),
+                  child: Icon(
+                    Icons.call_made,
+                    color: Colors.blue.shade700,
                   ),
                 ),
-                child: const Text('Reject'),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'You requested',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: theme.primaryText,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '@$recipientUsername',
+                        style: TextStyle(
+                          color: FlutterFlowTheme.of(context).secondaryText,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        recipientName,
+                        style: TextStyle(
+                          color: FlutterFlowTheme.of(context).secondaryText,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  '${amount.toStringAsFixed(2)} FARM',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    status,
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                const Spacer(),
+                if (isPending)
+                  OutlinedButton(
+                    onPressed: () => cancelTransferRequest(req['id']),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                    ),
+                    child: const Text('Cancel'),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatRequestDate(dynamic value) {
+    if (value == null) return 'Not available';
+    final parsed =
+        value is DateTime ? value : DateTime.tryParse(value.toString());
+    if (parsed == null) return value.toString();
+    return '${parsed.toLocal().day}/${parsed.toLocal().month}/${parsed.toLocal().year} ${parsed.toLocal().hour.toString().padLeft(2, '0')}:${parsed.toLocal().minute.toString().padLeft(2, '0')}';
+  }
+
+  void _showRequestDetailSheet(dynamic req, {required bool incoming}) {
+    final theme = FlutterFlowTheme.of(context);
+    final person = incoming ? req['users_requester'] : req['users_sender'];
+    final personName = person != null
+        ? '${person['first_name']} ${person['last_name']}'
+        : (incoming ? 'Requester' : 'Recipient');
+    final personUsername = person != null ? person['username'] : 'unknown';
+    final amount = (req['amount'] as num?)?.toDouble() ?? 0.0;
+    final status = (req['status'] ?? 'pending').toString();
+    final description = req['description']?.toString() ?? '';
+    final expiresAt = _formatRequestDate(req['expires_at']);
+    final createdAt = _formatRequestDate(req['created_at']);
+    final isPending = status.toLowerCase() == 'pending';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: incoming
+                          ? Colors.orange.shade100
+                          : Colors.blue.shade100,
+                    ),
+                    child: Icon(
+                      incoming ? Icons.call_received : Icons.call_made,
+                      color: incoming
+                          ? Colors.orange.shade700
+                          : Colors.blue.shade700,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          incoming ? '$personName requested' : 'You requested',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: theme.primaryText,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '@$personUsername',
+                          style: TextStyle(color: theme.secondaryText),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Text(
+                    '${amount.toStringAsFixed(2)} FARM',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      status.toUpperCase(),
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              if (description.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: theme.secondaryBackground,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Note',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: theme.primaryText,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        description,
+                        style: TextStyle(color: theme.secondaryText),
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 16),
+              _buildDetailRow('Created', createdAt),
+              const SizedBox(height: 8),
+              _buildDetailRow('Expires', expiresAt),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  if (incoming)
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _showPinConfirmDialog(
+                              req['id'], personUsername, amount);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                        child: const Text('Approve'),
+                      ),
+                    ),
+                  if (incoming) const SizedBox(width: 12),
+                  if (incoming)
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          rejectTransferRequest(req['id']);
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                        child: const Text('Reject'),
+                      ),
+                    ),
+                  if (!incoming && isPending)
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          cancelTransferRequest(req['id']);
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                        child: const Text('Cancel request'),
+                      ),
+                    ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Row(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: FlutterFlowTheme.of(context).secondaryText,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(color: FlutterFlowTheme.of(context).primaryText),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1391,6 +1773,33 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                                                   buildRequestCard(
                                                 req,
                                               ),
+                                            )
+                                            .toList(),
+                                      ),
+                                      const SizedBox(height: 36),
+                                    ],
+                                  ),
+                                if (myTransferRequests.isNotEmpty)
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Your Requests',
+                                        style: FlutterFlowTheme.of(context)
+                                            .titleLarge
+                                            .override(
+                                              font: GoogleFonts.plusJakartaSans(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Column(
+                                        children: myTransferRequests
+                                            .map(
+                                              (req) =>
+                                                  buildOutgoingRequestCard(req),
                                             )
                                             .toList(),
                                       ),

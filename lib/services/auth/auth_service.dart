@@ -94,11 +94,58 @@ class AuthService {
     String? turnstileToken,
   }) async {
     try {
-      final isEmail = identifier.contains('@');
+      final normalizedIdentifier = identifier.trim();
+      final isLikelyEmail = normalizedIdentifier.contains('@');
 
-      if (isEmail) {
+      try {
+        final response = await ApiService.login(
+          identifier: normalizedIdentifier,
+          password: password,
+          turnstileToken: turnstileToken,
+        );
+
+        final responseData = response['data'] as Map<String, dynamic>? ?? {};
+        final farmJwt = responseData['access_token'] as String? ?? '';
+        final refreshToken = responseData['refresh_token'] as String? ?? '';
+        final backendUser = responseData['user'] as Map<String, dynamic>?;
+
+        if (farmJwt.isNotEmpty) {
+          FFAppState().accessToken = farmJwt;
+        }
+        if (refreshToken.isNotEmpty) {
+          FFAppState().refreshToken = refreshToken;
+        }
+        FFAppState().isLoggedIn = farmJwt.isNotEmpty;
+        if (backendUser is Map<String, dynamic>) {
+          FFAppState().userId = backendUser['id']?.toString() ?? '';
+          FFAppState().firstName = backendUser['first_name']?.toString() ?? '';
+          FFAppState().userName = backendUser['username']?.toString() ?? '';
+          FFAppState().phone = backendUser['phone']?.toString() ?? '';
+          FFAppState().kycStatus = backendUser['kyc_status']?.toString() ?? '';
+          FFAppState().emailVerified = backendUser['email_verified'] == true;
+          FFAppState().role = backendUser['role']?.toString() ?? 'user';
+        }
+
+        return {
+          'success': true,
+          'farmJwt': farmJwt,
+          'refreshToken': refreshToken,
+          'user': backendUser,
+          'loginMethod': 'backend',
+        };
+      } on Exception catch (backendError) {
+        final message = backendError.toString().toLowerCase();
+        final shouldTrySupabase = isLikelyEmail &&
+            (message.contains('linked to supabase') ||
+                message.contains('supabase') ||
+                message.contains('invalid credentials') == false);
+
+        if (!shouldTrySupabase) {
+          throw Exception('Login failed: $backendError');
+        }
+
         final authResponse = await _supabase.auth.signInWithPassword(
-          email: identifier,
+          email: normalizedIdentifier,
           password: password,
         );
 
@@ -121,6 +168,16 @@ class AuthService {
         if (refreshToken.isNotEmpty) {
           FFAppState().refreshToken = refreshToken;
         }
+        FFAppState().isLoggedIn = farmJwt.isNotEmpty;
+        if (backendUser is Map<String, dynamic>) {
+          FFAppState().userId = backendUser['id']?.toString() ?? '';
+          FFAppState().firstName = backendUser['first_name']?.toString() ?? '';
+          FFAppState().userName = backendUser['username']?.toString() ?? '';
+          FFAppState().phone = backendUser['phone']?.toString() ?? '';
+          FFAppState().kycStatus = backendUser['kyc_status']?.toString() ?? '';
+          FFAppState().emailVerified = backendUser['email_verified'] == true;
+          FFAppState().role = backendUser['role']?.toString() ?? 'user';
+        }
 
         return {
           'success': true,
@@ -128,33 +185,9 @@ class AuthService {
           'refreshToken': refreshToken,
           'supabaseToken': supabaseToken,
           'user': backendUser ?? authResponse.user,
+          'loginMethod': 'supabase',
         };
       }
-
-      final response = await ApiService.login(
-        identifier: identifier,
-        password: password,
-        turnstileToken: turnstileToken,
-      );
-
-      final responseData = response['data'] as Map<String, dynamic>? ?? {};
-      final farmJwt = responseData['access_token'] as String? ?? '';
-      final refreshToken = responseData['refresh_token'] as String? ?? '';
-      final backendUser = responseData['user'] as Map<String, dynamic>?;
-
-      if (farmJwt.isNotEmpty) {
-        FFAppState().accessToken = farmJwt;
-      }
-      if (refreshToken.isNotEmpty) {
-        FFAppState().refreshToken = refreshToken;
-      }
-
-      return {
-        'success': true,
-        'farmJwt': farmJwt,
-        'refreshToken': refreshToken,
-        'user': backendUser,
-      };
     } on AuthException catch (e) {
       throw Exception('Login error: ${e.message}');
     } catch (e) {
@@ -319,6 +352,7 @@ class AuthService {
         }
 
         FFAppState().accessToken = newFarmJwt;
+        FFAppState().isLoggedIn = newFarmJwt.isNotEmpty;
         if (newRefreshToken.isNotEmpty) {
           FFAppState().refreshToken = newRefreshToken;
           await SecureStorageService.writeRefreshToken(newRefreshToken);
@@ -353,6 +387,7 @@ class AuthService {
       if (newFarmJwt.isNotEmpty) {
         FFAppState().accessToken = newFarmJwt;
       }
+      FFAppState().isLoggedIn = newFarmJwt.isNotEmpty;
       if (refreshToken.isNotEmpty) {
         FFAppState().refreshToken = refreshToken;
       }
