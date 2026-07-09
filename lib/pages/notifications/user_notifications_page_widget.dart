@@ -2,6 +2,7 @@
 import '/backend/services/api_service.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/core/theme_extensions.dart';
+import '/services/notification_feedback_service.dart';
 
 class UserNotificationsPageWidget extends StatefulWidget {
   const UserNotificationsPageWidget({super.key});
@@ -20,6 +21,8 @@ class _UserNotificationsPageWidgetState extends State<UserNotificationsPageWidge
   List<Map<String, dynamic>> groupedNotifications = [];
   int unreadCount = 0;
   final Set<String> hiddenNotificationIds = <String>{};
+  Set<String> _previousNotificationIds = <String>{};
+  bool _hasLoadedNotificationsBefore = false;
 
   @override
   void initState() {
@@ -58,6 +61,15 @@ class _UserNotificationsPageWidgetState extends State<UserNotificationsPageWidge
                     : false;
         return !read;
       }).length;
+      final newNotificationIds = visibleItems
+          .map(_notificationId)
+          .where((id) => id.isNotEmpty)
+          .toSet();
+      final hasNewNotifications = _hasLoadedNotificationsBefore &&
+          newNotificationIds.difference(_previousNotificationIds).isNotEmpty;
+      _previousNotificationIds = newNotificationIds;
+      _hasLoadedNotificationsBefore = true;
+
       final grouped = <String, List<Map<String, dynamic>>>{};
       for (final item in visibleItems) {
         final key = _notificationGroupKey(item);
@@ -77,6 +89,9 @@ class _UserNotificationsPageWidgetState extends State<UserNotificationsPageWidge
         unreadCount = unread;
         isLoading = false;
       });
+      if (hasNewNotifications) {
+        NotificationFeedbackService.trigger();
+      }
     } catch (e) {
       setState(() {
         errorMessage = 'Unable to fetch notifications.';

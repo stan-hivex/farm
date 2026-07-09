@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+import '/app_state.dart';
 import '/backend/services/api_service.dart';
 import '/core/app_config.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
@@ -20,35 +23,50 @@ class NotificationSettingsPageWidget extends StatefulWidget {
 
 class _NotificationSettingsPageWidgetState
     extends State<NotificationSettingsPageWidget> {
-  bool pushNotifications = true;
-  bool emailNotifications = false;
-  bool smsNotifications = false;
-  bool soundEnabled = true;
-  bool vibrationEnabled = true;
+  late bool pushNotifications;
+  late bool emailNotifications;
+  late bool inAppNotifications;
+  late bool smsNotifications;
+  late bool soundEnabled;
+  late bool vibrationEnabled;
 
   bool loading = true;
   bool notificationsLoading = true;
   List<Map<String, dynamic>> notifications = [];
   String? notificationsError;
+  bool isSaving = false;
 
   final String baseUrl = AppConfig.api;
   String get token => FFAppState().accessToken;
 
+  void _syncFromAppState() {
+    pushNotifications = FFAppState().pushNotifications;
+    emailNotifications = FFAppState().emailNotifications;
+    inAppNotifications = FFAppState().inAppNotifications;
+    smsNotifications = FFAppState().smsNotifications;
+    soundEnabled = FFAppState().notificationSoundEnabled;
+    vibrationEnabled = FFAppState().notificationVibrationEnabled;
+  }
+
   @override
   void initState() {
     super.initState();
+    _syncFromAppState();
     loadSettings();
     loadNotifications();
   }
 
   Future<void> loadSettings() async {
+    // Don't reload settings if we're currently saving
+    if (isSaving) return;
+    
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/notifications/settings'),
-        headers: {'Authorization': 'Bearer $token'},
-      );
+      Uri.parse('$baseUrl/user/settings/notifications'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
 
-      if (!mounted) return;
+      if (!mounted || isSaving) return;
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -58,15 +76,27 @@ class _NotificationSettingsPageWidgetState
           setState(() {
             pushNotifications = settings['push_notifications'] ?? true;
             emailNotifications = settings['email_notifications'] ?? false;
+            inAppNotifications = settings['in_app_notifications'] ?? true;
             smsNotifications = settings['sms_notifications'] ?? false;
             soundEnabled = settings['sound_enabled'] ?? true;
             vibrationEnabled = settings['vibration_enabled'] ?? true;
             loading = false;
           });
+          
+          // Sync app state using update callback (same as biometrics pattern)
+          FFAppState().update(() {
+            FFAppState().pushNotifications = pushNotifications;
+            FFAppState().emailNotifications = emailNotifications;
+            FFAppState().inAppNotifications = inAppNotifications;
+            FFAppState().smsNotifications = smsNotifications;
+            FFAppState().notificationSoundEnabled = soundEnabled;
+            FFAppState().notificationVibrationEnabled = vibrationEnabled;
+          });
           return;
         }
       }
 
+      if (!mounted) return;
       setState(() {
         loading = false;
       });
@@ -114,10 +144,14 @@ class _NotificationSettingsPageWidgetState
     }
   }
 
-  Future<void> saveSettings() async {
+  Future<bool> saveSettings() async {
+    if (isSaving) return false;
+    
     try {
-      final response = await http.put(
-        Uri.parse('$baseUrl/notifications/settings'),
+      isSaving = true;
+      
+      final response = await http.patch(
+        Uri.parse('$baseUrl/user/settings/notifications'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -125,32 +159,60 @@ class _NotificationSettingsPageWidgetState
         body: jsonEncode({
           'push_notifications': pushNotifications,
           'email_notifications': emailNotifications,
+          'in_app_notifications': inAppNotifications,
           'sms_notifications': smsNotifications,
           'sound_enabled': soundEnabled,
           'vibration_enabled': vibrationEnabled,
         }),
       );
 
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            response.statusCode >= 200 && response.statusCode < 300
-                ? 'Notification preferences updated'
-                : 'Unable to update preferences',
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (!mounted) return false;
+
+      final success = response.statusCode >= 200 && response.statusCode < 300;
+      
+      if (success) {
+        FFAppState().update(() {
+          FFAppState().pushNotifications = pushNotifications;
+          FFAppState().emailNotifications = emailNotifications;
+          FFAppState().inAppNotifications = inAppNotifications;
+          FFAppState().smsNotifications = smsNotifications;
+          FFAppState().notificationSoundEnabled = soundEnabled;
+          FFAppState().notificationVibrationEnabled = vibrationEnabled;
+        });
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Notification preferences updated'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Unable to update preferences'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+      
+      return success;
     } catch (e) {
       debugPrint('SAVE SETTINGS ERROR: $e');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Unable to update preferences right now'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unable to update preferences right now'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return false;
+    } finally {
+      isSaving = false;
     }
   }
 
@@ -222,8 +284,8 @@ class _NotificationSettingsPageWidgetState
                     value: pushNotifications,
                     title: Text('Push notifications'),
                     subtitle: Text('Receive alerts on your device'),
-                    onChanged: (val) async {
-                      setState(() => pushNotifications = val);
+                    onChanged: isSaving ? null : (value) async {
+                      setState(() => pushNotifications = value);
                       await saveSettings();
                     },
                   ),
@@ -232,8 +294,18 @@ class _NotificationSettingsPageWidgetState
                     value: emailNotifications,
                     title: Text('Email notifications'),
                     subtitle: Text('Send updates to your inbox'),
-                    onChanged: (val) async {
-                      setState(() => emailNotifications = val);
+                    onChanged: isSaving ? null : (value) async {
+                      setState(() => emailNotifications = value);
+                      await saveSettings();
+                    },
+                  ),
+                  const Divider(height: 1),
+                  SwitchListTile(
+                    value: inAppNotifications,
+                    title: Text('In-app notifications'),
+                    subtitle: Text('Show notifications inside the app'),
+                    onChanged: isSaving ? null : (value) async {
+                      setState(() => inAppNotifications = value);
                       await saveSettings();
                     },
                   ),
@@ -242,8 +314,8 @@ class _NotificationSettingsPageWidgetState
                     value: smsNotifications,
                     title: Text('SMS notifications'),
                     subtitle: Text('Get important alerts by text'),
-                    onChanged: (val) async {
-                      setState(() => smsNotifications = val);
+                    onChanged: isSaving ? null : (value) async {
+                      setState(() => smsNotifications = value);
                       await saveSettings();
                     },
                   ),
@@ -252,8 +324,8 @@ class _NotificationSettingsPageWidgetState
                     value: soundEnabled,
                     title: Text('Sound'),
                     subtitle: Text('Play sounds for notifications'),
-                    onChanged: (val) async {
-                      setState(() => soundEnabled = val);
+                    onChanged: isSaving ? null : (value) async {
+                      setState(() => soundEnabled = value);
                       await saveSettings();
                     },
                   ),
@@ -262,8 +334,8 @@ class _NotificationSettingsPageWidgetState
                     value: vibrationEnabled,
                     title: Text('Vibration'),
                     subtitle: Text('Vibrate for incoming alerts'),
-                    onChanged: (val) async {
-                      setState(() => vibrationEnabled = val);
+                    onChanged: isSaving ? null : (value) async {
+                      setState(() => vibrationEnabled = value);
                       await saveSettings();
                     },
                   ),

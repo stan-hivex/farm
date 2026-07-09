@@ -1,5 +1,3 @@
-import 'dart:convert';
-import 'dart:math';
 
 import 'package:http/http.dart' as http;
 import '/core/app_config.dart';
@@ -11,6 +9,7 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/q_r_scanner/q_r_scanner_widget.dart';
 import '/backend/services/api_service.dart';
+import '/services/notification_feedback_service.dart';
 import '/pages/depositpage/depositpage_widget.dart';
 import '/pages/notifications/user_notifications_page_widget.dart';
 import '/pages/withdrawpage/withdrawpage_widget.dart';
@@ -43,6 +42,8 @@ class _DashboardWidgetState extends State<DashboardWidget>
   double kesEquivalent = 0.0;
   bool isBalanceLoading = true;
   int unreadNotificationCount = 0;
+  final Set<String> _previousNotificationIds = <String>{};
+  bool _hasLoadedNotificationsBefore = false;
 
   double get projectedWalletBalance => walletBalance * 1.125;
 
@@ -238,20 +239,41 @@ class _DashboardWidgetState extends State<DashboardWidget>
       final response = await ApiService.getNotifications();
       final rawNotifications = response['data'];
       final items = rawNotifications is List
-          ? rawNotifications.cast<Map<String, dynamic>>()
+          ? rawNotifications
+              .map((item) => item is Map<String, dynamic>
+                  ? item
+                  : Map<String, dynamic>.from(item as Map))
+              .toList()
           : <Map<String, dynamic>>[];
+      final currentIds = items
+          .map((item) => item['id']?.toString() ?? '')
+          .where((id) => id.isNotEmpty)
+          .toSet();
+      final hasNewNotifications = _hasLoadedNotificationsBefore &&
+          currentIds.difference(_previousNotificationIds).isNotEmpty;
+      _previousNotificationIds
+        ..clear()
+        ..addAll(currentIds);
+      _hasLoadedNotificationsBefore = true;
+
+      final unreadCount = items.where((item) {
+        final read = item['read'] is bool
+            ? item['read'] as bool
+            : item['is_read'] is bool
+                ? item['is_read'] as bool
+                : item['isRead'] is bool
+                    ? item['isRead'] as bool
+                    : false;
+        return !read;
+      }).length;
+
       setState(() {
-        unreadNotificationCount = items.where((item) {
-          final read = item['read'] is bool
-              ? item['read'] as bool
-              : item['is_read'] is bool
-                  ? item['is_read'] as bool
-                  : item['isRead'] is bool
-                      ? item['isRead'] as bool
-                      : false;
-          return !read;
-        }).length;
+        unreadNotificationCount = unreadCount;
       });
+
+      if (hasNewNotifications) {
+        NotificationFeedbackService.trigger();
+      }
     } catch (e) {
       debugPrint('Failed to fetch notification count: $e');
     }

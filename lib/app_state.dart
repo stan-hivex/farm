@@ -28,6 +28,14 @@ class FFAppState extends ChangeNotifier {
     _kycStatus = prefs.getString('kycStatus') ?? '';
     _isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
     _biometricsEnabled = prefs.getBool('biometricsEnabled') ?? false;
+    _pushNotifications = prefs.getBool('pushNotifications') ?? true;
+    _emailNotifications = prefs.getBool('emailNotifications') ?? false;
+    _inAppNotifications = prefs.getBool('inAppNotifications') ?? true;
+    _smsNotifications = prefs.getBool('smsNotifications') ?? false;
+    _notificationSoundEnabled =
+        prefs.getBool('notificationSoundEnabled') ?? true;
+    _notificationVibrationEnabled =
+        prefs.getBool('notificationVibrationEnabled') ?? true;
     _role = prefs.getString('role') ?? '';
 
     // Load theme mode
@@ -129,6 +137,60 @@ class FFAppState extends ChangeNotifier {
     _biometricsEnabled = value;
     SharedPreferences.getInstance().then(
       (prefs) => prefs.setBool('biometricsEnabled', value),
+    );
+  }
+
+  bool _notificationSoundEnabled = true;
+  bool get notificationSoundEnabled => _notificationSoundEnabled;
+  set notificationSoundEnabled(bool value) {
+    _notificationSoundEnabled = value;
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setBool('notificationSoundEnabled', value),
+    );
+  }
+
+  bool _notificationVibrationEnabled = true;
+  bool get notificationVibrationEnabled => _notificationVibrationEnabled;
+  set notificationVibrationEnabled(bool value) {
+    _notificationVibrationEnabled = value;
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setBool('notificationVibrationEnabled', value),
+    );
+  }
+
+  bool _pushNotifications = true;
+  bool get pushNotifications => _pushNotifications;
+  set pushNotifications(bool value) {
+    _pushNotifications = value;
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setBool('pushNotifications', value),
+    );
+  }
+
+  bool _emailNotifications = false;
+  bool get emailNotifications => _emailNotifications;
+  set emailNotifications(bool value) {
+    _emailNotifications = value;
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setBool('emailNotifications', value),
+    );
+  }
+
+  bool _inAppNotifications = true;
+  bool get inAppNotifications => _inAppNotifications;
+  set inAppNotifications(bool value) {
+    _inAppNotifications = value;
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setBool('inAppNotifications', value),
+    );
+  }
+
+  bool _smsNotifications = false;
+  bool get smsNotifications => _smsNotifications;
+  set smsNotifications(bool value) {
+    _smsNotifications = value;
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setBool('smsNotifications', value),
     );
   }
 
