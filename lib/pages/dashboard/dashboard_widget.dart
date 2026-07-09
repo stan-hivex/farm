@@ -16,7 +16,9 @@ import '/pages/withdrawpage/withdrawpage_widget.dart';
 import '/pages/send_receive/send_receive_widget.dart';
 import '/pages/all_transactions/all_transactions_widget.dart';
 import '/pages/merchant_dashboard/merchant_dashboard_widget.dart';
+import '/services/app_session_manager.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dashboard_model.dart';
@@ -38,19 +40,19 @@ class _DashboardWidgetState extends State<DashboardWidget>
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
-  double walletBalance = 0.0;
-  double kesEquivalent = 0.0;
   bool isBalanceLoading = true;
-  int unreadNotificationCount = 0;
   final Set<String> _previousNotificationIds = <String>{};
   bool _hasLoadedNotificationsBefore = false;
 
-  double get projectedWalletBalance => walletBalance * 1.125;
-
-  String? profileImageUrl;
-
-  List transactions = [];
   bool isTransactionsLoading = true;
+
+  double get projectedWalletBalance => context.watch<FFAppState>().walletBalance * 1.125;
+
+  List<Map<String, dynamic>> get transactions => context.watch<FFAppState>().recentTransactions;
+  int get unreadNotificationCount => context.watch<FFAppState>().unreadNotificationCount;
+  String? get profileImageUrl => context.watch<FFAppState>().profileImageUrl.isNotEmpty ? context.watch<FFAppState>().profileImageUrl : null;
+  double get walletBalance => context.watch<FFAppState>().walletBalance;
+  double get kesEquivalent => context.watch<FFAppState>().kesEquivalent;
 
   List<double> growthYValues = [];
   List<String> growthXLabels = [];
@@ -64,10 +66,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
 
     _model = createModel(context, () => DashboardModel());
 
-    fetchWalletBalance();
-    fetchUserProfile();
-    fetchNotificationsCount();
-    fetchTransactions();
+    _refreshDashboard();
     fetchGrowthHistory();
   }
 
@@ -123,65 +122,47 @@ class _DashboardWidgetState extends State<DashboardWidget>
 
   Future<void> fetchWalletBalance() async {
     try {
-      final response = await http.get(
-        Uri.parse('${AppConfig.api}/wallet'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${FFAppState().accessToken}',
-        },
-      );
+      final response = await ApiService.getWallet();
+      final walletData = response['data'] is Map<String, dynamic>
+          ? response['data'] as Map<String, dynamic>
+          : <String, dynamic>{};
 
-      print('BALANCE STATUS: ${response.statusCode}');
-      print('BALANCE BODY: ${response.body}');
+      final walletBalanceValue =
+          double.tryParse(walletData['balance']?.toString() ?? '') ??
+              FFAppState().walletBalance;
+      final kesEquivalentValue =
+          double.tryParse(walletData['kes_equivalent']?.toString() ?? '') ??
+              FFAppState().kesEquivalent;
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        setState(() {
-          walletBalance =
-              double.tryParse(data['data']['balance'].toString()) ?? 0.0;
-
-          kesEquivalent =
-              double.tryParse(data['data']['kes_equivalent'].toString()) ?? 0.0;
-
-          isBalanceLoading = false;
-        });
-      } else {
+      FFAppState().walletBalance = walletBalanceValue;
+      FFAppState().kesEquivalent = kesEquivalentValue;
+    } catch (e) {
+      print('BALANCE ERROR: $e');
+    } finally {
+      if (mounted) {
         setState(() {
           isBalanceLoading = false;
         });
       }
-    } catch (e) {
-      print('BALANCE ERROR: $e');
-
-      setState(() {
-        isBalanceLoading = false;
-      });
     }
   }
 
   Future<void> fetchUserProfile() async {
     try {
-      final response = await http.get(
-        Uri.parse('${AppConfig.api}/users/me'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${FFAppState().accessToken}',
-        },
-      );
+      final response = await ApiService.getProfile();
+      final profileData = response['data'] is Map<String, dynamic>
+          ? response['data'] as Map<String, dynamic>
+          : <String, dynamic>{};
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final kycStatus =
-            data['data']?['kyc_status'] ?? data['data']?['kycStatus'];
-
-        if (kycStatus is String) {
-          FFAppState().kycStatus = kycStatus;
-        }
-
-        setState(() {
-          profileImageUrl = data['data']['profile_image'];
-        });
+      if (profileData.isNotEmpty) {
+        FFAppState().userId = profileData['id']?.toString() ?? FFAppState().userId;
+        FFAppState().firstName = profileData['first_name']?.toString() ?? FFAppState().firstName;
+        FFAppState().userName = profileData['username']?.toString() ?? FFAppState().userName;
+        FFAppState().phone = profileData['phone']?.toString() ?? FFAppState().phone;
+        FFAppState().kycStatus = profileData['kyc_status']?.toString() ?? FFAppState().kycStatus;
+        FFAppState().emailVerified = profileData['email_verified'] == true;
+        FFAppState().role = profileData['role']?.toString() ?? FFAppState().role;
+        FFAppState().profileImageUrl = profileData['profile_image']?.toString() ?? FFAppState().profileImageUrl;
       }
     } catch (e) {
       print('PROFILE ERROR: $e');
@@ -190,48 +171,53 @@ class _DashboardWidgetState extends State<DashboardWidget>
 
   Future<void> fetchTransactions() async {
     try {
-      final response = await http.get(
-        Uri.parse(
-          '${AppConfig.api}/transactions?page=1&limit=5',
-        ),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${FFAppState().accessToken}',
-        },
-      );
+      final response = await ApiService.getTransactions(page: 1, limit: 5);
+      final transactionsData = response['data'];
+      final items = transactionsData is List
+          ? transactionsData
+              .whereType<Map<String, dynamic>>()
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList()
+          : <Map<String, dynamic>>[];
 
-      print('TRANSACTIONS STATUS: ${response.statusCode}');
-      print('TRANSACTIONS BODY: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        setState(() {
-          transactions = data['data'];
-          isTransactionsLoading = false;
-        });
-      } else {
+      FFAppState().recentTransactions = items;
+    } catch (e) {
+      print('TRANSACTIONS ERROR: $e');
+    } finally {
+      if (mounted) {
         setState(() {
           isTransactionsLoading = false;
         });
       }
-    } catch (e) {
-      print('TRANSACTIONS ERROR: $e');
-
-      setState(() {
-        isTransactionsLoading = false;
-      });
     }
   }
 
   Future<void> _refreshDashboard() async {
-    await Future.wait([
-      fetchWalletBalance(),
-      fetchUserProfile(),
-      fetchNotificationsCount(),
-      fetchTransactions(),
-      fetchGrowthHistory(),
-    ]);
+    if (!mounted) {
+      return;
+    }
+
+    debugPrint('[Dashboard] Starting coordinated refresh.');
+    setState(() {
+      isBalanceLoading = true;
+      isTransactionsLoading = true;
+    });
+
+    try {
+      // Use a synchronous sync to ensure wallet/profile/transactions are loaded
+      await AppSessionManager().syncNow();
+      debugPrint('[Dashboard] syncNow completed. walletBalance=${FFAppState().walletBalance}, transactions=${FFAppState().recentTransactions.length}');
+      await fetchGrowthHistory();
+    } catch (e) {
+      debugPrint('Dashboard coordinated refresh failed: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          isBalanceLoading = false;
+          isTransactionsLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> fetchNotificationsCount() async {
@@ -267,9 +253,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
         return !read;
       }).length;
 
-      setState(() {
-        unreadNotificationCount = unreadCount;
-      });
+      FFAppState().unreadNotificationCount = unreadCount;
 
       if (hasNewNotifications) {
         NotificationFeedbackService.trigger();
@@ -325,55 +309,48 @@ class _DashboardWidgetState extends State<DashboardWidget>
   }
 
   Future<void> fetchGrowthHistory() async {
+    Future<Map<String, dynamic>> _call() async {
+      debugPrint('[Dashboard] Fetching growth history from ${AppConfig.api}/analytics/growth-history?days=7');
+      return ApiService.getGrowthHistory(days: 7, timeoutSeconds: 6);
+    }
+
     try {
-      final response = await http.get(
-        Uri.parse(
-          '${AppConfig.api}/analytics/growth-history?days=7',
-        ),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${FFAppState().accessToken}',
-        },
-      );
+      final body = await _call();
+      debugPrint('[Dashboard] Growth fetch success. keys=${body.keys.join(', ')}');
 
-      print('GROWTH STATUS: ${response.statusCode}');
-      print('GROWTH BODY: ${response.body}');
+      final List history = body['data'] is List ? body['data'] as List : <dynamic>[];
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+      setState(() {
+        growthYValues = history
+            .map<double>(
+              (e) => (double.parse(
+                        e['total'].toString(),
+                      ) *
+                      1.125)
+                  .clamp(0.0, double.infinity),
+            )
+            .toList();
 
-        final List history = data['data'];
+        growthXLabels = history
+            .map<String>(
+              (e) => e['date'].toString().substring(5),
+            )
+            .toList();
 
-        setState(() {
-          growthYValues = history
-              .map<double>(
-                (e) => (double.parse(
-                          e['total'].toString(),
-                        ) *
-                        1.125)
-                    .clamp(0.0, double.infinity),
-              )
-              .toList();
+        isGrowthLoading = false;
+      });
+    } catch (e) {
+      debugPrint('[Dashboard] Growth fetch failed: $e');
+      final msg = e.toString().toLowerCase();
+      if (msg.contains('token has been revoked') || msg.contains('401') || msg.contains('unauthorized')) {
+        debugPrint('[Dashboard] Growth fetch failed on auth. ApiService retry behavior should already have been applied.');
+      }
 
-          growthXLabels = history
-              .map<String>(
-                (e) => e['date'].toString().substring(5),
-              )
-              .toList();
-
-          isGrowthLoading = false;
-        });
-      } else {
+      if (mounted) {
         setState(() {
           isGrowthLoading = false;
         });
       }
-    } catch (e) {
-      print('GROWTH ERROR: $e');
-
-      setState(() {
-        isGrowthLoading = false;
-      });
     }
   }
 

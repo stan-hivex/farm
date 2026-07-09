@@ -6,7 +6,9 @@ import '/core/config/env.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/backend/services/api_service.dart';
 import '/backend/services/turnstile_payload.dart';
+import '/services/auth/refresh_manager.dart';
 import '/services/secure_storage_service.dart';
+import '/services/app_session_manager.dart';
 
 /// Centralized authentication service for the FARM app.
 ///
@@ -126,6 +128,13 @@ class AuthService {
           FFAppState().role = backendUser['role']?.toString() ?? 'user';
         }
 
+        debugPrint('[AuthService] Login completed, starting background syncNow.');
+        Future.microtask(() {
+          return AppSessionManager().syncNow().catchError((e) {
+            debugPrint('[AuthService] syncNow background refresh failed: $e');
+          });
+        });
+
         return {
           'success': true,
           'farmJwt': farmJwt,
@@ -178,6 +187,13 @@ class AuthService {
           FFAppState().emailVerified = backendUser['email_verified'] == true;
           FFAppState().role = backendUser['role']?.toString() ?? 'user';
         }
+
+        debugPrint('[AuthService] Supabase login completed, starting background syncNow.');
+        Future.microtask(() {
+          return AppSessionManager().syncNow().catchError((e) {
+            debugPrint('[AuthService] syncNow background refresh failed: $e');
+          });
+        });
 
         return {
           'success': true,
@@ -335,66 +351,12 @@ class AuthService {
   ///
   /// This is called when the access token is about to expire.
   /// Returns the new FARM JWT if successful.
-  Future<String?> refreshSession() async {
+  Future<String?> refreshSession({bool force = false}) async {
     try {
-      final backendRefreshToken = FFAppState().refreshToken.trim();
-      if (backendRefreshToken.isNotEmpty) {
-        final response =
-            await ApiService.refreshToken(refreshToken: backendRefreshToken);
-        final payload = response['data'] is Map<String, dynamic>
-            ? response['data'] as Map<String, dynamic>
-            : response;
-        final newFarmJwt = payload['access_token'] as String? ?? '';
-        final newRefreshToken = payload['refresh_token'] as String? ?? '';
-
-        if (newFarmJwt.isEmpty) {
-          throw Exception('Backend refresh did not return an access token');
-        }
-
-        FFAppState().accessToken = newFarmJwt;
-        FFAppState().isLoggedIn = newFarmJwt.isNotEmpty;
-        if (newRefreshToken.isNotEmpty) {
-          FFAppState().refreshToken = newRefreshToken;
-          await SecureStorageService.writeRefreshToken(newRefreshToken);
-        }
-
-        try {
-          if (_supabase.auth.currentSession != null) {
-            await _supabase.auth.refreshSession();
-          }
-        } catch (e) {
-          debugPrint('Supabase refresh best-effort failed: $e');
-        }
-
-        return newFarmJwt;
-      }
-
-      final currentSession = _supabase.auth.currentSession;
-      if (currentSession == null) {
-        throw Exception('No active session to refresh');
-      }
-
-      final response = await _supabase.auth.refreshSession();
-      if (response.session == null) {
-        throw Exception('Session refresh failed');
-      }
-
-      final newSupabaseToken = response.session!.accessToken;
-      final backendData = await exchangeSupabaseToken(newSupabaseToken);
-      final newFarmJwt = backendData['access_token'] as String? ?? '';
-      final refreshToken = backendData['refresh_token'] as String? ?? '';
-
-      if (newFarmJwt.isNotEmpty) {
-        FFAppState().accessToken = newFarmJwt;
-      }
-      FFAppState().isLoggedIn = newFarmJwt.isNotEmpty;
-      if (refreshToken.isNotEmpty) {
-        FFAppState().refreshToken = refreshToken;
-      }
-
-      return newFarmJwt;
+      final refreshed = await RefreshManager().refreshIfNeeded(force: force);
+      return refreshed ? FFAppState().accessToken : null;
     } catch (e) {
-      await FFAppState().clearAuthCredentials();
+      debugPrint('Session refresh failed: $e');
       throw Exception('Session refresh failed: $e');
     }
   }

@@ -5,6 +5,31 @@ import 'package:http/http.dart' as http;
 class UserApiService {
   static String get baseUrl => '${AppConfig.api}/users';
 
+  static String getSuggestionValue(Map<String, dynamic> user) {
+    final username = (user['username'] ?? '').toString().trim();
+    if (username.isNotEmpty) {
+      return username;
+    }
+
+    final phone = (user['phone'] ?? '').toString().trim();
+    return phone;
+  }
+
+  static String getSuggestionLabel(Map<String, dynamic> user) {
+    final username = (user['username'] ?? '').toString().trim();
+    final phone = (user['phone'] ?? '').toString().trim();
+
+    if (username.isNotEmpty && phone.isNotEmpty) {
+      return '@$username • $phone';
+    }
+
+    if (username.isNotEmpty) {
+      return '@$username';
+    }
+
+    return phone;
+  }
+
   static Future<List<dynamic>> searchUsers({
     required String token,
     required String query,

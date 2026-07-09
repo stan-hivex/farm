@@ -8,7 +8,10 @@ class Env {
   static final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? '';
 
   static final apiBaseUrl =
-      dotenv.env['API_URL'] ?? 'https://farm-backend-9b8u.onrender.com';
+      dotenv.env['API_URL'] ??
+      (const String.fromEnvironment('API_URL', defaultValue: '').isNotEmpty
+          ? const String.fromEnvironment('API_URL')
+          : 'http://127.0.0.1:3000');
 
   static final frontendUrl =
       dotenv.env['FRONTEND_URL'] ?? 'http://localhost:4200';

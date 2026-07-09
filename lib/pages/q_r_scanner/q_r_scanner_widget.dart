@@ -8,6 +8,7 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/core/theme_extensions.dart';
 import '/backend/api_requests/wallet_api_service.dart';
+import '/backend/api_requests/user_api_service.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -185,18 +186,78 @@ void scanByUsername() {
     builder: (_) {
       return AlertDialog(
         title: Text("Scan by Username / Phone"),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            hintText: "@username or phone number",
-          ),
-          keyboardType: TextInputType.text,
-          textInputAction: TextInputAction.done,
-          onSubmitted: (_) async {
-            final input = controller.text.trim();
-            if (input.isEmpty) return;
-            Navigator.pop(context);
-            await validateQr(input);
+        content: StatefulBuilder(
+          builder: (context, setState) {
+            List<dynamic> suggestionUsers = [];
+
+            Future<void> searchUsers(String value) async {
+              if (value.trim().length < 2) {
+                setState(() => suggestionUsers = []);
+                return;
+              }
+
+              try {
+                final users = await UserApiService.searchUsers(
+                  token: FFAppState().accessToken,
+                  query: value.trim(),
+                );
+                if (!mounted) return;
+                setState(() => suggestionUsers = users);
+              } catch (_) {
+                if (!mounted) return;
+                setState(() => suggestionUsers = []);
+              }
+            }
+
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: controller,
+                  decoration: const InputDecoration(
+                    hintText: "@username or phone number",
+                  ),
+                  keyboardType: TextInputType.text,
+                  textInputAction: TextInputAction.done,
+                  onChanged: (value) async {
+                    await searchUsers(value);
+                  },
+                  onSubmitted: (_) async {
+                    final input = controller.text.trim();
+                    if (input.isEmpty) return;
+                    Navigator.pop(context);
+                    await validateQr(input);
+                  },
+                ),
+                if (suggestionUsers.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    constraints: const BoxConstraints(maxHeight: 180),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Theme.of(context).dividerColor),
+                    ),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: suggestionUsers.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final user = suggestionUsers[index] as Map<String, dynamic>;
+                        return ListTile(
+                          dense: true,
+                          title: Text(UserApiService.getSuggestionLabel(user)),
+                          subtitle: const Text('Tap to use this user'),
+                          onTap: () {
+                            controller.text = UserApiService.getSuggestionValue(user);
+                            setState(() => suggestionUsers = []);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            );
           },
         ),
         actions: [

@@ -4,6 +4,7 @@ import '/backend/services/turnstile_payload.dart';
 import 'package:http/http.dart' as http;
 import '/core/app_config.dart';
 import '/app_state.dart';
+import '/services/auth/refresh_manager.dart';
 
 class ApiService {
   static http.Client _client = http.Client();
@@ -24,12 +25,15 @@ class ApiService {
       );
 
   // Central method — all requests go through here
+  static final Map<String, Map<String, dynamic>> _cache = {};
+
   static Future<Map<String, dynamic>> _request({
     required String method,
     required String path,
     Map<String, dynamic>? body,
     bool requiresAuth = true,
     bool isRetry = false,
+    int timeoutSeconds = 5,
   }) async {
     final uri = Uri.parse('${AppConfig.api}$path');
     final token = FFAppState().accessToken;
@@ -40,43 +44,74 @@ class ApiService {
       if (requiresAuth && token.isNotEmpty) 'Authorization': 'Bearer $token',
     };
 
-    late http.Response response;
+    http.Response response;
+    final start = DateTime.now();
+    debugPrint('[ApiService] START $method $path @ $start');
 
-    switch (method.toUpperCase()) {
-      case 'GET':
-        response = await _client.get(uri, headers: headers);
-        break;
-      case 'POST':
-        response = await _client.post(uri,
-            headers: headers, body: body != null ? jsonEncode(body) : null);
-        break;
-      case 'PUT':
-        response = await _client.put(uri,
-            headers: headers, body: body != null ? jsonEncode(body) : null);
-        break;
-      case 'PATCH':
-        response = await _client.patch(uri,
-            headers: headers, body: body != null ? jsonEncode(body) : null);
-        break;
-      case 'DELETE':
-        response = await _client.delete(uri, headers: headers);
-        break;
-      default:
-        throw Exception('Unknown HTTP method: $method');
+    try {
+      switch (method.toUpperCase()) {
+        case 'GET':
+          response = await _client.get(uri, headers: headers).timeout(
+                Duration(seconds: timeoutSeconds),
+              );
+          break;
+        case 'POST':
+          response = await _client
+              .post(uri,
+                  headers: headers,
+                  body: body != null ? jsonEncode(body) : null)
+              .timeout(Duration(seconds: timeoutSeconds));
+          break;
+        case 'PUT':
+          response = await _client
+              .put(uri,
+                  headers: headers,
+                  body: body != null ? jsonEncode(body) : null)
+              .timeout(Duration(seconds: timeoutSeconds));
+          break;
+        case 'PATCH':
+          response = await _client
+              .patch(uri,
+                  headers: headers,
+                  body: body != null ? jsonEncode(body) : null)
+              .timeout(Duration(seconds: timeoutSeconds));
+          break;
+        case 'DELETE':
+          response = await _client
+              .delete(uri, headers: headers)
+              .timeout(Duration(seconds: timeoutSeconds));
+          break;
+        default:
+          throw Exception('Unknown HTTP method: $method');
+      }
+    } catch (e) {
+      final duration = DateTime.now().difference(start);
+      debugPrint(
+          '[ApiService] ERROR $method $path after ${duration.inMilliseconds}ms -> $e');
+      rethrow;
+    }
+
+    final duration = DateTime.now().difference(start);
+    debugPrint(
+        '[ApiService] END $method $path status=${response.statusCode} duration=${duration.inMilliseconds}ms');
+    if (duration.inMilliseconds > 1000) {
+      debugPrint('[ApiService] SLOW_ENDPOINT $method $path took ${duration.inMilliseconds}ms');
     }
 
     if ((response.statusCode == 401 || response.statusCode == 403) &&
         requiresAuth &&
         !isRetry &&
         FFAppState().refreshToken.isNotEmpty) {
-      final refreshed = await _refreshAccessToken();
+      final refreshed = await RefreshManager().refreshIfNeeded(force: true);
       if (refreshed) {
+        await Future.delayed(const Duration(milliseconds: 250));
         return _request(
           method: method,
           path: path,
           body: body,
           requiresAuth: requiresAuth,
           isRetry: true,
+          timeoutSeconds: timeoutSeconds,
         );
       }
     }
@@ -93,6 +128,10 @@ class ApiService {
     }
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
+      // store in simple in-memory cache keyed by path
+      try {
+        _cache[path] = decoded;
+      } catch (_) {}
       return decoded;
     }
 
@@ -104,47 +143,6 @@ class ApiService {
         : 'Request failed (${response.statusCode})');
   }
 
-  static Future<bool> _refreshAccessToken() async {
-    final refreshToken = FFAppState().refreshToken.trim();
-    if (refreshToken.isEmpty) {
-      return false;
-    }
-
-    try {
-      final response = await _client.post(
-        Uri.parse('${AppConfig.api}/auth/refresh'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode({'refresh_token': refreshToken}),
-      );
-
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        final body = response.body.isNotEmpty
-            ? jsonDecode(response.body) as Map<String, dynamic>
-            : <String, dynamic>{};
-        final payload = body['data'] is Map<String, dynamic>
-            ? body['data'] as Map<String, dynamic>
-            : body;
-        final newAccessToken = payload['access_token'] as String? ?? '';
-        final newRefreshToken = payload['refresh_token'] as String? ?? '';
-
-        if (newAccessToken.isNotEmpty) {
-          FFAppState().accessToken = newAccessToken;
-          if (newRefreshToken.isNotEmpty) {
-            FFAppState().refreshToken = newRefreshToken;
-          }
-          return true;
-        }
-      }
-    } catch (e) {
-      debugPrint('Session refresh failed: $e');
-    }
-
-    await FFAppState().clearAuthCredentials();
-    return false;
-  }
 
   // ── Auth ──────────────────────────────────────────────────────────────────
   static Future<Map<String, dynamic>> login({
@@ -335,8 +333,11 @@ class ApiService {
       _request(method: 'DELETE', path: '/auth/delete-account');
 
   // ── Wallet ────────────────────────────────────────────────────────────────
-  static Future<Map<String, dynamic>> getWallet() =>
-      _request(method: 'GET', path: '/wallet');
+    static Future<Map<String, dynamic>> getWallet({int timeoutSeconds = 5}) =>
+      _request(method: 'GET', path: '/wallet', timeoutSeconds: timeoutSeconds);
+
+    /// Return last cached response for a given path, if any.
+    static Map<String, dynamic>? getCached(String path) => _cache[path];
 
   static Future<Map<String, dynamic>> sendFunds({
     required String recipientIdentifier,
@@ -360,19 +361,23 @@ class ApiService {
     String? status,
     int page = 1,
     int limit = 20,
+    int timeoutSeconds = 5,
   }) =>
       _request(
         method: 'GET',
         path: '/wallet/transactions?page=$page&limit=$limit'
             '${type != null ? "&type=$type" : ""}'
             '${status != null ? "&status=$status" : ""}',
+        timeoutSeconds: timeoutSeconds,
       );
   static Future<Map<String, dynamic>> getGrowthHistory({
     required int days,
+    int timeoutSeconds = 5,
   }) =>
       _request(
         method: 'GET',
         path: '/analytics/growth-history?days=$days',
+        timeoutSeconds: timeoutSeconds,
       );
   // ── Deposit ───────────────────────────────────────────────────────────────
   static Future<Map<String, dynamic>> initiateDeposit({
@@ -560,8 +565,8 @@ class ApiService {
       _request(method: 'GET', path: '/kyc/my');
 
   // ── Profile ───────────────────────────────────────────────────────────────
-  static Future<Map<String, dynamic>> getProfile() =>
-      _request(method: 'GET', path: '/users/me');
+    static Future<Map<String, dynamic>> getProfile({int timeoutSeconds = 5}) =>
+      _request(method: 'GET', path: '/users/me', timeoutSeconds: timeoutSeconds);
 
   static Future<Map<String, dynamic>> updateProfile({
     String? firstName,
@@ -619,8 +624,8 @@ class ApiService {
         },
       );
 
-  static Future<Map<String, dynamic>> getNotifications() =>
-      _request(method: 'GET', path: '/users/notifications');
+    static Future<Map<String, dynamic>> getNotifications({int timeoutSeconds = 5}) =>
+      _request(method: 'GET', path: '/users/notifications', timeoutSeconds: timeoutSeconds);
 
   static Future<Map<String, dynamic>> markNotificationRead({
     required String notificationId,

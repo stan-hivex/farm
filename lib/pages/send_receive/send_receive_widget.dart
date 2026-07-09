@@ -93,12 +93,14 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
         token: token,
       );
 
+      final walletData = Map<String, dynamic>.from(wallet);
+
       setState(() {
-        balance = double.parse(
-          wallet['available_balance'].toString(),
+        balance = _parseNumericValue(
+          walletData['available_balance'] ?? walletData['balance'] ?? walletData['wallet_balance'],
         );
 
-        transactions = txs;
+        transactions = List<dynamic>.from(txs);
 
         isLoading = false;
       });
@@ -145,6 +147,31 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
           amountController.text,
         ) ??
         0;
+  }
+
+  double _parseAmount(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is num) return value.toDouble();
+    final raw = value.toString().trim();
+    if (raw.isEmpty) return 0.0;
+    return double.tryParse(raw.replaceAll(',', '.')) ?? 0.0;
+  }
+
+  double _parseNumericValue(dynamic value, {double fallback = 0.0}) {
+    if (value == null) return fallback;
+    if (value is num) return value.toDouble();
+    if (value is String) {
+      final normalized = value.trim();
+      if (normalized.isEmpty) return fallback;
+      return double.tryParse(normalized.replaceAll(',', '.')) ?? fallback;
+    }
+    return fallback;
+  }
+
+  String _parseStringValue(dynamic value, {String fallback = ''}) {
+    if (value == null) return fallback;
+    final text = value.toString().trim();
+    return text.isEmpty ? fallback : text;
   }
 
   Future<void> sendFunds() async {
@@ -559,6 +586,8 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
   ) {
     final theme = FlutterFlowTheme.of(context);
     final outgoing = tx['is_outgoing'] == true;
+    final amount = _parseNumericValue(tx['amount']);
+    final reference = _parseStringValue(tx['transaction_reference'], fallback: 'Transaction');
 
     return Container(
       margin: const EdgeInsets.only(
@@ -597,7 +626,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  tx['transaction_reference'],
+                  reference,
                   style: TextStyle(
                     color: FlutterFlowTheme.of(context).secondaryText,
                   ),
@@ -606,7 +635,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
             ),
           ),
           Text(
-            '${tx['amount']} FARM',
+            '${amount.toStringAsFixed(2)} FARM',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               color: outgoing ? Colors.red : Colors.green,
@@ -625,7 +654,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
         : 'Requester';
     final requesterUsername =
         requester != null ? requester['username'] : 'unknown';
-    final amount = req['amount'] as num;
+    final amount = _parseAmount(req['amount']);
 
     return GestureDetector(
       onTap: () => _showRequestDetailSheet(req, incoming: true),
@@ -735,7 +764,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
         : 'Recipient';
     final recipientUsername =
         recipient != null ? recipient['username'] : 'unknown';
-    final amount = req['amount'] as num;
+    final amount = _parseAmount(req['amount']);
     final status = (req['status'] ?? 'pending').toString().toUpperCase();
     final isPending = (req['status'] ?? 'pending').toString() == 'pending';
 
@@ -856,7 +885,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
         ? '${person['first_name']} ${person['last_name']}'
         : (incoming ? 'Requester' : 'Recipient');
     final personUsername = person != null ? person['username'] : 'unknown';
-    final amount = (req['amount'] as num?)?.toDouble() ?? 0.0;
+    final amount = _parseAmount(req['amount']);
     final status = (req['status'] ?? 'pending').toString();
     final description = req['description']?.toString() ?? '';
     final expiresAt = _formatRequestDate(req['expires_at']);
@@ -1064,17 +1093,16 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
   Widget buildSuggestionCard(
     dynamic user,
   ) {
+    final username = _parseStringValue(user['username'], fallback: 'user');
+    final initial = username.isNotEmpty ? username[0].toUpperCase() : '?';
+
     return ListTile(
       leading: CircleAvatar(
-        child: Text(
-          user['username'][0].toUpperCase(),
-        ),
+        child: Text(initial),
       ),
-      title: Text(
-        '@${user['username']}',
-      ),
+      title: Text('@$username'),
       onTap: () {
-        recipientController.text = user['username'];
+        recipientController.text = username;
 
         setState(() {
           userSuggestions = [];

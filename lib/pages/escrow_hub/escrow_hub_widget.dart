@@ -6,6 +6,7 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/core/theme_extensions.dart';
 import '/backend/api_requests/wallet_api_service.dart';
+import '/backend/api_requests/user_api_service.dart';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -41,6 +42,20 @@ void initState() {
     fetchEscrows();
   });
 }
+
+  Future<void> searchUsers(String value, TextEditingController controller) async {
+    if (value.trim().isEmpty) {
+      return;
+    }
+
+    try {
+      final token = context.read<FFAppState>().accessToken;
+      await UserApiService.searchUsers(token: token, query: value.trim());
+      if (!mounted) return;
+    } catch (_) {
+      if (!mounted) return;
+    }
+  }
 
   Future<void> fetchEscrows() async {
   if (!mounted) return;
@@ -267,6 +282,27 @@ void initState() {
             double amount = 0;
             double fee = 0;
             double totalRequired = 0;
+            List<dynamic> suggestionUsers = [];
+
+            Future<void> searchUsers(String value) async {
+              if (value.trim().length < 2) {
+                setState(() => suggestionUsers = []);
+                return;
+              }
+
+              try {
+                final token = context.read<FFAppState>().accessToken;
+                final users = await UserApiService.searchUsers(
+                  token: token,
+                  query: value.trim(),
+                );
+                if (!mounted) return;
+                setState(() => suggestionUsers = users);
+              } catch (_) {
+                if (!mounted) return;
+                setState(() => suggestionUsers = []);
+              }
+            }
 
             // Update values if amount is valid
             try {
@@ -287,7 +323,37 @@ void initState() {
                       decoration: const InputDecoration(
                         labelText: 'Seller Username / Phone',
                       ),
+                      onChanged: (value) {
+                        searchUsers(value);
+                      },
                     ),
+                    if (suggestionUsers.isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.only(top: 8),
+                        constraints: const BoxConstraints(maxHeight: 200),
+                        decoration: BoxDecoration(
+                          color: context.surface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: context.borderColor),
+                        ),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: suggestionUsers.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final user = suggestionUsers[index] as Map<String, dynamic>;
+                            return ListTile(
+                              dense: true,
+                              title: Text(UserApiService.getSuggestionLabel(user)),
+                              subtitle: Text('Tap to use this user'),
+                              onTap: () {
+                                sellerController.text = UserApiService.getSuggestionValue(user);
+                                setState(() => suggestionUsers = []);
+                              },
+                            );
+                          },
+                        ),
+                      ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: amountController,

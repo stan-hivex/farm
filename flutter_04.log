@@ -1,0 +1,84 @@
+Flutter crash report.
+Please report a bug at https://github.com/flutter/flutter/issues.
+
+## command
+
+flutter analyze lib/main.dart lib/pages/send_receive/send_receive_widget.dart
+
+## exception
+
+_Exception: Exception: analysis server exited with code -1073740791 and output:
+[stdout] {"event":"server.connected","params":{"version":"1.40.1","pid":19532}}
+[stdout] {"id":"1"}
+[stdout] {"event":"server.status","params":{"analysis":{"isAnalyzing":true}}}
+[stdout] {"event":"analysis.errors","params":{"file":"c:\\farm\\lib\\main.dart","errors":[]}}
+[stdout] {"id":"2"}
+[stderr] ../../runtime/vm/zone.cc: 96: error: Out of memory.
+[stderr] version=3.11.5 (stable) (Wed Apr 15 00:36:32 2026 -0700) on "windows_x64"
+[stderr] pid=19532, thread=3960, isolate_group=main(00000196C0D87130), isolate=(nil)(0000000000000000)
+[stderr] os=windows, arch=x64, comp=no, sim=no
+[stderr] isolate_instructions=196c44e0000, vm_instructions=7ff684038400
+[stderr] fp=835e3fd920, sp=835e3fd8d8, pc=7ff68431cca3
+[stderr]   pc 0x00007ff68431cca3 fp 0x000000835e3fd920 Dart_DetectNullSafety+0x2dc1c3
+[stderr] -- End of DumpStackTrace
+[stderr] ../../runtime/vm/zone.cc: 96: error: Out of memory.
+[stderr] Aborting reentrant request for stack trace.
+
+```
+```
+
+## flutter doctor
+
+```
+[32m[✓][39m Flutter (Channel stable, 3.41.9, on Microsoft Windows [Version
+    10.0.22000.2538], locale en-US) [1,766ms]
+    [32m•[39m Flutter version 3.41.9 on channel stable at C:\flutter
+    [32m•[39m Upstream repository https://github.com/flutter/flutter.git
+    [32m•[39m Framework revision 00b0c91f06 (2 months ago), 2026-04-29 10:03:19 -0700
+    [32m•[39m Engine revision 42d3d75a56
+    [32m•[39m Dart version 3.11.5
+    [32m•[39m DevTools version 2.54.2
+    [32m•[39m Feature flags: enable-web, enable-linux-desktop, enable-macos-desktop,
+      enable-windows-desktop, enable-android, enable-ios, cli-animations,
+      enable-native-assets, omit-legacy-version-file, enable-lldb-debugging,
+      enable-uiscene-migration
+
+[32m[✓][39m Windows Version (11 Pro 64-bit, 21H2, 2009) [17.7s]
+
+[33m[!][39m Android toolchain - develop for Android devices (Android SDK version 36.1.0)
+    [2.7s]
+    [32m•[39m Android SDK at C:\Users\u\AppData\Local\Android\sdk
+    [32m•[39m Emulator version 36.6.11.0 (build_id 15507667) (CL:N/A)
+    [31m✗[39m cmdline-tools component is missing.
+      Try installing or updating Android Studio.
+      Alternatively, download the tools from
+      https://developer.android.com/studio#command-line-tools-only and make sure
+      to set the ANDROID_HOME environment variable.
+      See https://developer.android.com/studio/command-line for more details.
+    [31m✗[39m Android license status unknown.
+      Run `flutter doctor --android-licenses` to accept the SDK licenses.
+      See https://flutter.dev/to/windows-android-setup for more details.
+
+[32m[✓][39m Chrome - develop for the web [953ms]
+    [32m•[39m Chrome at C:\Program Files\Google\Chrome\Application\chrome.exe
+
+[32m[✓][39m Visual Studio - develop Windows apps (Visual Studio Build Tools 2026 18.3.2)
+    [950ms]
+    [32m•[39m Visual Studio at C:\Program Files (x86)\Microsoft Visual
+      Studio\18\BuildTools
+    [32m•[39m Visual Studio Build Tools 2026 version 18.3.11520.95
+    [32m•[39m Windows 10 SDK version 10.0.26100.0
+
+[32m[✓][39m Connected device (3 available) [1,379ms]
+    [32m•[39m Windows (desktop) • windows • windows-x64    • Microsoft Windows [Version
+      10.0.22000.2538]
+    [32m•[39m Chrome (web)      • chrome  • web-javascript • Google Chrome
+      149.0.7827.201
+    [32m•[39m Edge (web)        • edge    • web-javascript • Microsoft Edge
+      149.0.4022.80
+
+[32m[✓][39m Network resources [850ms]
+    [32m•[39m All expected network resources are available.
+
+[33m![39m Doctor found issues in 1 category.
+```

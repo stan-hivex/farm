@@ -2258,9 +2258,10 @@ file:///C:/farm/lib/pages/support/email_support_page_widget.dart
 file:///C:/farm/lib/pages/support/faq_page_widget.dart
 file:///C:/farm/lib/pages/support/live_chat_page_widget.dart
 file:///C:/farm/lib/pages/withdrawpage/withdrawpage_widget.dart
+file:///C:/farm/lib/services/app_session_manager.dart
 file:///C:/farm/lib/services/auth/auth_service.dart
 file:///C:/farm/lib/services/auth/biometric_login_service.dart
-file:///C:/farm/lib/services/biometric_gate_service.dart
+file:///C:/farm/lib/services/auth/refresh_manager.dart
 file:///C:/farm/lib/services/device_fingerprint_service.dart
 file:///C:/farm/lib/services/notification_feedback_service.dart
 file:///C:/farm/lib/services/secure_storage_service.dart

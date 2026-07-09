@@ -9,12 +9,12 @@ import 'package:provider/provider.dart';
 import 'flutter_flow/flutter_flow_theme.dart';
 import 'flutter_flow/flutter_flow_util.dart';
 import 'core/app_theme.dart';
-import 'index.dart';
-import 'backend/services/api_service.dart';
-import 'services/device_fingerprint_service.dart';
-import 'backend/api_requests/biometric_api_service.dart';
-import 'services/biometric_gate_service.dart';
-import 'services/secure_storage_service.dart';
+import 'services/app_session_manager.dart';
+
+Widget buildSafeErrorWidget(FlutterErrorDetails details) {
+  debugPrint('Suppressing app error overlay: ${details.exception}');
+  return const SizedBox.shrink();
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,9 +32,19 @@ void main() async {
     FlutterError.dumpErrorToConsole(details);
   };
 
+  ErrorWidget.builder = (FlutterErrorDetails details) => buildSafeErrorWidget(details);
+
   await EasyLocalization.ensureInitialized();
   await FFAppState().initializePersistedState();
   await FlutterFlowTheme.initialize();
+
+  if (FFAppState().isLoggedIn && FFAppState().refreshToken.isNotEmpty) {
+    Future.microtask(() {
+      AppSessionManager().refreshAppData().catchError((e) {
+        debugPrint('[Main] Initial app refresh failed: $e');
+      });
+    });
+  }
 
   if (kIsWeb) {
     setUrlStrategy(HashUrlStrategy());
@@ -88,8 +98,6 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
-  bool _biometricGateOpen = false;
-
   late AppStateNotifier _appStateNotifier;
 
   late GoRouter _router;
@@ -158,18 +166,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }
 
     try {
-      await ApiService.getProfile();
+      await AppSessionManager().refreshAppData();
     } catch (e) {
-      debugPrint('App resume refresh failed: $e');
+      debugPrint('App resume coordinated refresh failed: $e');
     }
-  }
-
-  Future<void> _verifyBiometricDeviceAndGate() async {
-    debugPrint('Biometric gate disabled; login screen remains available.');
-  }
-
-  void _showBiometricGateIfNeeded() {
-    debugPrint('Biometric gate disabled; login screen remains available.');
   }
 
   @override
