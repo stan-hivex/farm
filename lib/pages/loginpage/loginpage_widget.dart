@@ -44,6 +44,68 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
   bool isLoading = false;
   bool _biometricAvailable = false;
   String _biometricButtonLabel = 'Login with Biometric';
+  Map<String, String> _selectedCountry = {
+    'name': 'Algeria',
+    'code': '+213',
+    'flag': '🇩🇿',
+  };
+
+  final List<Map<String, String>> _africanCountries = [
+    {'name': 'Algeria', 'code': '+213', 'flag': '🇩🇿'},
+    {'name': 'Angola', 'code': '+244', 'flag': '🇦🇴'},
+    {'name': 'Benin', 'code': '+229', 'flag': '🇧🇯'},
+    {'name': 'Botswana', 'code': '+267', 'flag': '🇧🇼'},
+    {'name': 'Burkina Faso', 'code': '+226', 'flag': '🇧🇫'},
+    {'name': 'Burundi', 'code': '+257', 'flag': '🇧🇮'},
+    {'name': 'Cabo Verde', 'code': '+238', 'flag': '🇨🇻'},
+    {'name': 'Cameroon', 'code': '+237', 'flag': '🇨🇲'},
+    {'name': 'Central African Republic', 'code': '+236', 'flag': '🇨🇫'},
+    {'name': 'Chad', 'code': '+235', 'flag': '🇹🇩'},
+    {'name': 'Comoros', 'code': '+269', 'flag': '🇰🇲'},
+    {'name': 'Congo', 'code': '+242', 'flag': '🇨🇬'},
+    {'name': 'DR Congo', 'code': '+243', 'flag': '🇨🇩'},
+    {'name': 'Cote d\'Ivoire', 'code': '+225', 'flag': '🇨🇮'},
+    {'name': 'Djibouti', 'code': '+253', 'flag': '🇩🇯'},
+    {'name': 'Egypt', 'code': '+20', 'flag': '🇪🇬'},
+    {'name': 'Equatorial Guinea', 'code': '+240', 'flag': '🇬🇶'},
+    {'name': 'Eritrea', 'code': '+291', 'flag': '🇪🇷'},
+    {'name': 'Eswatini', 'code': '+268', 'flag': '🇸🇿'},
+    {'name': 'Ethiopia', 'code': '+251', 'flag': '🇪🇹'},
+    {'name': 'Gabon', 'code': '+241', 'flag': '🇬🇦'},
+    {'name': 'Gambia', 'code': '+220', 'flag': '🇬🇲'},
+    {'name': 'Ghana', 'code': '+233', 'flag': '🇬🇭'},
+    {'name': 'Guinea', 'code': '+224', 'flag': '🇬🇳'},
+    {'name': 'Guinea-Bissau', 'code': '+245', 'flag': '🇬🇼'},
+    {'name': 'Kenya', 'code': '+254', 'flag': '🇰🇪'},
+    {'name': 'Lesotho', 'code': '+266', 'flag': '🇱🇸'},
+    {'name': 'Liberia', 'code': '+231', 'flag': '🇱🇷'},
+    {'name': 'Libya', 'code': '+218', 'flag': '🇱🇾'},
+    {'name': 'Madagascar', 'code': '+261', 'flag': '🇲🇬'},
+    {'name': 'Malawi', 'code': '+265', 'flag': '🇲🇼'},
+    {'name': 'Mali', 'code': '+223', 'flag': '🇲🇱'},
+    {'name': 'Mauritania', 'code': '+222', 'flag': '🇲🇷'},
+    {'name': 'Mauritius', 'code': '+230', 'flag': '🇲🇺'},
+    {'name': 'Morocco', 'code': '+212', 'flag': '🇲🇦'},
+    {'name': 'Mozambique', 'code': '+258', 'flag': '🇲🇿'},
+    {'name': 'Namibia', 'code': '+264', 'flag': '🇳🇦'},
+    {'name': 'Niger', 'code': '+227', 'flag': '🇳🇪'},
+    {'name': 'Nigeria', 'code': '+234', 'flag': '🇳🇬'},
+    {'name': 'Rwanda', 'code': '+250', 'flag': '🇷🇼'},
+    {'name': 'Sao Tome and Principe', 'code': '+239', 'flag': '🇸🇹'},
+    {'name': 'Senegal', 'code': '+221', 'flag': '🇸🇳'},
+    {'name': 'Seychelles', 'code': '+248', 'flag': '🇸🇨'},
+    {'name': 'Sierra Leone', 'code': '+232', 'flag': '🇸🇱'},
+    {'name': 'Somalia', 'code': '+252', 'flag': '🇸🇴'},
+    {'name': 'South Africa', 'code': '+27', 'flag': '🇿🇦'},
+    {'name': 'South Sudan', 'code': '+211', 'flag': '🇸🇸'},
+    {'name': 'Sudan', 'code': '+249', 'flag': '🇸🇩'},
+    {'name': 'Tanzania', 'code': '+255', 'flag': '🇹🇿'},
+    {'name': 'Togo', 'code': '+228', 'flag': '🇹🇬'},
+    {'name': 'Tunisia', 'code': '+216', 'flag': '🇹🇳'},
+    {'name': 'Uganda', 'code': '+256', 'flag': '🇺🇬'},
+    {'name': 'Zambia', 'code': '+260', 'flag': '🇿🇲'},
+    {'name': 'Zimbabwe', 'code': '+263', 'flag': '🇿🇼'},
+  ];
 
   final String baseUrl = '${AppConfig.api}/auth';
 
@@ -83,7 +145,12 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
 
   /// Login with email or phone/password
   Future<void> handleLogin() async {
-    final identifier = phoneController.text.trim();
+    final raw = phoneController.text.trim();
+    // normalize: keep digits only and remove leading zeros
+    final digitsOnly = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    final normalizedDigits = digitsOnly.replaceFirst(RegExp(r'^0+'), '');
+    final countryCode = _selectedCountry['code']?.replaceAll('+', '') ?? '';
+    final identifier = countryCode.isNotEmpty ? '+$countryCode$normalizedDigits' : '+$normalizedDigits';
     final password = passwordController.text.trim();
 
     if (identifier.isEmpty || password.isEmpty) {
@@ -102,6 +169,7 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
       final response = await AuthService().login(
         identifier: identifier,
         password: password,
+        countryCode: _selectedCountry['code'],
       );
 
       final accessToken = response['farmJwt'] as String? ?? '';
@@ -413,13 +481,13 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    /// Email or Phone Field
+                    /// Phone Field
                     Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Email or Phone',
+                          'Phone',
                           style: FlutterFlowTheme.of(context)
                               .labelLarge
                               .override(
@@ -430,11 +498,75 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                               ),
                         ),
                         const SizedBox(height: 8.0),
-                        TextFormField(
-                          controller: phoneController,
-                          decoration:
-                              inputDecoration(context, 'Enter email or phone'),
-                          keyboardType: TextInputType.emailAddress,
+                        Row(
+                          children: [
+                            GestureDetector(
+                              onTap: () async {
+                                final selected = await showModalBottomSheet<Map<String, String>>( 
+                                  context: context,
+                                  builder: (_) {
+                                    return SizedBox(
+                                      height: 360,
+                                      child: Column(
+                                        children: [
+                                          Padding(
+                                            padding: const EdgeInsets.all(12.0),
+                                            child: Text(
+                                              'Select country',
+                                              style: FlutterFlowTheme.of(context).titleMedium,
+                                            ),
+                                          ),
+                                          Expanded(
+                                            child: ListView.builder(
+                                              itemCount: _africanCountries.length,
+                                              itemBuilder: (ctx, i) {
+                                                final c = _africanCountries[i];
+                                                return ListTile(
+                                                  leading: Text(c['flag'] ?? ''),
+                                                  trailing: Text(c['code'] ?? ''),
+                                                  onTap: () => Navigator.of(ctx).pop(c),
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                );
+
+                                if (selected != null) {
+                                  setState(() {
+                                    _selectedCountry = selected;
+                                  });
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                                decoration: BoxDecoration(
+                                  color: FlutterFlowTheme.of(context).secondaryBackground,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: FlutterFlowTheme.of(context).alternate),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Text(_selectedCountry['flag'] ?? ''),
+                                    const SizedBox(width: 8),
+                                    Text(_selectedCountry['code'] ?? ''),
+                                    const Icon(Icons.arrow_drop_down),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: TextFormField(
+                                controller: phoneController,
+                                decoration: inputDecoration(context, 'Enter phone number (without country code)'),
+                                keyboardType: TextInputType.phone,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

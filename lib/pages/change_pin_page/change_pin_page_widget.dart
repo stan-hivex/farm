@@ -196,8 +196,7 @@ class _ChangePinPageWidgetState
   // ================= DOTS =================
   Widget dots(String value) {
     return Row(
-      mainAxisAlignment:
-          MainAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(
         4,
         (i) => Container(
@@ -206,9 +205,7 @@ class _ChangePinPageWidgetState
           height: 18,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: i < value.length
-                ? context.background
-                : context.borderColor,
+            color: i < value.length ? Colors.white : context.borderColor,
           ),
         ),
       ),
@@ -217,6 +214,10 @@ class _ChangePinPageWidgetState
 
   // ================= KEY =================
   Widget key(String value) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final keyBg = isDark ? Colors.grey[800] : Colors.black;
+    final keyTxt = Colors.white;
+
     return GestureDetector(
       onTap: () => add(value),
       child: Container(
@@ -224,15 +225,14 @@ class _ChangePinPageWidgetState
         height: 75,
         margin: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: context.background,
-          borderRadius:
-              BorderRadius.circular(18),
+          color: keyBg,
+          borderRadius: BorderRadius.circular(18),
         ),
         alignment: Alignment.center,
         child: Text(
           value,
           style: TextStyle(
-            color: context.onSurface,
+            color: keyTxt,
             fontSize: 24,
             fontWeight: FontWeight.bold,
           ),
@@ -270,12 +270,20 @@ class _ChangePinPageWidgetState
               width: 75,
               height: 75,
               margin: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey[800]
+                    : Colors.black,
+                borderRadius: BorderRadius.circular(18),
+              ),
               child: IconButton(
                 onPressed: delete,
                 icon: Icon(
                   Icons.backspace_outlined,
                   size: 30,
+                  color: Colors.white,
                 ),
+                splashRadius: 24,
               ),
             ),
           ],
@@ -288,13 +296,13 @@ class _ChangePinPageWidgetState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: context.onSurface,
+      backgroundColor: context.background,
 
       appBar: AppBar(
         elevation: 0,
         centerTitle: true,
-        backgroundColor: context.onSurface,
-        foregroundColor: context.background,
+        backgroundColor: context.background,
+        foregroundColor: context.onSurface,
         title: Text(
           "Change PIN",
         ),
@@ -311,11 +319,8 @@ class _ChangePinPageWidgetState
                 width: 90,
                 height: 90,
                 decoration: BoxDecoration(
-                  color: context.background,
-                  borderRadius:
-                      BorderRadius.circular(
-                    24,
-                  ),
+                  color: context.surface,
+                  borderRadius: BorderRadius.circular(24),
                 ),
                 child: Icon(
                   Icons.lock_reset,
@@ -335,6 +340,7 @@ class _ChangePinPageWidgetState
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
+                  color: context.onSurface,
                 ),
               ),
 
@@ -375,37 +381,35 @@ class _ChangePinPageWidgetState
                   onPressed: isLoading
                       ? null
                       : submit,
-                  style:
-                      ElevatedButton.styleFrom(
-                    backgroundColor:
-                        context.background,
-                    shape:
-                        RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(
-                        16,
-                      ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white
+                        : Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
                   child: isLoading
-                      ? SizedBox(
-                          width: 24,
-                          height: 24,
-                          child:
-                              CircularProgressIndicator(
-                            color: context.onSurface,
-                            strokeWidth: 2,
+                        ? SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.black
+                                  : Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            "Save PIN",
+                            style: TextStyle(
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.black
+                                  : Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        )
-                      : Text(
-                          "Save PIN",
-                          style: TextStyle(
-                            color: context.onSurface,
-                            fontSize: 16,
-                            fontWeight:
-                                FontWeight.bold,
-                          ),
-                        ),
                 ),
               ),
 

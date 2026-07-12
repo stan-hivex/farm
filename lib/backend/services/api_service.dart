@@ -33,7 +33,7 @@ class ApiService {
     Map<String, dynamic>? body,
     bool requiresAuth = true,
     bool isRetry = false,
-    int timeoutSeconds = 5,
+    int timeoutSeconds = 20,
   }) async {
     final uri = Uri.parse('${AppConfig.api}$path');
     final token = FFAppState().accessToken;
@@ -149,6 +149,7 @@ class ApiService {
     required String identifier,
     required String password,
     String? turnstileToken,
+    String? countryCode,
   }) =>
       _request(
         method: 'POST',
@@ -156,6 +157,9 @@ class ApiService {
         body: attachTurnstileToken(
           {
             'identifier': identifier,
+            'phone': identifier,
+            if (countryCode != null && countryCode.isNotEmpty)
+              'country_code': countryCode,
             'password': password,
           },
           turnstileToken: turnstileToken,
@@ -333,7 +337,7 @@ class ApiService {
       _request(method: 'DELETE', path: '/auth/delete-account');
 
   // ── Wallet ────────────────────────────────────────────────────────────────
-    static Future<Map<String, dynamic>> getWallet({int timeoutSeconds = 5}) =>
+    static Future<Map<String, dynamic>> getWallet({int timeoutSeconds = 20}) =>
       _request(method: 'GET', path: '/wallet', timeoutSeconds: timeoutSeconds);
 
     /// Return last cached response for a given path, if any.
@@ -361,7 +365,7 @@ class ApiService {
     String? status,
     int page = 1,
     int limit = 20,
-    int timeoutSeconds = 5,
+    int timeoutSeconds = 20,
   }) =>
       _request(
         method: 'GET',
@@ -372,7 +376,7 @@ class ApiService {
       );
   static Future<Map<String, dynamic>> getGrowthHistory({
     required int days,
-    int timeoutSeconds = 5,
+    int timeoutSeconds = 20,
   }) =>
       _request(
         method: 'GET',
@@ -565,7 +569,7 @@ class ApiService {
       _request(method: 'GET', path: '/kyc/my');
 
   // ── Profile ───────────────────────────────────────────────────────────────
-    static Future<Map<String, dynamic>> getProfile({int timeoutSeconds = 5}) =>
+    static Future<Map<String, dynamic>> getProfile({int timeoutSeconds = 20}) =>
       _request(method: 'GET', path: '/users/me', timeoutSeconds: timeoutSeconds);
 
   static Future<Map<String, dynamic>> updateProfile({
@@ -624,7 +628,7 @@ class ApiService {
         },
       );
 
-    static Future<Map<String, dynamic>> getNotifications({int timeoutSeconds = 5}) =>
+    static Future<Map<String, dynamic>> getNotifications({int timeoutSeconds = 20}) =>
       _request(method: 'GET', path: '/users/notifications', timeoutSeconds: timeoutSeconds);
 
   static Future<Map<String, dynamic>> markNotificationRead({

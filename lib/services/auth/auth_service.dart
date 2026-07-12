@@ -94,116 +94,55 @@ class AuthService {
     required String identifier,
     required String password,
     String? turnstileToken,
+    String? countryCode,
   }) async {
     try {
       final normalizedIdentifier = identifier.trim();
-      final isLikelyEmail = normalizedIdentifier.contains('@');
 
-      try {
-        final response = await ApiService.login(
-          identifier: normalizedIdentifier,
-          password: password,
-          turnstileToken: turnstileToken,
-        );
+      // Treat identifier as phone number only. Call backend login endpoint.
+      final response = await ApiService.login(
+        identifier: normalizedIdentifier,
+        password: password,
+        turnstileToken: turnstileToken,
+        countryCode: countryCode,
+      );
 
-        final responseData = response['data'] as Map<String, dynamic>? ?? {};
-        final farmJwt = responseData['access_token'] as String? ?? '';
-        final refreshToken = responseData['refresh_token'] as String? ?? '';
-        final backendUser = responseData['user'] as Map<String, dynamic>?;
+      final responseData = response['data'] as Map<String, dynamic>? ?? {};
+      final farmJwt = responseData['access_token'] as String? ?? '';
+      final refreshToken = responseData['refresh_token'] as String? ?? '';
+      final backendUser = responseData['user'] as Map<String, dynamic>?;
 
-        if (farmJwt.isNotEmpty) {
-          FFAppState().accessToken = farmJwt;
-        }
-        if (refreshToken.isNotEmpty) {
-          FFAppState().refreshToken = refreshToken;
-        }
-        FFAppState().isLoggedIn = farmJwt.isNotEmpty;
-        if (backendUser is Map<String, dynamic>) {
-          FFAppState().userId = backendUser['id']?.toString() ?? '';
-          FFAppState().firstName = backendUser['first_name']?.toString() ?? '';
-          FFAppState().userName = backendUser['username']?.toString() ?? '';
-          FFAppState().phone = backendUser['phone']?.toString() ?? '';
-          FFAppState().kycStatus = backendUser['kyc_status']?.toString() ?? '';
-          FFAppState().emailVerified = backendUser['email_verified'] == true;
-          FFAppState().role = backendUser['role']?.toString() ?? 'user';
-        }
-
-        debugPrint('[AuthService] Login completed, starting background syncNow.');
-        Future.microtask(() {
-          return AppSessionManager().syncNow().catchError((e) {
-            debugPrint('[AuthService] syncNow background refresh failed: $e');
-          });
-        });
-
-        return {
-          'success': true,
-          'farmJwt': farmJwt,
-          'refreshToken': refreshToken,
-          'user': backendUser,
-          'loginMethod': 'backend',
-        };
-      } on Exception catch (backendError) {
-        final message = backendError.toString().toLowerCase();
-        final shouldTrySupabase = isLikelyEmail &&
-            (message.contains('linked to supabase') ||
-                message.contains('supabase') ||
-                message.contains('invalid credentials') == false);
-
-        if (!shouldTrySupabase) {
-          throw Exception('Login failed: $backendError');
-        }
-
-        final authResponse = await _supabase.auth.signInWithPassword(
-          email: normalizedIdentifier,
-          password: password,
-        );
-
-        if (authResponse.session == null) {
-          throw Exception('Login failed: No session returned');
-        }
-
-        final supabaseToken = authResponse.session!.accessToken;
-        final backendData = await exchangeSupabaseToken(
-          supabaseToken,
-          turnstileToken: turnstileToken,
-        );
-        final farmJwt = backendData['access_token'] as String? ?? '';
-        final refreshToken = backendData['refresh_token'] as String? ?? '';
-        final backendUser = backendData['user'];
-
-        if (farmJwt.isNotEmpty) {
-          FFAppState().accessToken = farmJwt;
-        }
-        if (refreshToken.isNotEmpty) {
-          FFAppState().refreshToken = refreshToken;
-        }
-        FFAppState().isLoggedIn = farmJwt.isNotEmpty;
-        if (backendUser is Map<String, dynamic>) {
-          FFAppState().userId = backendUser['id']?.toString() ?? '';
-          FFAppState().firstName = backendUser['first_name']?.toString() ?? '';
-          FFAppState().userName = backendUser['username']?.toString() ?? '';
-          FFAppState().phone = backendUser['phone']?.toString() ?? '';
-          FFAppState().kycStatus = backendUser['kyc_status']?.toString() ?? '';
-          FFAppState().emailVerified = backendUser['email_verified'] == true;
-          FFAppState().role = backendUser['role']?.toString() ?? 'user';
-        }
-
-        debugPrint('[AuthService] Supabase login completed, starting background syncNow.');
-        Future.microtask(() {
-          return AppSessionManager().syncNow().catchError((e) {
-            debugPrint('[AuthService] syncNow background refresh failed: $e');
-          });
-        });
-
-        return {
-          'success': true,
-          'farmJwt': farmJwt,
-          'refreshToken': refreshToken,
-          'supabaseToken': supabaseToken,
-          'user': backendUser ?? authResponse.user,
-          'loginMethod': 'supabase',
-        };
+      if (farmJwt.isNotEmpty) {
+        FFAppState().accessToken = farmJwt;
       }
+      if (refreshToken.isNotEmpty) {
+        FFAppState().refreshToken = refreshToken;
+      }
+      FFAppState().isLoggedIn = farmJwt.isNotEmpty;
+      if (backendUser is Map<String, dynamic>) {
+        FFAppState().userId = backendUser['id']?.toString() ?? '';
+        FFAppState().firstName = backendUser['first_name']?.toString() ?? '';
+        FFAppState().userName = backendUser['username']?.toString() ?? '';
+        FFAppState().phone = backendUser['phone']?.toString() ?? '';
+        FFAppState().kycStatus = backendUser['kyc_status']?.toString() ?? '';
+        FFAppState().emailVerified = backendUser['email_verified'] == true;
+        FFAppState().role = backendUser['role']?.toString() ?? 'user';
+      }
+
+      debugPrint('[AuthService] Login completed, starting background syncNow.');
+      Future.microtask(() {
+        return AppSessionManager().syncNow().catchError((e) {
+          debugPrint('[AuthService] syncNow background refresh failed: $e');
+        });
+      });
+
+      return {
+        'success': true,
+        'farmJwt': farmJwt,
+        'refreshToken': refreshToken,
+        'user': backendUser,
+        'loginMethod': 'backend',
+      };
     } on AuthException catch (e) {
       throw Exception('Login error: ${e.message}');
     } catch (e) {

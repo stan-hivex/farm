@@ -417,13 +417,17 @@ class _UserNotificationsPageWidgetState extends State<UserNotificationsPageWidge
                                         vertical: 4,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: FlutterFlowTheme.of(context).primary,
+                                        color: Theme.of(context).brightness == Brightness.dark
+                                            ? Colors.white
+                                            : Colors.black,
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: Text(
                                         'Unread',
                                         style: FlutterFlowTheme.of(context).bodySmall.override(
-                                              color: context.onSurface,
+                                              color: Theme.of(context).brightness == Brightness.dark
+                                                  ? Colors.black
+                                                  : Colors.white,
                                             ),
                                       ),
                                     ),
@@ -621,10 +625,12 @@ class _UserNotificationsPageWidgetState extends State<UserNotificationsPageWidge
                                                     : Colors.black,
                                                 borderRadius: BorderRadius.circular(12.0),
                                               ),
-                                              child: const Text(
+                                              child: Text(
                                                 '1',
                                                 style: TextStyle(
-                                                  color: Colors.white,
+                                                  color: Theme.of(context).brightness == Brightness.dark
+                                                      ? Colors.black
+                                                      : Colors.white,
                                                   fontSize: 12.0,
                                                   fontWeight: FontWeight.bold,
                                                 ),
