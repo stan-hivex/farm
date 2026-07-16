@@ -1,4 +1,3 @@
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -258,13 +257,35 @@ class _GrowthTrackingPageWidgetState extends State<GrowthTrackingPageWidget> {
 
   Widget _periodChip(String label, String value) {
     final selected = _selectedPeriod == value;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final selectedFillColor = isDarkMode ? Colors.white : Colors.black;
+    final selectedTextColor = isDarkMode ? Colors.black : Colors.white;
+    final unselectedTextColor = isDarkMode ? Colors.white : Colors.black87;
+
     return ChoiceChip(
-      label: Text(label),
+      label: Text(
+        label,
+        style: TextStyle(
+          color: selected ? selectedTextColor : unselectedTextColor,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
       selected: selected,
       onSelected: (_) {
         setState(() => _selectedPeriod = value);
         _loadGrowth();
       },
+      backgroundColor: isDarkMode ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05),
+      selectedColor: selectedFillColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(999),
+        side: BorderSide(
+          color: selected ? selectedFillColor : (isDarkMode ? Colors.white24 : Colors.black12),
+          width: 1.2,
+        ),
+      ),
+      showCheckmark: false,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
     );
   }
 }

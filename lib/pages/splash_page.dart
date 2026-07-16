@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
+import '/pages/onboarding/onboarding_widget.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -15,9 +16,9 @@ class _SplashPageState extends State<SplashPage> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(milliseconds: 700), () {
+    Future.delayed(const Duration(milliseconds: 300), () {
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/');
+        Navigator.of(context).pushReplacementNamed(OnboardingWidget.routePath);
       }
     });
   }
@@ -33,7 +34,8 @@ class _SplashPageState extends State<SplashPage> {
           children: [
             Icon(Icons.eco_rounded, size: 72, color: theme.primary),
             const SizedBox(height: 16),
-            Text('FARM', style: theme.titleLarge.copyWith(fontWeight: FontWeight.w800)),
+            Text('FARM',
+                style: theme.titleLarge.copyWith(fontWeight: FontWeight.w800)),
             const SizedBox(height: 8),
             Text('Loading your experience…', style: theme.bodyMedium),
           ],

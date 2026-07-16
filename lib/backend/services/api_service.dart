@@ -165,7 +165,50 @@ class ApiService {
           turnstileToken: turnstileToken,
         ),
         requiresAuth: false,
+        timeoutSeconds: 60,
       );
+
+  static Future<Map<String, dynamic>> completeFirebaseLogin({
+    required String identifier,
+    required String firebaseToken,
+    String? countryCode,
+    String? turnstileToken,
+  }) =>
+      _request(
+        method: 'POST',
+        path: '/auth/firebase-login',
+        body: attachTurnstileToken(
+          {
+            'identifier': identifier,
+            'firebaseIdToken': firebaseToken,
+          },
+          turnstileToken: turnstileToken,
+        ),
+        requiresAuth: false,
+        timeoutSeconds: 60,
+      );
+
+  static Future<Map<String, dynamic>> verifyPhone({
+    required String firebaseIdToken,
+    String? turnstileToken,
+  }) {
+    final body = attachTurnstileToken(
+      {
+        'firebaseIdToken': firebaseIdToken,
+      },
+      turnstileToken: turnstileToken,
+    );
+
+    debugPrint(jsonEncode(body));
+
+    return _request(
+      method: 'POST',
+      path: '/auth/verify-phone',
+      body: body,
+      requiresAuth: false,
+      timeoutSeconds: 60,
+    );
+  }
 
   static Future<Map<String, dynamic>> register({
     required String firstName,
@@ -309,6 +352,16 @@ class ApiService {
         path: '/auth/refresh',
         body: {'refresh_token': refreshToken},
         requiresAuth: false,
+      );
+
+  static Future<Map<String, dynamic>> registerDeviceToken({
+    required String token,
+    String? platform,
+  }) =>
+      _request(
+        method: 'POST',
+        path: '/auth/device-token',
+        body: {'token': token, if (platform != null) 'platform': platform},
       );
 
   static Future<Map<String, dynamic>> resendOtp() =>

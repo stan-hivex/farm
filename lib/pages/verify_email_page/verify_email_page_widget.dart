@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '/services/auth/auth_service.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
-import '/flutter_flow/flutter_flow_util.dart';
 
 class VerifyEmailPageWidget extends StatefulWidget {
   const VerifyEmailPageWidget({super.key});

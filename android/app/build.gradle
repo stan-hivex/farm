@@ -2,7 +2,8 @@ plugins {
    id "com.android.application"
    id "kotlin-android"
    id "dev.flutter.flutter-gradle-plugin"
-   id "com.google.gms.google-services"  // Google Services plugin
+   id "com.google.gms.google-services"
+    id 'com.google.firebase.firebase-perf'  // Google Services plugin
 
 }
 
@@ -56,8 +57,8 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId "com.mycompany.farm"
-        minSdkVersion 23
+        applicationId "farm.africa"
+        minSdkVersion flutter.minSdkVersion
         targetSdkVersion 36
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName

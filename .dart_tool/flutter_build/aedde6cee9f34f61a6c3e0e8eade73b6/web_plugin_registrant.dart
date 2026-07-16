@@ -9,7 +9,9 @@
 import 'package:app_links_web/app_links_web.dart';
 import 'package:audioplayers_web/audioplayers_web.dart';
 import 'package:device_info_plus/src/device_info_plus_web.dart';
+import 'package:firebase_auth_web/firebase_auth_web.dart';
 import 'package:firebase_core_web/firebase_core_web.dart';
+import 'package:firebase_messaging_web/firebase_messaging_web.dart';
 import 'package:firebase_performance_web/firebase_performance_web.dart';
 import 'package:flutter_secure_storage_web/flutter_secure_storage_web.dart';
 import 'package:image_picker_for_web/image_picker_for_web.dart';
@@ -23,7 +25,9 @@ void registerPlugins([final Registrar? pluginRegistrar]) {
   AppLinksPluginWeb.registerWith(registrar);
   AudioplayersPlugin.registerWith(registrar);
   DeviceInfoPlusWebPlugin.registerWith(registrar);
+  FirebaseAuthWeb.registerWith(registrar);
   FirebaseCoreWeb.registerWith(registrar);
+  FirebaseMessagingWeb.registerWith(registrar);
   FirebasePerformanceWeb.registerWith(registrar);
   FlutterSecureStorageWeb.registerWith(registrar);
   ImagePickerPlugin.registerWith(registrar);

@@ -1,3 +1,4 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:http/http.dart' as http;
@@ -99,7 +100,6 @@ class AuthService {
     try {
       final normalizedIdentifier = identifier.trim();
 
-      // Treat identifier as phone number only. Call backend login endpoint.
       final response = await ApiService.login(
         identifier: normalizedIdentifier,
         password: password,
@@ -111,30 +111,45 @@ class AuthService {
       final farmJwt = responseData['access_token'] as String? ?? '';
       final refreshToken = responseData['refresh_token'] as String? ?? '';
       final backendUser = responseData['user'] as Map<String, dynamic>?;
+      final otpRequired = responseData['otp_required'] == true;
+
+      if (kIsWeb) {
+        if (farmJwt.isNotEmpty) {
+          _persistSessionTokens(
+            farmJwt: farmJwt,
+            refreshToken: refreshToken,
+            backendUser: backendUser,
+          );
+        }
+
+        return {
+          'success': true,
+          'otpRequired': false,
+          'farmJwt': farmJwt,
+          'refreshToken': refreshToken,
+          'phone': responseData['phone']?.toString() ?? '',
+          'user': backendUser,
+          'loginMethod': 'backend',
+        };
+      }
+
+      if (otpRequired) {
+        return {
+          'success': true,
+          'otpRequired': true,
+          'phone': responseData['phone']?.toString() ?? '',
+          'user': backendUser,
+          'loginMethod': 'backend',
+        };
+      }
 
       if (farmJwt.isNotEmpty) {
-        FFAppState().accessToken = farmJwt;
+        _persistSessionTokens(
+          farmJwt: farmJwt,
+          refreshToken: refreshToken,
+          backendUser: backendUser,
+        );
       }
-      if (refreshToken.isNotEmpty) {
-        FFAppState().refreshToken = refreshToken;
-      }
-      FFAppState().isLoggedIn = farmJwt.isNotEmpty;
-      if (backendUser is Map<String, dynamic>) {
-        FFAppState().userId = backendUser['id']?.toString() ?? '';
-        FFAppState().firstName = backendUser['first_name']?.toString() ?? '';
-        FFAppState().userName = backendUser['username']?.toString() ?? '';
-        FFAppState().phone = backendUser['phone']?.toString() ?? '';
-        FFAppState().kycStatus = backendUser['kyc_status']?.toString() ?? '';
-        FFAppState().emailVerified = backendUser['email_verified'] == true;
-        FFAppState().role = backendUser['role']?.toString() ?? 'user';
-      }
-
-      debugPrint('[AuthService] Login completed, starting background syncNow.');
-      Future.microtask(() {
-        return AppSessionManager().syncNow().catchError((e) {
-          debugPrint('[AuthService] syncNow background refresh failed: $e');
-        });
-      });
 
       return {
         'success': true,
@@ -148,6 +163,134 @@ class AuthService {
     } catch (e) {
       throw Exception('Login failed: $e');
     }
+  }
+
+  Future<Map<String, dynamic>> completeFirebaseLogin({
+    required String identifier,
+    required String firebaseToken,
+    String? countryCode,
+    String? turnstileToken,
+  }) async {
+    try {
+      final response = await ApiService.completeFirebaseLogin(
+        identifier: identifier,
+        firebaseToken: firebaseToken,
+        countryCode: countryCode,
+        turnstileToken: turnstileToken,
+      );
+
+      final responseData = response['data'] as Map<String, dynamic>? ?? {};
+      final farmJwt = responseData['access_token'] as String? ?? '';
+      final refreshToken = responseData['refresh_token'] as String? ?? '';
+      final backendUser = responseData['user'] as Map<String, dynamic>?;
+
+      if (farmJwt.isNotEmpty) {
+        _persistSessionTokens(
+          farmJwt: farmJwt,
+          refreshToken: refreshToken,
+          backendUser: backendUser,
+        );
+        await registerFcmToken();
+      }
+
+      return {
+        'success': true,
+        'farmJwt': farmJwt,
+        'refreshToken': refreshToken,
+        'user': backendUser,
+        'loginMethod': 'firebase',
+      };
+    } catch (e) {
+      throw Exception('Firebase login failed: $e');
+    }
+  }
+
+  /// Verify phone with backend using the Firebase ID token.
+  Future<Map<String, dynamic>> verifyPhone({
+    required String firebaseIdToken,
+    String? turnstileToken,
+  }) async {
+    try {
+      final response = await ApiService.verifyPhone(
+        firebaseIdToken: firebaseIdToken,
+        turnstileToken: turnstileToken,
+      );
+
+      final responseData = response['data'] as Map<String, dynamic>? ?? {};
+      final farmJwt = responseData['access_token'] as String? ?? '';
+      final refreshToken = responseData['refresh_token'] as String? ?? '';
+      final backendUser = responseData['user'] as Map<String, dynamic>?;
+
+      if (farmJwt.isNotEmpty) {
+        _persistSessionTokens(
+          farmJwt: farmJwt,
+          refreshToken: refreshToken,
+          backendUser: backendUser,
+        );
+        await registerFcmToken();
+      }
+
+      return {
+        'success': true,
+        'farmJwt': farmJwt,
+        'refreshToken': refreshToken,
+        'user': backendUser,
+      };
+    } catch (e) {
+      throw Exception('Phone verification failed: $e');
+    }
+  }
+
+  Future<void> registerFcmToken() async {
+    try {
+      if (kIsWeb) {
+        return;
+      }
+
+      final messaging = FirebaseMessaging.instance;
+      if (defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.macOS) {
+        await messaging.requestPermission();
+      }
+
+      final token = await messaging.getToken();
+      if (token == null || token.isEmpty) {
+        return;
+      }
+
+      await ApiService.registerDeviceToken(
+        token: token,
+        platform: defaultTargetPlatform.name,
+      );
+    } catch (e) {
+      debugPrint('[AuthService] FCM registration failed: $e');
+    }
+  }
+
+  void _persistSessionTokens({
+    required String farmJwt,
+    required String refreshToken,
+    required Map<String, dynamic>? backendUser,
+  }) {
+    FFAppState().accessToken = farmJwt;
+    FFAppState().refreshToken = refreshToken;
+    FFAppState().isLoggedIn = farmJwt.isNotEmpty;
+    if (backendUser is Map<String, dynamic>) {
+      FFAppState().userId = backendUser['id']?.toString() ?? '';
+      FFAppState().firstName = backendUser['first_name']?.toString() ?? '';
+      FFAppState().userName = backendUser['username']?.toString() ?? '';
+      FFAppState().phone = backendUser['phone']?.toString() ?? '';
+      FFAppState().kycStatus = backendUser['kyc_status']?.toString() ?? '';
+      FFAppState().emailVerified = backendUser['email_verified'] == true;
+      FFAppState().role = backendUser['role']?.toString() ?? 'user';
+    }
+
+    debugPrint('[AuthService] Login completed, starting background syncNow.');
+    Future.microtask(() {
+      return AppSessionManager().syncNow().catchError((e) {
+        debugPrint('[AuthService] syncNow background refresh failed: $e');
+      });
+    });
   }
 
   /// Exchange Supabase token for FARM backend JWT.
@@ -359,7 +502,7 @@ class AuthService {
   }
 
   /// Get the current authenticated user.
-  User? getCurrentUser() {
+  dynamic getCurrentUser() {
     return _supabase.auth.currentUser;
   }
 

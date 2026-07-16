@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '/core/app_config.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
@@ -13,6 +14,7 @@ import '/services/secure_storage_service.dart';
 import '/services/auth/auth_service.dart';
 import '/services/auth/biometric_login_service.dart';
 import '/pages/forgot_password_page/forgot_password_page_widget.dart';
+import '/pages/otppage/otppage_widget.dart';
 
 /// Create a premium black and white fintech login page for FARM App.
 ///
@@ -43,6 +45,7 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
   bool passwordVisible = false;
   bool isLoading = false;
   bool _biometricAvailable = false;
+  bool _otpNavigationInProgress = false;
   String _biometricButtonLabel = 'Login with Biometric';
   Map<String, String> _selectedCountry = {
     'name': 'Algeria',
@@ -143,6 +146,77 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
     super.dispose();
   }
 
+  Future<void> _finalizeSuccessfulLogin(Map<String, dynamic> response) async {
+    final accessToken = response['farmJwt'] as String? ?? '';
+    final refreshToken = response['refreshToken'] as String? ?? '';
+    final data = response['user'] as Map<String, dynamic>?;
+
+    if (accessToken.isNotEmpty && data != null) {
+      FFAppState().accessToken = accessToken;
+      FFAppState().refreshToken = refreshToken;
+      FFAppState().userId = data['id'] ?? '';
+      FFAppState().firstName = data['first_name'] ?? '';
+      FFAppState().userName = data['username'] ?? '';
+      FFAppState().phone = data['phone'] ?? '';
+      FFAppState().kycStatus = data['kyc_status'] ?? '';
+      FFAppState().emailVerified = data['email_verified'] == true;
+      final role = (data['role'] ?? 'user').toString();
+      FFAppState().role = role;
+      FFAppState().isLoggedIn = true;
+
+      await SecureStorageService.writeAccessToken(accessToken);
+      await SecureStorageService.writeRefreshToken(refreshToken);
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('accessToken', accessToken);
+      await prefs.setString('refreshToken', refreshToken);
+      await prefs.setString('userId', data['id'] ?? '');
+      await prefs.setString('role', role);
+      await prefs.setBool('isLoggedIn', true);
+
+      if (role == 'admin' || role == 'super_admin') {
+        await prefs.setString('adminToken', accessToken);
+        await prefs.setString('adminRefreshToken', refreshToken);
+        await prefs.setString('adminRole', role);
+        await prefs.setString('adminName', data['first_name'] ?? 'Admin');
+      } else {
+        await prefs.remove('adminToken');
+        await prefs.remove('adminRefreshToken');
+        await prefs.remove('adminRole');
+        await prefs.remove('adminName');
+      }
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Login successful'),
+        backgroundColor: Colors.green,
+      ),
+    );
+
+    Future.delayed(
+      const Duration(seconds: 1),
+      () {
+        final role = FFAppState().role;
+        if (role == 'super_admin') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const SuperadminDashboardPage(),
+            ),
+          );
+        } else if (role == 'admin') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const AdminShell()),
+          );
+        } else {
+          context.goNamed('Dashboard');
+        }
+      },
+    );
+  }
+
   /// Login with email or phone/password
   Future<void> handleLogin() async {
     final raw = phoneController.text.trim();
@@ -172,74 +246,37 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
         countryCode: _selectedCountry['code'],
       );
 
-      final accessToken = response['farmJwt'] as String? ?? '';
-      final refreshToken = response['refreshToken'] as String? ?? '';
-      final data = response['user'] as Map<String, dynamic>?;
-
-      if (accessToken.isNotEmpty && data != null) {
-        FFAppState().accessToken = accessToken;
-        FFAppState().refreshToken = refreshToken;
-        FFAppState().userId = data['id'] ?? '';
-        FFAppState().firstName = data['first_name'] ?? '';
-        FFAppState().userName = data['username'] ?? '';
-        FFAppState().phone = data['phone'] ?? '';
-        FFAppState().kycStatus = data['kyc_status'] ?? '';
-        FFAppState().emailVerified = data['email_verified'] == true;
-        final role = (data['role'] ?? 'user').toString();
-        FFAppState().role = role;
-        FFAppState().isLoggedIn = true;
-
-        await SecureStorageService.writeAccessToken(accessToken);
-        await SecureStorageService.writeRefreshToken(refreshToken);
-
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('accessToken', accessToken);
-        await prefs.setString('refreshToken', refreshToken);
-        await prefs.setString('userId', data['id'] ?? '');
-        await prefs.setString('role', role);
-        await prefs.setBool('isLoggedIn', true);
-
-        if (role == 'admin' || role == 'super_admin') {
-          await prefs.setString('adminToken', accessToken);
-          await prefs.setString('adminRefreshToken', refreshToken);
-          await prefs.setString('adminRole', role);
-          await prefs.setString('adminName', data['first_name'] ?? 'Admin');
-        } else {
-          await prefs.remove('adminToken');
-          await prefs.remove('adminRefreshToken');
-          await prefs.remove('adminRole');
-          await prefs.remove('adminName');
-        }
+      if (kIsWeb) {
+        await _finalizeSuccessfulLogin(response);
+        return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Login successful'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (response['otpRequired'] == true) {
+        if (_otpNavigationInProgress) {
+          return;
+        }
 
-      Future.delayed(
-        const Duration(seconds: 1),
-        () {
-          final role = FFAppState().role;
-          if (role == 'super_admin') {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const SuperadminDashboardPage(),
+        setState(() => _otpNavigationInProgress = true);
+
+        final pendingPhone = response['phone']?.toString() ?? identifier;
+
+        if (mounted) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => OtppageWidget(
+                phone: pendingPhone,
+                identifier: identifier,
+                password: password,
+                countryCode: _selectedCountry['code'],
               ),
-            );
-          } else if (role == 'admin') {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const AdminShell()),
-            );
-          } else {
-            context.goNamed('Dashboard');
-          }
-        },
-      );
+            ),
+          );
+        }
+
+        return;
+      }
+
+      await _finalizeSuccessfulLogin(response);
     } catch (e) {
       if (mounted) {
         final errorMsg = e.toString();
@@ -260,7 +297,12 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
       }
     } finally {
       if (mounted) {
-        setState(() => isLoading = false);
+        setState(() {
+          isLoading = false;
+          if (!_otpNavigationInProgress) {
+            _otpNavigationInProgress = false;
+          }
+        });
       }
     }
   }
@@ -328,7 +370,9 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
       }
     } finally {
       if (mounted) {
-        setState(() => isLoading = false);
+        setState(() {
+          isLoading = false;
+        });
       }
     }
   }

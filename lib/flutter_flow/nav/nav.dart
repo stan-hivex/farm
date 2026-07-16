@@ -35,13 +35,12 @@ class AppStateNotifier extends ChangeNotifier {
 }
 
 GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
-      initialLocation: LoginpageWidget.routePath,
+      initialLocation: OnboardingWidget.routePath,
       debugLogDiagnostics: true,
       refreshListenable: appStateNotifier,
       navigatorKey: appNavigatorKey,
       errorBuilder: (context, state) => const LoginpageWidget(),
       routes: [
-        
         FFRoute(
           name: SplashPage.routeName,
           path: SplashPage.routePath,
@@ -50,7 +49,7 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
         FFRoute(
           name: '_initialize',
           path: '/',
-          builder: (context, _) => const LoginpageWidget(),
+          builder: (context, _) => const OnboardingWidget(),
         ),
         FFRoute(
           name: OnboardingWidget.routeName,
@@ -93,30 +92,29 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           builder: (context, params) => const InvestmentMarketplaceWidget(),
         ),
         FFRoute(
-        name: 'FaqPage',
-        path: '/faq',
-        builder: (context, params) => const FaqPageWidget(),
-    ),
-
-FFRoute(
-  name: 'LiveChatPage',
-  path: '/chat',
-  builder: (context, params) => const LiveChatPageWidget(),
-),
-
-FFRoute(
-  name: 'EmailSupportPage',
-  path: '/email-support',
-  builder: (context, params) => const EmailSupportPageWidget(),
-),
+          name: 'FaqPage',
+          path: '/faq',
+          builder: (context, params) => const FaqPageWidget(),
+        ),
+        FFRoute(
+          name: 'LiveChatPage',
+          path: '/chat',
+          builder: (context, params) => const LiveChatPageWidget(),
+        ),
+        FFRoute(
+          name: 'EmailSupportPage',
+          path: '/email-support',
+          builder: (context, params) => const EmailSupportPageWidget(),
+        ),
         FFRoute(
           name: ProjectDetailsWidget.routeName,
           path: ProjectDetailsWidget.routePath,
           builder: (context, params) => ProjectDetailsWidget(
             projectId: params.getParam(
-              'projectId',
-              ParamType.String,
-            ) ?? '',
+                  'projectId',
+                  ParamType.String,
+                ) ??
+                '',
           ),
         ),
         FFRoute(
@@ -158,11 +156,11 @@ FFRoute(
           name: OtppageWidget.routeName,
           path: OtppageWidget.routePath,
           builder: (context, params) => OtppageWidget(
-  phone: params.getParam(
-    'phone',
-    ParamType.String,
-  ),
-),
+            phone: params.getParam(
+              'phone',
+              ParamType.String,
+            ),
+          ),
         ),
         FFRoute(
           name: ForgotPasswordPageWidget.routeName,
@@ -174,12 +172,11 @@ FFRoute(
           path: PinSetupPageWidget.routePath,
           builder: (context, params) => const PinSetupPageWidget(),
         ),
-                FFRoute(
+        FFRoute(
           name: ChangePinPageWidget.routeName,
           path: ChangePinPageWidget.routePath,
           builder: (context, params) => const ChangePinPageWidget(),
         ),
-
         FFRoute(
           name: ForgotPinPageWidget.routeName,
           path: ForgotPinPageWidget.routePath,
@@ -217,6 +214,7 @@ FFRoute(
         ),
       ].map((r) => r.toRoute(appStateNotifier)).toList(),
     );
+
 extension NavParamExtensions on Map<String, String?> {
   Map<String, String> get withoutNulls => Map.fromEntries(
         entries
@@ -378,7 +376,8 @@ class TransitionInfo {
   final Duration duration;
   final Alignment? alignment;
 
-  static TransitionInfo appDefault() => const TransitionInfo(hasTransition: false);
+  static TransitionInfo appDefault() =>
+      const TransitionInfo(hasTransition: false);
 }
 
 class RootPageContext {
@@ -410,4 +409,3 @@ extension GoRouterLocationExtension on GoRouter {
     return matchList.uri.toString();
   }
 }
-

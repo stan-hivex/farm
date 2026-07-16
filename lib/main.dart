@@ -5,7 +5,9 @@ import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
 
+import 'firebase_options.dart';
 import 'flutter_flow/flutter_flow_theme.dart';
 import 'flutter_flow/flutter_flow_util.dart';
 import 'core/app_theme.dart';
@@ -35,6 +37,9 @@ void main() async {
   ErrorWidget.builder = (FlutterErrorDetails details) => buildSafeErrorWidget(details);
 
   await EasyLocalization.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   await FFAppState().initializePersistedState();
   await FlutterFlowTheme.initialize();
 
