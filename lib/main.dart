@@ -1,7 +1,5 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
@@ -11,7 +9,10 @@ import 'firebase_options.dart';
 import 'flutter_flow/flutter_flow_theme.dart';
 import 'flutter_flow/flutter_flow_util.dart';
 import 'core/app_theme.dart';
+import 'web_url_strategy.dart';
 import 'services/app_session_manager.dart';
+import 'services/biometric_lock_service.dart';
+import 'pages/biometric_unlock_page/biometric_unlock_page_widget.dart';
 
 Widget buildSafeErrorWidget(FlutterErrorDetails details) {
   debugPrint('Suppressing app error overlay: ${details.exception}');
@@ -51,9 +52,7 @@ void main() async {
     });
   }
 
-  if (kIsWeb) {
-    setUrlStrategy(HashUrlStrategy());
-  }
+  configureUrlStrategy();
 
   // Run the app inside a guarded zone to capture uncaught errors with stack traces
   runZonedGuarded(() {
@@ -106,6 +105,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   late AppStateNotifier _appStateNotifier;
 
   late GoRouter _router;
+  Timer? _refreshTimer;
 
   ThemeMode _effectiveThemeMode(String currentLocation) {
     return context.watch<FFAppState>().themeMode;
@@ -149,10 +149,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     _appStateNotifier = AppStateNotifier.instance;
 
     _router = createRouter(_appStateNotifier);
+    _startPeriodicRefresh();
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -161,8 +163,44 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed) {
+      _startPeriodicRefresh();
       _refreshAppState();
+      _handleResumeLock();
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+      _refreshTimer?.cancel();
     }
+  }
+
+  Future<void> _handleResumeLock() async {
+    if (!mounted) return;
+    if (!FFAppState().isLoggedIn || !FFAppState().biometricsEnabled) {
+      return;
+    }
+
+    final lockService = BiometricLockService();
+    if (lockService.isAuthenticating) {
+      debugPrint('[Main] Biometric auth already in progress; skipping resume lock check.');
+      return;
+    }
+
+    final shouldLock = await lockService.shouldRequireUnlock();
+    if (shouldLock && getRoute() != BiometricUnlockPageWidget.routePath) {
+      _router.go(BiometricUnlockPageWidget.routePath);
+    }
+  }
+
+  void _startPeriodicRefresh() {
+    _refreshTimer?.cancel();
+    if (!FFAppState().isLoggedIn || FFAppState().accessToken.isEmpty) {
+      return;
+    }
+
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (!mounted || !FFAppState().isLoggedIn || FFAppState().accessToken.isEmpty) {
+        return;
+      }
+      unawaited(_refreshAppState());
+    });
   }
 
   Future<void> _refreshAppState() async {

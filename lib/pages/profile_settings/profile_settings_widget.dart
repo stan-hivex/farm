@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:http/http.dart' as http;
 import '/core/app_config.dart';
 import '/components/button/button_widget.dart';
 import '/components/profile_info_tile/profile_info_tile_widget.dart';
 import '/components/settings_action_tile/settings_action_tile_widget.dart';
 import '/backend/services/api_service.dart';
+import '/services/app_session_manager.dart';
 import '/services/auth/auth_service.dart';
+import '/services/biometric_lock_service.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/core/theme_extensions.dart';
@@ -25,7 +29,8 @@ class ProfileSettingsWidget extends StatefulWidget {
   State<ProfileSettingsWidget> createState() => _ProfileSettingsWidgetState();
 }
 
-class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget> {
+class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
+    with WidgetsBindingObserver {
   late ProfileSettingsModel _model;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
@@ -47,77 +52,107 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget> {
   bool biometricsEnabled = false;
   bool securityLoading = true;
   bool accountLocked = false;
+  int biometricLockTimeoutSeconds = 600;
+
+  String formatBiometricLockTimeoutLabel(int value) {
+    if (value <= 0) return '5 sec';
+    if (value == 60) return '1 min';
+    if (value < 60) return '$value sec';
+    return '${value ~/ 60} min';
+  }
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _model = createModel(context, () => ProfileSettingsModel());
+    FFAppState().addListener(_handleAppStateChanged);
+    biometricLockTimeoutSeconds = FFAppState().biometricLockTimeoutSeconds;
+    biometricsEnabled = FFAppState().biometricsEnabled;
 
-    fetchProfile();
-    fetchSecuritySettings();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(fetchProfile());
+      unawaited(fetchSecuritySettings());
+    });
   }
 
   @override
   void dispose() {
+    FFAppState().removeListener(_handleAppStateChanged);
+    WidgetsBinding.instance.removeObserver(this);
     _model.dispose();
 
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      fetchProfile();
+      fetchSecuritySettings();
+    }
+  }
+
+  void _handleAppStateChanged() {
+    if (!mounted) return;
+    setState(() {
+      fullName = FFAppState().firstName;
+      username = FFAppState().userName;
+      phone = FFAppState().phone;
+      kycStatus = FFAppState().kycStatus;
+      profileImage = FFAppState().profileImageUrl;
+      biometricsEnabled = FFAppState().biometricsEnabled;
+      biometricLockTimeoutSeconds = FFAppState().biometricLockTimeoutSeconds;
+      isProfileLoading = false;
+    });
+  }
+
   Future<void> fetchProfile() async {
+    if (!mounted) return;
+    setState(() {
+      isProfileLoading = true;
+    });
+
     try {
-      final response = await http.get(
-        Uri.parse('${AppConfig.api}/users/me'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${FFAppState().accessToken}',
-        },
+      await AppSessionManager().syncNow(
+        profileTimeoutSeconds: 5,
+        walletTimeoutSeconds: 5,
+        transactionsTimeoutSeconds: 4,
       );
 
-      print('PROFILE STATUS: ${response.statusCode}');
-      print('PROFILE BODY: ${response.body}');
+      if (!mounted) return;
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+      setState(() {
+        profileData = {
+          'first_name': FFAppState().firstName,
+          'last_name': '',
+          'username': FFAppState().userName,
+          'email': email,
+          'phone': FFAppState().phone,
+          'kyc_status': FFAppState().kycStatus,
+          'profile_image': FFAppState().profileImageUrl,
+        };
 
-        final user = data['data'];
+        fullName = FFAppState().firstName;
+        username = FFAppState().userName;
+        phone = FFAppState().phone;
+        kycStatus = FFAppState().kycStatus;
+        profileImage = FFAppState().profileImageUrl;
+        initials = FFAppState().firstName.isNotEmpty
+            ? FFAppState().firstName[0].toUpperCase()
+            : '';
+        isProfileLoading = false;
+      });
+    } catch (e) {
+      print('PROFILE ERROR: $e');
 
-        final firstName = user['first_name'] ?? '';
-        final lastName = user['last_name'] ?? '';
-
-        setState(() {
-          profileData = user;
-
-          fullName = '$firstName $lastName';
-          username = user['username'] ?? '';
-          email = user['email'] ?? '';
-          phone = user['phone'] ?? '';
-          kycStatus = user['kyc_status'] ?? 'none';
-
-          profileImage = user['profile_image'] ?? '';
-
-          walletAddress = user['wallets'] != null && user['wallets'].length > 0
-              ? user['wallets'][0]['wallet_address'] ?? ''
-              : '';
-
-          initials = '${firstName.isNotEmpty ? firstName[0] : ''}'
-              '${lastName.isNotEmpty ? lastName[0] : ''}';
-
-          isProfileLoading = false;
-        });
-      } else {
-        print('PROFILE FETCH FAILED');
-
+      if (mounted) {
         setState(() {
           isProfileLoading = false;
         });
       }
-    } catch (e) {
-      print('PROFILE ERROR: $e');
-
-      setState(() {
-        isProfileLoading = false;
-      });
     }
   }
 
@@ -133,10 +168,17 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        final remoteBiometricsEnabled = data['biometrics_enabled'] ?? false;
+        final resolvedBiometricsEnabled =
+            FFAppState().biometricsEnabled || remoteBiometricsEnabled;
+
+        if (FFAppState().biometricsEnabled != resolvedBiometricsEnabled) {
+          FFAppState().biometricsEnabled = resolvedBiometricsEnabled;
+        }
 
         setState(() {
           hasPin = data['has_pin'] ?? false;
-          biometricsEnabled = data['biometrics_enabled'] ?? false;
+          biometricsEnabled = resolvedBiometricsEnabled;
           accountLocked = data['pin_locked'] ?? false;
 
           securityLoading = false;
@@ -817,40 +859,43 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget> {
                                 activeThumbColor: Colors.green,
                                 value: biometricsEnabled,
                                 onChanged: (value) async {
-                                  setState(() {
-                                    biometricsEnabled = value;
-                                  });
-
+                                  // Do not change the UI until operation succeeds
+                                  final biometricLockService = BiometricLockService();
                                   try {
-                                    await http.put(
-                                      Uri.parse(
-                                        '${AppConfig.api}/security/biometrics',
-                                      ),
-                                      headers: {
-                                        'Content-Type': 'application/json',
-                                        'Authorization':
-                                            'Bearer ${FFAppState().accessToken}',
-                                      },
-                                      body: jsonEncode({
-                                        'enabled': value,
-                                      }),
-                                    );
-
-                                    FFAppState().update(() {
-                                      FFAppState().biometricsEnabled = value;
-                                    });
-
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          value
-                                              ? 'Biometrics enabled'
-                                              : 'Biometrics disabled',
-                                        ),
-                                      ),
-                                    );
-                                  } catch (e) {
-                                    print(e);
+                                    if (value) {
+                                      final ok = await biometricLockService.enableBiometrics();
+                                      if (ok) {
+                                        setState(() {
+                                          biometricsEnabled = true;
+                                        });
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Biometrics enabled')),
+                                        );
+                                      }
+                                    } else {
+                                      // turning off
+                                      final ok = await biometricLockService.disableBiometrics();
+                                      if (ok) {
+                                        setState(() {
+                                          biometricsEnabled = false;
+                                        });
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Biometrics disabled')),
+                                        );
+                                      }
+                                    }
+                                  } catch (e, stack) {
+                                    if (mounted) {
+                                      setState(() {
+                                        biometricsEnabled = FFAppState().biometricsEnabled;
+                                      });
+                                      debugPrint('===== BIOMETRIC ERROR =====');
+                                      debugPrint(e.toString());
+                                      debugPrint(stack.toString());
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text(e.toString())),
+                                      );
+                                    }
                                   }
                                 },
                                 title: Text('Enable Biometrics'),
@@ -858,6 +903,44 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget> {
                                   biometricsEnabled
                                       ? 'Face ID / Fingerprint active'
                                       : 'Biometric authentication disabled',
+                                ),
+                              ),
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: Text('Biometric lock timeout'),
+                                subtitle: Text(
+                                  'Unlock after ${formatBiometricLockTimeoutLabel(biometricLockTimeoutSeconds)}',
+                                ),
+                                trailing: SizedBox(
+                                  width: 140,
+                                  child: DropdownButton<int>(
+                                    value: biometricLockTimeoutSeconds,
+                                    items: [5, 15, 30, 60, 300, 600]
+                                        .map(
+                                          (value) => DropdownMenuItem<int>(
+                                            value: value,
+                                            child: Text(
+                                              formatBiometricLockTimeoutLabel(value),
+                                            ),
+                                          ),
+                                        )
+                                        .toList(),
+                                    onChanged: biometricsEnabled
+                                        ? (value) {
+                                            if (value == null) return;
+                                            setState(() {
+                                              biometricLockTimeoutSeconds = value;
+                                            });
+                                            FFAppState().biometricLockTimeoutSeconds =
+                                                value;
+                                          }
+                                        : null,
+                                    underline: const SizedBox.shrink(),
+                                    disabledHint: Text(
+                                      formatBiometricLockTimeoutLabel(
+                                          biometricLockTimeoutSeconds),
+                                    ),
+                                  ),
                                 ),
                               ),
                               // NOTIFICATIONS

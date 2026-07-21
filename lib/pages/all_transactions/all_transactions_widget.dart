@@ -1,10 +1,10 @@
-
 import 'package:flutter/material.dart';
 
 import '/backend/services/api_service.dart';
 import '/core/responsive.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
+import '/utils/transaction_peer_resolver.dart';
 import 'all_transactions_model.dart';
 
 export 'all_transactions_model.dart';
@@ -101,9 +101,16 @@ class _AllTransactionsWidgetState extends State<AllTransactionsWidget> {
 
   bool _matchesFilters(Map<String, dynamic> tx) {
     if (_selectedType != 'all') {
-      final type = (tx['transaction_type'] ?? tx['type'] ?? '').toString().toLowerCase();
-      final isOutgoing = (tx['is_outgoing'] == true) || type.contains('send') || type.contains('sent') || type.contains('outgoing');
-      final isIncoming = !isOutgoing || type.contains('receive') || type.contains('received') || type.contains('incoming');
+      final type =
+          (tx['transaction_type'] ?? tx['type'] ?? '').toString().toLowerCase();
+      final isOutgoing = (tx['is_outgoing'] == true) ||
+          type.contains('send') ||
+          type.contains('sent') ||
+          type.contains('outgoing');
+      final isIncoming = !isOutgoing ||
+          type.contains('receive') ||
+          type.contains('received') ||
+          type.contains('incoming');
 
       switch (_selectedType) {
         case 'send':
@@ -113,10 +120,12 @@ class _AllTransactionsWidgetState extends State<AllTransactionsWidget> {
           if (!isIncoming) return false;
           break;
         case 'deposit':
-          if (!(type.contains('deposit') || type.contains('topup'))) return false;
+          if (!(type.contains('deposit') || type.contains('topup')))
+            return false;
           break;
         case 'withdraw':
-          if (!(type.contains('withdraw') || type.contains('withdrawal'))) return false;
+          if (!(type.contains('withdraw') || type.contains('withdrawal')))
+            return false;
           break;
         default:
           break;
@@ -124,16 +133,22 @@ class _AllTransactionsWidgetState extends State<AllTransactionsWidget> {
     }
 
     if (_selectedStatus != 'all') {
-      final status = (tx['status'] ?? tx['state'] ?? '').toString().toLowerCase();
+      final status =
+          (tx['status'] ?? tx['state'] ?? '').toString().toLowerCase();
       switch (_selectedStatus) {
         case 'completed':
-          if (!(status.contains('complete') || status.contains('success') || status.contains('approved'))) return false;
+          if (!(status.contains('complete') ||
+              status.contains('success') ||
+              status.contains('approved'))) return false;
           break;
         case 'pending':
-          if (!(status.contains('pending') || status.contains('processing'))) return false;
+          if (!(status.contains('pending') || status.contains('processing')))
+            return false;
           break;
         case 'failed':
-          if (!(status.contains('fail') || status.contains('rejected') || status.contains('error'))) return false;
+          if (!(status.contains('fail') ||
+              status.contains('rejected') ||
+              status.contains('error'))) return false;
           break;
         default:
           break;
@@ -148,6 +163,11 @@ class _AllTransactionsWidgetState extends State<AllTransactionsWidget> {
     final parsed = DateTime.tryParse(value.toString());
     if (parsed == null) return value.toString();
     return dateTimeFormat('MMM d, yyyy • h:mm a', parsed);
+  }
+
+  String _resolveTransactionPeer(Map<String, dynamic> tx,
+      {required bool isOutgoing}) {
+    return resolveTransactionPeer(tx, outgoing: isOutgoing);
   }
 
   Color _statusColor(String status) {
@@ -188,7 +208,8 @@ class _AllTransactionsWidgetState extends State<AllTransactionsWidget> {
               children: [
                 Text(
                   'Your transaction history',
-                  style: theme.titleMedium.copyWith(fontWeight: FontWeight.w700),
+                  style:
+                      theme.titleMedium.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 12),
                 Wrap(
@@ -215,19 +236,24 @@ class _AllTransactionsWidgetState extends State<AllTransactionsWidget> {
                 ),
                 const SizedBox(height: 16),
                 if (_loading)
-                  const Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 24), child: CircularProgressIndicator()))
+                  const Center(
+                      child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 24),
+                          child: CircularProgressIndicator()))
                 else if (_error.isNotEmpty)
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
-                      child: Text(_error, style: const TextStyle(color: Colors.redAccent)),
+                      child: Text(_error,
+                          style: const TextStyle(color: Colors.redAccent)),
                     ),
                   )
                 else if (_transactions.isEmpty)
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(24),
-                      child: Text('No transactions match your filters yet.', style: theme.bodyMedium),
+                      child: Text('No transactions match your filters yet.',
+                          style: theme.bodyMedium),
                     ),
                   )
                 else
@@ -238,95 +264,125 @@ class _AllTransactionsWidgetState extends State<AllTransactionsWidget> {
                     separatorBuilder: (_, __) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
                       final tx = _transactions[index];
-                    final type = (tx['transaction_type'] ?? tx['type'] ?? 'Transaction').toString();
-                    final amount = tx['amount'] ?? tx['value'] ?? 0;
-                    final isOutgoing = tx['is_outgoing'] == true || type.toLowerCase().contains('send');
-                    final status = (tx['status'] ?? 'Completed').toString();
-                    final amountText = '${isOutgoing ? '-' : '+'}${double.tryParse(amount.toString())?.toStringAsFixed(2) ?? amount} FARM';
+                      final type = (tx['transaction_type'] ??
+                              tx['type'] ??
+                              'Transaction')
+                          .toString();
+                      final amount = tx['amount'] ?? tx['value'] ?? 0;
+                      final isOutgoing = tx['is_outgoing'] == true ||
+                          type.toLowerCase().contains('send');
+                      final status = (tx['status'] ?? 'Completed').toString();
+                      final peer =
+                          _resolveTransactionPeer(tx, isOutgoing: isOutgoing);
+                      final amountText =
+                          '${isOutgoing ? '-' : '+'}${double.tryParse(amount.toString())?.toStringAsFixed(2) ?? amount} FARM';
+                      final dateText = _formatDate(tx['created_at'] ??
+                          tx['createdAt'] ??
+                          tx['timestamp']);
 
-                    return Card(
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      child: Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 22,
-                              backgroundColor: theme.secondaryBackground,
-                              child: Icon(
-                                isOutgoing ? Icons.north_east_rounded : Icons.south_west_rounded,
-                                color: theme.primaryText,
+                      return Card(
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 22,
+                                backgroundColor: theme.secondaryBackground,
+                                child: Icon(
+                                  isOutgoing
+                                      ? Icons.north_east_rounded
+                                      : Icons.south_west_rounded,
+                                  color: theme.primaryText,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          type,
-                                          style: theme.titleSmall.copyWith(fontWeight: FontWeight.w700),
-                                        ),
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: _statusColor(status).withAlpha((0.12 * 255).round()),
-                                          borderRadius: BorderRadius.circular(999),
-                                        ),
-                                        child: Text(
-                                          status,
-                                          style: TextStyle(
-                                            color: _statusColor(status),
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            type,
+                                            style: theme.titleSmall.copyWith(
+                                                fontWeight: FontWeight.w700),
                                           ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    tx['description']?.toString() ?? tx['reference']?.toString() ?? 'Transaction updated',
-                                    style: theme.bodyMedium,
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          _formatDate(tx['created_at'] ?? tx['createdAt'] ?? tx['timestamp']),
-                                          style: theme.bodySmall,
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: _statusColor(status)
+                                                .withAlpha(
+                                                    (0.12 * 255).round()),
+                                            borderRadius:
+                                                BorderRadius.circular(999),
+                                          ),
+                                          child: Text(
+                                            status,
+                                            style: TextStyle(
+                                              color: _statusColor(status),
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                      Text(
-                                        amountText,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          color: isOutgoing ? Colors.redAccent : Colors.green,
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      tx['description']?.toString() ??
+                                          tx['reference']?.toString() ??
+                                          'Transaction updated',
+                                      style: theme.bodyMedium,
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      '${isOutgoing ? 'To' : 'From'} $peer • $dateText',
+                                      style: theme.bodySmall.copyWith(
+                                          fontWeight: FontWeight.w600),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            _formatDate(tx['created_at'] ??
+                                                tx['createdAt'] ??
+                                                tx['timestamp']),
+                                            style: theme.bodySmall,
+                                          ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                        Text(
+                                          amountText,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            color: isOutgoing
+                                                ? Colors.redAccent
+                                                : Colors.green,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                ),
-            ],
+                      );
+                    },
+                  ),
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _filterChip(String label, String value) {
     final selected = _selectedType == value;
@@ -336,7 +392,9 @@ class _AllTransactionsWidgetState extends State<AllTransactionsWidget> {
       selectedColor: Theme.of(context).primaryColor,
       backgroundColor: Theme.of(context).colorScheme.surface,
       labelStyle: TextStyle(
-        color: selected ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).textTheme.bodyMedium?.color,
+        color: selected
+            ? Theme.of(context).colorScheme.onPrimary
+            : Theme.of(context).textTheme.bodyMedium?.color,
       ),
       shape: const StadiumBorder(),
       onSelected: (_) {
@@ -354,7 +412,9 @@ class _AllTransactionsWidgetState extends State<AllTransactionsWidget> {
       selectedColor: Theme.of(context).primaryColor,
       backgroundColor: Theme.of(context).colorScheme.surface,
       labelStyle: TextStyle(
-        color: selected ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).textTheme.bodyMedium?.color,
+        color: selected
+            ? Theme.of(context).colorScheme.onPrimary
+            : Theme.of(context).textTheme.bodyMedium?.color,
       ),
       shape: const StadiumBorder(),
       onSelected: (_) {

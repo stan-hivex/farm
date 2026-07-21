@@ -153,11 +153,6 @@ void initState() {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              Text(
-                'The 1.5% fee will be credited to the platform.',
-                style: TextStyle(fontSize: 12, color: context.textSecondary),
-              ),
             ],
           ),
           actions: [
@@ -285,7 +280,7 @@ void initState() {
             List<dynamic> suggestionUsers = [];
 
             Future<void> searchUsers(String value) async {
-              if (value.trim().length < 2) {
+              if (!UserApiService.shouldSearchSuggestions(value)) {
                 setState(() => suggestionUsers = []);
                 return;
               }
@@ -318,42 +313,65 @@ void initState() {
               content: SingleChildScrollView(
                 child: Column(
                   children: [
-                    TextField(
-                      controller: sellerController,
-                      decoration: const InputDecoration(
-                        labelText: 'Seller Username / Phone',
-                      ),
-                      onChanged: (value) {
-                        searchUsers(value);
-                      },
-                    ),
-                    if (suggestionUsers.isNotEmpty)
-                      Container(
-                        margin: const EdgeInsets.only(top: 8),
-                        constraints: const BoxConstraints(maxHeight: 200),
-                        decoration: BoxDecoration(
-                          color: context.surface,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: context.borderColor),
-                        ),
-                        child: ListView.separated(
-                          shrinkWrap: true,
-                          itemCount: suggestionUsers.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1),
-                          itemBuilder: (context, index) {
-                            final user = suggestionUsers[index] as Map<String, dynamic>;
-                            return ListTile(
-                              dense: true,
-                              title: Text(UserApiService.getSuggestionLabel(user)),
-                              subtitle: Text('Tap to use this user'),
-                              onTap: () {
-                                sellerController.text = UserApiService.getSuggestionValue(user);
-                                setState(() => suggestionUsers = []);
-                              },
-                            );
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextField(
+                          controller: sellerController,
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: FlutterFlowTheme.of(context).secondaryBackground,
+                            hintText: 'Recipient username or phone number',
+                            helperText: 'You can pick a seller by username or phone number',
+                            helperStyle: TextStyle(
+                              color: FlutterFlowTheme.of(context).secondaryText,
+                              fontSize: 12,
+                            ),
+                            prefixIcon: const Icon(Icons.person),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(18),
+                              borderSide: BorderSide(
+                                color: FlutterFlowTheme.of(context).secondaryText.withAlpha(61),
+                              ),
+                            ),
+                          ),
+                          onChanged: (value) {
+                            searchUsers(value);
                           },
                         ),
-                      ),
+                        if (suggestionUsers.isNotEmpty)
+                          Container(
+                            margin: const EdgeInsets.only(top: 12),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(18),
+                              color: FlutterFlowTheme.of(context).secondaryBackground,
+                              border: Border.all(
+                                color: FlutterFlowTheme.of(context).secondaryText.withAlpha(41),
+                              ),
+                            ),
+                            child: Column(
+                              children: suggestionUsers.map((u) {
+                                final user = u as Map<String, dynamic>;
+                                return ListTile(
+                                  dense: true,
+                                  leading: CircleAvatar(
+                                    child: Text(
+                                      (user['username'] ?? 'u').toString().trim().isNotEmpty
+                                          ? (user['username'] ?? 'u').toString().trim()[0].toUpperCase()
+                                          : '?',
+                                    ),
+                                  ),
+                                  title: Text(UserApiService.getSuggestionLabel(user)),
+                                  onTap: () {
+                                    sellerController.text = UserApiService.getSuggestionValue(user);
+                                    setState(() => suggestionUsers = []);
+                                  },
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                      ],
+                    ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: amountController,
@@ -575,6 +593,9 @@ void initState() {
 
   Widget buildEscrowCard(EscrowModel escrow) {
     final isPending = escrow.status == 'active';
+    final currentUserId = context.read<FFAppState>().userId;
+    final role = escrow.getRoleForUser(currentUserId);
+    final counterpartyName = escrow.getCounterpartyDisplayName(currentUserId);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -584,13 +605,11 @@ void initState() {
             amount: escrow.amount.toStringAsFixed(2),
             date: formatDate(escrow.createdAt),
             is_pending: isPending,
-            role: 'Buyer',
+            role: role,
             status:
                 escrow.status[0].toUpperCase() +
                     escrow.status.substring(1),
-            username: escrow.sellerUsername?.trim().isNotEmpty == true
-                ? escrow.sellerUsername!.replaceFirst(RegExp(r'^@'), '')
-                : (escrow.sellerName?.trim().isNotEmpty == true ? escrow.sellerName! : 'Seller'),
+            username: counterpartyName,
           ),
 
           if (isPending)
@@ -604,25 +623,15 @@ void initState() {
                 children: [
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {
-                        releaseEscrow(escrow.id);
-                      },
-                      child: Text(
-                        'Release Funds',
-                      ),
+                      onPressed: () => releaseEscrow(escrow.id),
+                      child: const Text('Release Funds'),
                     ),
                   ),
-
                   const SizedBox(width: 12),
-
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () {
-                        disputeEscrow(escrow.id);
-                      },
-                      child: Text(
-                        'Dispute',
-                      ),
+                      onPressed: () => disputeEscrow(escrow.id),
+                      child: const Text('Dispute'),
                     ),
                   ),
                 ],

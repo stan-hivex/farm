@@ -4,11 +4,79 @@ import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/components/kyc_required_widget.dart';
+import '/utils/send_amount_cooldown.dart';
+import '/utils/transaction_peer_resolver.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+
+enum TransferRequestCardState {
+  pending,
+  expired,
+  failed,
+  successful,
+}
+
+DateTime? _parseRequestDate(dynamic value) {
+  if (value == null) return null;
+  if (value is DateTime) return value;
+  return DateTime.tryParse(value.toString());
+}
+
+TransferRequestCardState getTransferRequestCardState(
+  dynamic req, {
+  DateTime? now,
+}) {
+  final status = (req['status'] ?? '').toString().trim().toLowerCase();
+  if (status == 'success' ||
+      status == 'successful' ||
+      status == 'completed' ||
+      status == 'accepted' ||
+      status == 'approved') {
+    return TransferRequestCardState.successful;
+  }
+  if (status == 'failed' ||
+      status == 'rejected' ||
+      status == 'declined' ||
+      status == 'expired') {
+    return TransferRequestCardState.failed;
+  }
+
+  final referenceTime = now ?? DateTime.now();
+  final expiresAt = _parseRequestDate(req['expires_at']);
+  if (expiresAt != null && referenceTime.isAfter(expiresAt)) {
+    return TransferRequestCardState.expired;
+  }
+
+  final createdAt = _parseRequestDate(req['created_at']);
+  if (createdAt != null && referenceTime.difference(createdAt).inHours >= 24) {
+    return TransferRequestCardState.expired;
+  }
+
+  return TransferRequestCardState.pending;
+}
+
+bool shouldHideTransferRequest(dynamic req, {DateTime? now}) {
+  final state = getTransferRequestCardState(req, now: now);
+  if (state == TransferRequestCardState.successful) {
+    return false;
+  }
+
+  final referenceTime = now ?? DateTime.now();
+  final createdAt = _parseRequestDate(req['created_at']);
+  if (createdAt != null && referenceTime.difference(createdAt).inHours >= 24) {
+    return true;
+  }
+
+  final expiresAt = _parseRequestDate(req['expires_at']);
+  if (expiresAt != null) {
+    return referenceTime.isAfter(expiresAt);
+  }
+
+  return false;
+}
 
 class SendReceiveWidget extends StatefulWidget {
   const SendReceiveWidget({super.key});
@@ -97,7 +165,9 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
 
       setState(() {
         balance = _parseNumericValue(
-          walletData['available_balance'] ?? walletData['balance'] ?? walletData['wallet_balance'],
+          walletData['available_balance'] ??
+              walletData['balance'] ??
+              walletData['wallet_balance'],
         );
 
         transactions = List<dynamic>.from(txs);
@@ -120,7 +190,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
   Future<void> searchUsers(
     String value,
   ) async {
-    if (value.isEmpty) {
+    if (!UserApiService.shouldSearchSuggestions(value)) {
       setState(() {
         userSuggestions = [];
       });
@@ -133,7 +203,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
 
       final users = await UserApiService.searchUsers(
         token: token,
-        query: value,
+        query: value.trim(),
       );
 
       setState(() {
@@ -191,15 +261,18 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
       return;
     }
 
-    if (_lastSentAmount != null &&
-        _lastSentAmount == amount &&
-        _lastSentAt != null &&
-        DateTime.now().difference(_lastSentAt!).inSeconds < 60) {
+    if (SendAmountCooldown.shouldBlockDuplicateSend(
+      amount: amount,
+      lastSentAmount: _lastSentAmount,
+      lastSentAt: _lastSentAt,
+    )) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'A similar transaction is underway.. please wait',
+            'You can only resend the same amount after 1 minute.',
           ),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
         ),
       );
       return;
@@ -403,7 +476,12 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
     try {
       final String token = context.read<FFAppState>().accessToken;
       final requests = await WalletApiService.getPendingRequests(token: token);
-      setState(() => pendingRequests = requests);
+      if (mounted) {
+        setState(() {
+          pendingRequests =
+              requests.where((req) => !shouldHideTransferRequest(req)).toList();
+        });
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
     }
@@ -416,13 +494,44 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
         token: token,
       );
       if (mounted) {
-        setState(() => myTransferRequests = requests);
+        setState(() {
+          myTransferRequests =
+              requests.where((req) => !shouldHideTransferRequest(req)).toList();
+        });
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('$e')));
       }
+    }
+  }
+
+  void _prepareSendFlowFromRequest(dynamic req, {required bool incoming}) {
+    final person = incoming ? req['users_requester'] : req['users_sender'];
+    final username = _parseStringValue(person?['username']);
+    final phoneNumber = _parseStringValue(person?['phone_number']);
+    final identifier = username.isNotEmpty ? username : phoneNumber;
+    final amount = _parseAmount(req['amount']).toStringAsFixed(2);
+    final description = _parseStringValue(req['description']);
+
+    setState(() {
+      showReceive = false;
+      recipientController.text = identifier;
+      amountController.text = amount;
+      descriptionController.text = description;
+      pinController.clear();
+      userSuggestions = [];
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Send form updated for ${identifier.isNotEmpty ? identifier : 'the selected request'}',
+          ),
+        ),
+      );
     }
   }
 
@@ -581,13 +690,30 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
     );
   }
 
+  String _formatTransactionDate(dynamic value) {
+    if (value == null) return 'Date unavailable';
+    final parsed =
+        value is DateTime ? value : DateTime.tryParse(value.toString());
+    if (parsed == null) return value.toString();
+    return '${parsed.toLocal().day}/${parsed.toLocal().month}/${parsed.toLocal().year} ${parsed.toLocal().hour.toString().padLeft(2, '0')}:${parsed.toLocal().minute.toString().padLeft(2, '0')}';
+  }
+
+  String _resolveTransactionPeer(dynamic tx, {required bool outgoing}) {
+    return resolveTransactionPeer(tx, outgoing: outgoing);
+  }
+
   Widget buildTransactionCard(
     dynamic tx,
   ) {
     final theme = FlutterFlowTheme.of(context);
     final outgoing = tx['is_outgoing'] == true;
     final amount = _parseNumericValue(tx['amount']);
-    final reference = _parseStringValue(tx['transaction_reference'], fallback: 'Transaction');
+    final reference =
+        _parseStringValue(tx['transaction_reference'], fallback: 'Transaction');
+    final peer = _resolveTransactionPeer(tx, outgoing: outgoing);
+    final dateText = _formatTransactionDate(
+      tx['created_at'] ?? tx['createdAt'] ?? tx['timestamp'] ?? tx['date'],
+    );
 
     return Container(
       margin: const EdgeInsets.only(
@@ -626,7 +752,15 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  reference,
+                  outgoing ? 'To $peer' : 'From $peer',
+                  style: TextStyle(
+                    color: FlutterFlowTheme.of(context).secondaryText,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$reference • $dateText',
                   style: TextStyle(
                     color: FlutterFlowTheme.of(context).secondaryText,
                   ),
@@ -765,8 +899,23 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
     final recipientUsername =
         recipient != null ? recipient['username'] : 'unknown';
     final amount = _parseAmount(req['amount']);
-    final status = (req['status'] ?? 'pending').toString().toUpperCase();
-    final isPending = (req['status'] ?? 'pending').toString() == 'pending';
+    final state = getTransferRequestCardState(req);
+    final isPending = state == TransferRequestCardState.pending;
+    final isActionable = state == TransferRequestCardState.expired ||
+        state == TransferRequestCardState.failed;
+    final isSuccessful = state == TransferRequestCardState.successful;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final statusColor = isSuccessful
+        ? (isDark ? Colors.green.shade400 : Colors.green.shade700)
+        : (isActionable
+            ? (isDark ? Colors.red.shade400 : Colors.red.shade700)
+            : (isDark ? Colors.blue.shade400 : Colors.blue.shade700));
+    final statusLabel = isSuccessful
+        ? 'SUCCESSFUL'
+        : (isActionable
+            ? (state == TransferRequestCardState.expired ? 'EXPIRED' : 'FAILED')
+            : 'PENDING');
 
     return GestureDetector(
       onTap: () => _showRequestDetailSheet(req, incoming: false),
@@ -776,7 +925,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           color: FlutterFlowTheme.of(context).secondaryBackground,
-          border: Border.all(color: Colors.blue.shade100),
+          border: Border.all(color: statusColor.withValues(alpha: 0.28)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -788,11 +937,11 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                   height: 48,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.blue.shade100,
+                    color: statusColor.withValues(alpha: 0.14),
                   ),
                   child: Icon(
                     Icons.call_made,
-                    color: Colors.blue.shade700,
+                    color: statusColor,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -827,9 +976,9 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                 ),
                 Text(
                   '${amount.toStringAsFixed(2)} FARM',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: Colors.blue,
+                    color: statusColor,
                   ),
                 ),
               ],
@@ -841,27 +990,63 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
+                    color: statusColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    status,
-                    style: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w600),
+                    statusLabel,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: statusColor,
+                    ),
                   ),
                 ),
-                const Spacer(),
-                if (isPending)
-                  OutlinedButton(
-                    onPressed: () => cancelTransferRequest(req['id']),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        if (isActionable)
+                          ElevatedButton(
+                            onPressed: () => _prepareSendFlowFromRequest(
+                              req,
+                              incoming: false,
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: statusColor,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                            ),
+                            child: const Text('Accept'),
+                          ),
+                        if (isPending || isActionable)
+                          OutlinedButton(
+                            onPressed: () async {
+                              if (isActionable) {
+                                await cancelTransferRequest(req['id']);
+                              } else {
+                                await cancelTransferRequest(req['id']);
+                              }
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: statusColor,
+                              side: BorderSide(color: statusColor),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                            ),
+                            child: Text(isActionable ? 'Cancel' : 'Cancel'),
+                          ),
+                      ],
                     ),
-                    child: const Text('Cancel'),
                   ),
+                ),
               ],
             ),
           ],

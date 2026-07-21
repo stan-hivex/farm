@@ -20,7 +20,13 @@ class FFAppState extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
 
     _accessToken = prefs.getString('accessToken') ?? '';
+    if (_accessToken.isEmpty) {
+      _accessToken = await SecureStorageService.readAccessToken() ?? '';
+    }
     _refreshToken = prefs.getString('refreshToken') ?? '';
+    if (_refreshToken.isEmpty) {
+      _refreshToken = await SecureStorageService.readRefreshToken() ?? '';
+    }
     _userId = prefs.getString('userId') ?? '';
     _firstName = prefs.getString('firstName') ?? '';
     _userName = prefs.getString('userName') ?? '';
@@ -41,6 +47,23 @@ class FFAppState extends ChangeNotifier {
     _kesEquivalent = prefs.getDouble('kesEquivalent') ?? 0.0;
     _profileImageUrl = prefs.getString('profileImageUrl') ?? '';
     _unreadNotificationCount = prefs.getInt('unreadNotificationCount') ?? 0;
+    if (prefs.containsKey('biometricLockTimeoutSeconds')) {
+      _biometricLockTimeoutSeconds =
+          prefs.getInt('biometricLockTimeoutSeconds') ?? 600;
+    } else if (prefs.containsKey('biometricLockTimeoutMinutes')) {
+      _biometricLockTimeoutSeconds =
+          (prefs.getInt('biometricLockTimeoutMinutes') ?? 10) * 60;
+    } else {
+      _biometricLockTimeoutSeconds = 600;
+    }
+    final storedBiometricVerified =
+        prefs.getString('biometric_last_verified');
+    if (storedBiometricVerified != null) {
+      _biometricLastVerified = DateTime.tryParse(storedBiometricVerified);
+    } else {
+      _biometricLastVerified =
+          await SecureStorageService.readBiometricLastVerified();
+    }
 
     // Load theme mode
     final themeModeString = prefs.getString('themeMode');
@@ -172,6 +195,36 @@ class FFAppState extends ChangeNotifier {
     notifyListeners();
     SharedPreferences.getInstance().then(
       (prefs) => prefs.setBool('biometricsEnabled', value),
+    );
+  }
+
+  DateTime? _biometricLastVerified;
+  DateTime? get biometricLastVerified => _biometricLastVerified;
+  set biometricLastVerified(DateTime? value) {
+    if (_biometricLastVerified == value) return;
+    _biometricLastVerified = value;
+    notifyListeners();
+    if (value == null) {
+      SecureStorageService.deleteBiometricLastVerified();
+      SharedPreferences.getInstance().then(
+        (prefs) => prefs.remove('biometric_last_verified'),
+      );
+    } else {
+      SecureStorageService.writeBiometricLastVerified(value.toIso8601String());
+      SharedPreferences.getInstance().then(
+        (prefs) => prefs.setString('biometric_last_verified', value.toIso8601String()),
+      );
+    }
+  }
+
+  int _biometricLockTimeoutSeconds = 600;
+  int get biometricLockTimeoutSeconds => _biometricLockTimeoutSeconds;
+  set biometricLockTimeoutSeconds(int value) {
+    if (_biometricLockTimeoutSeconds == value) return;
+    _biometricLockTimeoutSeconds = value;
+    notifyListeners();
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setInt('biometricLockTimeoutSeconds', value),
     );
   }
 
@@ -353,6 +406,8 @@ class FFAppState extends ChangeNotifier {
     await prefs.remove('isLoggedIn');
     await prefs.remove('biometricsEnabled');
     await prefs.remove('role');
+    await prefs.remove('biometric_last_verified');
     await SecureStorageService.clearAuthData();
+    await SecureStorageService.deleteBiometricLastVerified();
   }
 }

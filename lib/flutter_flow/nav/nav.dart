@@ -123,6 +123,20 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           builder: (context, params) => const MerchantDashboardWidget(),
         ),
         FFRoute(
+          name: 'MerchantPayment',
+          path: '/merchantPayment',
+          builder: (context, params) => MerchantPaymentWidget(
+            merchantId: params.getParam('merchantId', ParamType.String) ?? '',
+            businessName: params.getParam('businessName', ParamType.String) ?? '',
+            qrPayload: params.getParam('qrPayload', ParamType.String) ?? '',
+          ),
+        ),
+        FFRoute(
+          name: 'MerchantSales',
+          path: '/merchantSales',
+          builder: (context, params) => const MerchantSalesWidget(),
+        ),
+        FFRoute(
           name: AllTransactionsWidget.routeName,
           path: AllTransactionsWidget.routePath,
           builder: (context, params) => const AllTransactionsWidget(),
@@ -143,6 +157,11 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           builder: (context, params) => const RegisterpageWidget(),
         ),
         FFRoute(
+          name: BiometricUnlockPageWidget.routeName,
+          path: BiometricUnlockPageWidget.routePath,
+          builder: (context, params) => const BiometricUnlockPageWidget(),
+        ),
+        FFRoute(
           name: DepositpageWidget.routeName,
           path: DepositpageWidget.routePath,
           builder: (context, params) => const DepositpageWidget(),
@@ -151,16 +170,6 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           name: WithdrawpageWidget.routeName,
           path: WithdrawpageWidget.routePath,
           builder: (context, params) => const WithdrawpageWidget(),
-        ),
-        FFRoute(
-          name: OtppageWidget.routeName,
-          path: OtppageWidget.routePath,
-          builder: (context, params) => OtppageWidget(
-            phone: params.getParam(
-              'phone',
-              ParamType.String,
-            ),
-          ),
         ),
         FFRoute(
           name: ForgotPasswordPageWidget.routeName,

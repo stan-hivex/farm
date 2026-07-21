@@ -39,6 +39,7 @@ class _QRScannerWidgetState extends State<QRScannerWidget> {
       MobileScannerController();
 
   bool isProcessing = false;
+  bool isSubmittingTransfer = false;
   
   double walletBalance = 0.0;
   bool balanceLoading = true;
@@ -79,6 +80,165 @@ class _QRScannerWidgetState extends State<QRScannerWidget> {
     super.dispose();
   }
 
+  Future<void> _showPaymentSheet({
+    required String recipientIdentifier,
+    String? recipientLabel,
+    String? suggestedAmount,
+  }) async {
+    final amountController = TextEditingController(
+      text: suggestedAmount ?? '',
+    );
+    final pinController = TextEditingController();
+    final descriptionController = TextEditingController(text: 'QR payment');
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+            top: 20,
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Theme.of(sheetContext).colorScheme.surface,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Send payment',
+                    style: Theme.of(sheetContext).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    recipientLabel != null && recipientLabel.isNotEmpty
+                        ? 'Send funds to $recipientLabel'
+                        : 'Send funds to $recipientIdentifier',
+                    style: Theme.of(sheetContext).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: amountController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Amount',
+                      prefixText: 'FARM ',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: pinController,
+                    obscureText: true,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'PIN',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: descriptionController,
+                    decoration: const InputDecoration(
+                      labelText: 'Description',
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: isSubmittingTransfer
+                          ? null
+                          : () async {
+                              final amount = double.tryParse(
+                                      amountController.text.trim()) ??
+                                  0;
+                              final pin = pinController.text.trim();
+
+                              if (amount <= 0) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Enter a valid amount'),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              if (pin.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Enter your PIN'),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              try {
+                                if (!mounted) return;
+                                setState(() => isSubmittingTransfer = true);
+
+                                await WalletApiService.sendFunds(
+                                  token: FFAppState().accessToken,
+                                  recipient: recipientIdentifier,
+                                  amount: amount,
+                                  pin: pin,
+                                  description: descriptionController.text.trim().isNotEmpty
+                                      ? descriptionController.text.trim()
+                                      : 'QR payment',
+                                );
+
+                                if (!mounted) return;
+                                await _fetchWalletBalance();
+                                Navigator.of(sheetContext).pop();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Transfer successful'),
+                                  ),
+                                );
+                              } catch (e) {
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Transfer failed: ${e.toString().replaceFirst('Exception: ', '')}',
+                                    ),
+                                  ),
+                                );
+                              } finally {
+                                if (mounted) {
+                                  setState(() => isSubmittingTransfer = false);
+                                }
+                              }
+                            },
+                      child: isSubmittingTransfer
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Send payment'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> validateQr(String qrPayload) async {
     if (isProcessing) return;
 
@@ -108,17 +268,31 @@ class _QRScannerWidgetState extends State<QRScannerWidget> {
         final qrData = data['data'];
 
         if (qrData['type'] == 'peer') {
-          context.pushNamed(
-            'SendReceive',
-            queryParameters: {
-              'wallet':
-                  qrData['wallet_address'].toString(),
-              'amount':
-                  qrData['suggested_amount']
-                          ?.toString() ??
-                      '',
-            },
-          );
+          final recipientIdentifier = qrData['wallet_address']?.toString() ??
+              qrData['recipient_identifier']?.toString() ??
+              qrData['username']?.toString() ??
+              qrData['phone']?.toString() ??
+              '';
+
+          if (recipientIdentifier.isNotEmpty) {
+            if (mounted) {
+              await _showPaymentSheet(
+                recipientIdentifier: recipientIdentifier,
+                recipientLabel: qrData['display_name']?.toString() ??
+                    qrData['username']?.toString() ??
+                    qrData['phone']?.toString(),
+                suggestedAmount: qrData['suggested_amount']?.toString(),
+              );
+            }
+          } else {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Unable to determine recipient from QR code'),
+                ),
+              );
+            }
+          }
         } else if (qrData['type'] == 'merchant') {
           context.pushNamed(
             'MerchantPayment',
@@ -127,6 +301,7 @@ class _QRScannerWidgetState extends State<QRScannerWidget> {
                   qrData['merchant_id'].toString(),
               'businessName':
                   qrData['business_name'].toString(),
+              'qrPayload': qrPayload,
             },
           );
         }
@@ -191,7 +366,7 @@ void scanByUsername() {
             List<dynamic> suggestionUsers = [];
 
             Future<void> searchUsers(String value) async {
-              if (value.trim().length < 2) {
+              if (!UserApiService.shouldSearchSuggestions(value)) {
                 setState(() => suggestionUsers = []);
                 return;
               }
@@ -212,50 +387,72 @@ void scanByUsername() {
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
-                  controller: controller,
-                  decoration: const InputDecoration(
-                    hintText: "@username or phone number",
-                  ),
-                  keyboardType: TextInputType.text,
-                  textInputAction: TextInputAction.done,
-                  onChanged: (value) async {
-                    await searchUsers(value);
-                  },
-                  onSubmitted: (_) async {
-                    final input = controller.text.trim();
-                    if (input.isEmpty) return;
-                    Navigator.pop(context);
-                    await validateQr(input);
-                  },
-                ),
-                if (suggestionUsers.isNotEmpty)
-                  Container(
-                    margin: const EdgeInsets.only(top: 8),
-                    constraints: const BoxConstraints(maxHeight: 180),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Theme.of(context).dividerColor),
-                    ),
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: suggestionUsers.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        final user = suggestionUsers[index] as Map<String, dynamic>;
-                        return ListTile(
-                          dense: true,
-                          title: Text(UserApiService.getSuggestionLabel(user)),
-                          subtitle: const Text('Tap to use this user'),
-                          onTap: () {
-                            controller.text = UserApiService.getSuggestionValue(user);
-                            setState(() => suggestionUsers = []);
-                          },
-                        );
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: controller,
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Theme.of(context).colorScheme.surface,
+                        hintText: 'Recipient username or phone number',
+                        helperText: 'You can scan by username or phone number',
+                        helperStyle: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
+                        prefixIcon: const Icon(Icons.person),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: BorderSide(
+                            color: Theme.of(context).dividerColor,
+                          ),
+                        ),
+                      ),
+                      keyboardType: TextInputType.text,
+                      textInputAction: TextInputAction.done,
+                      onChanged: (value) async {
+                        controller.text = value;
+                        await searchUsers(value);
+                      },
+                      onSubmitted: (_) async {
+                        final input = controller.text.trim();
+                        if (input.isEmpty) return;
+                        Navigator.pop(context);
+                        await validateQr(input);
                       },
                     ),
-                  ),
+                    if (suggestionUsers.isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.only(top: 12),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(18),
+                          color: Theme.of(context).colorScheme.surface,
+                          border: Border.all(color: Theme.of(context).dividerColor),
+                        ),
+                        child: Column(
+                          children: suggestionUsers.map((u) {
+                            final user = u as Map<String, dynamic>;
+                            return ListTile(
+                              dense: true,
+                              leading: CircleAvatar(
+                                child: Text(
+                                  (user['username'] ?? 'u').toString().trim().isNotEmpty
+                                      ? (user['username'] ?? 'u').toString().trim()[0].toUpperCase()
+                                      : '?',
+                                ),
+                              ),
+                              title: Text(UserApiService.getSuggestionLabel(user)),
+                              onTap: () {
+                                controller.text = UserApiService.getSuggestionValue(user);
+                                setState(() => suggestionUsers = []);
+                              },
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                  ],
+                ),
               ],
             );
           },

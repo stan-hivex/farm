@@ -12,12 +12,15 @@ class RefreshManager {
   RefreshManager._internal();
 
   static const int _expiryThresholdSeconds = 60;
+  http.Client _client = http.Client();
   static const int _initialBackoffSeconds = 1;
   static const int _maxBackoffSeconds = 30;
 
   Completer<bool>? _refreshCompleter;
   int _consecutiveFailures = 0;
   DateTime? _nextAllowedRefreshTime;
+
+  static set client(http.Client value) => _instance._client = value;
 
   bool get isRefreshing => _refreshCompleter != null;
 
@@ -84,7 +87,7 @@ class RefreshManager {
     );
 
     try {
-      final response = await http
+      final response = await _client
           .post(
             Uri.parse('${AppConfig.api}/auth/refresh'),
             headers: {
@@ -124,8 +127,8 @@ class RefreshManager {
       }
 
       if (response.statusCode == 401 || response.statusCode == 403) {
-        debugPrint('[RefreshManager] Refresh token invalid or expired. Clearing auth credentials.');
-        await FFAppState().clearAuthCredentials();
+        debugPrint('[RefreshManager] Refresh token invalid or expired. Preserving existing auth state for now.');
+        _registerFailure();
         return false;
       }
 
@@ -139,6 +142,12 @@ class RefreshManager {
       _registerFailure();
       return false;
     }
+  }
+
+  void reset() {
+    _consecutiveFailures = 0;
+    _nextAllowedRefreshTime = null;
+    _refreshCompleter = null;
   }
 
   void _registerFailure() {

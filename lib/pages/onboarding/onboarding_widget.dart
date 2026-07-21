@@ -2,7 +2,9 @@ import '/components/button/button_widget.dart';
 import '/components/step_indicator/step_indicator_widget.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
+import '/pages/biometric_unlock_page/biometric_unlock_page_widget.dart';
 import '/services/auth/route_guard_service.dart';
+import '/services/biometric_lock_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
@@ -59,9 +61,15 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
     if (!mounted) return;
 
     if (isAuthenticated) {
+      final lockService = BiometricLockService();
+      final shouldLock = await lockService.shouldRequireUnlock();
       await Future.delayed(const Duration(milliseconds: 250));
       if (!mounted) return;
-      context.goNamed('Dashboard');
+      if (shouldLock) {
+        context.goNamed(BiometricUnlockPageWidget.routeName);
+      } else {
+        context.goNamed('Dashboard');
+      }
       return;
     }
 

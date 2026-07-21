@@ -1,4 +1,3 @@
-import '/components/button/button_widget.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import 'package:flutter/material.dart';
@@ -331,57 +330,6 @@ class _EscrowItemWidgetState extends State<EscrowItemWidget> {
                       ),
                     ],
                   ),
-                  if (valueOrDefault<bool>(
-                    widget.is_pending,
-                    true,
-                  ))
-                    Container(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.max,
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Expanded(
-                            flex: 1,
-                            child: wrapWithModel(
-                              model: _model.buttonModel1,
-                              updateCallback: () => safeSetState(() {}),
-                              child: ButtonWidget(
-                                content: 'Release Funds',
-                                icon_present: false,
-                                icon_end_present: false,
-                                on_tap: 'navigate:Dashboard',
-                                color: FlutterFlowTheme.of(context).primaryText,
-                                variant: 'primary',
-                                size: 'medium',
-                                full_width: true,
-                                loading: false,
-                                disabled: false,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 1,
-                            child: wrapWithModel(
-                              model: _model.buttonModel2,
-                              updateCallback: () => safeSetState(() {}),
-                              child: ButtonWidget(
-                                content: 'Dispute',
-                                icon_present: false,
-                                icon_end_present: false,
-                                on_tap: 'navigate:AdminPanel',
-                                color: FlutterFlowTheme.of(context).primaryText,
-                                variant: 'outline',
-                                size: 'medium',
-                                full_width: true,
-                                loading: false,
-                                disabled: false,
-                              ),
-                            ),
-                          ),
-                        ].divide(const SizedBox(width: 16.0)),
-                      ),
-                    ),
                 ].divide(const SizedBox(height: 16.0)),
               ),
             ),

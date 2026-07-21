@@ -11,6 +11,7 @@ class AppSessionManager {
 
   bool _refreshInProgress = false;
   Completer<void>? _refreshCompleter;
+  Future<void>? _sharedRefreshFuture;
   final Map<String, bool> _endpointInProgress = {};
 
   String _timeStamp() => DateTime.now().toIso8601String();
@@ -21,6 +22,23 @@ class AppSessionManager {
       return;
     }
 
+    if (_sharedRefreshFuture != null) {
+      debugPrint('[AppSessionManager][${_timeStamp()}] Reusing an existing app refresh.');
+      return _sharedRefreshFuture!;
+    }
+
+    final future = _refreshAppDataInternal();
+    _sharedRefreshFuture = future;
+    try {
+      await future;
+    } finally {
+      if (identical(_sharedRefreshFuture, future)) {
+        _sharedRefreshFuture = null;
+      }
+    }
+  }
+
+  Future<void> _refreshAppDataInternal() async {
     if (_refreshInProgress) {
       debugPrint('[AppSessionManager][${_timeStamp()}] Refresh already in progress. Waiting for completion.');
       return _refreshCompleter?.future ?? Future.value();
@@ -261,6 +279,34 @@ class AppSessionManager {
       return;
     }
 
+    if (_sharedRefreshFuture != null) {
+      debugPrint('[AppSessionManager] syncNow reusing the existing app refresh.');
+      await _sharedRefreshFuture!;
+      return;
+    }
+
+    final future = _syncNowInternal(
+      authTimeoutSeconds: authTimeoutSeconds,
+      profileTimeoutSeconds: profileTimeoutSeconds,
+      walletTimeoutSeconds: walletTimeoutSeconds,
+      transactionsTimeoutSeconds: transactionsTimeoutSeconds,
+    );
+    _sharedRefreshFuture = future;
+    try {
+      await future;
+    } finally {
+      if (identical(_sharedRefreshFuture, future)) {
+        _sharedRefreshFuture = null;
+      }
+    }
+  }
+
+  Future<void> _syncNowInternal({
+    int authTimeoutSeconds = 3,
+    int profileTimeoutSeconds = 5,
+    int walletTimeoutSeconds = 7,
+    int transactionsTimeoutSeconds = 6,
+  }) async {
     debugPrint('[AppSessionManager] syncNow starting. authTokenPresent=${FFAppState().accessToken.isNotEmpty}, refreshTokenPresent=${FFAppState().refreshToken.isNotEmpty}');
 
     // 1) Refresh session only if token is near expiry.

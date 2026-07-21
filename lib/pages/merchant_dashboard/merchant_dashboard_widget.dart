@@ -5,7 +5,12 @@ import '/flutter_flow/flutter_flow_charts.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '/backend/services/api_service.dart';
+import '/core/app_config.dart';
+import '/utils/download_file.dart';
+import '/utils/merchant_qr_utils.dart';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -40,7 +45,16 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
   Map<String, dynamic>? stats;
 
   List<dynamic> recentTransactions = [];
-  List<double> weeklyData = [120, 300, 220, 480, 600, 540, 650];
+  List<double> weeklyData = List<double>.filled(7, 0);
+  String? merchantQrImageBase64;
+
+  String? get _merchantQrBase64 {
+    return merchantQrImageBase64 ??
+        merchant?['qr_image_base64'] ??
+        merchant?['qrImageBase64'] ??
+        merchant?['qr_image'] ??
+        merchant?['qrImage'];
+  }
 
   final TextEditingController amountController = TextEditingController();
   final TextEditingController accountNameController = TextEditingController();
@@ -55,7 +69,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
 
   String payoutMethod = 'M-PESA';
 
-  final String baseUrl = "https://farm-backend-9b8u.onrender.com/api/v1";
+  final String baseUrl = AppConfig.api;
 
   Future<String?> getToken() async {
     return FFAppState().accessToken;
@@ -102,12 +116,18 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
       final body = jsonDecode(response.body);
       if (response.statusCode == 200) {
         final data = body['data'];
+        final transactions = data['recent_transactions'] ?? [];
         setState(() {
           merchant = data['merchant'];
           stats = data['stats'];
-          recentTransactions = data['recent_transactions'] ?? [];
+          recentTransactions = transactions;
+          weeklyData = _buildWeeklyData(data['stats'], transactions);
           loading = false;
         });
+
+        if (_merchantQrBase64 == null) {
+          await _fetchMerchantQr();
+        }
       } else {
         final message = body['message']?.toString() ?? '';
         if (message.contains('Merchant account not found')) {
@@ -128,6 +148,37 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
       });
       showError(e.toString());
     }
+  }
+
+  List<double> _buildWeeklyData(
+    Map<String, dynamic>? data,
+    List<dynamic> transactions,
+  ) {
+    if (data != null && data['weekly_performance'] is List) {
+      final raw = data['weekly_performance'];
+      if (raw is List) {
+        final converted = raw
+            .map<double?>((value) => double.tryParse(value?.toString() ?? '0'))
+            .whereType<double>()
+            .toList();
+        if (converted.length == 7) {
+          return converted;
+        }
+      }
+    }
+
+    final now = DateTime.now();
+    final totals = List<double>.filled(7, 0);
+    for (final tx in transactions) {
+      final createdAt = tx['created_at'] ?? tx['createdAt'] ?? tx['timestamp'];
+      final date = DateTime.tryParse(createdAt?.toString() ?? '');
+      if (date == null) continue;
+      final daysAgo = now.difference(date).inDays;
+      if (daysAgo < 0 || daysAgo >= 7) continue;
+      final amount = double.tryParse(tx['amount']?.toString() ?? '0') ?? 0;
+      totals[(date.weekday + 5) % 7] += amount;
+    }
+    return totals;
   }
 
   Future<void> applyMerchant() async {
@@ -179,31 +230,49 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
         regeneratingQr = true;
       });
 
-      final token = await getToken();
-      final response = await http.post(
-        Uri.parse('$baseUrl/merchant/qr/regenerate'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      final body = jsonDecode(response.body);
+      await getToken();
+      final body = await ApiService.regenerateMerchantQr();
       setState(() {
         regeneratingQr = false;
       });
 
-      if (response.statusCode == 200) {
+      if (body.isNotEmpty) {
         showSuccess('QR regenerated successfully');
         fetchDashboard();
       } else {
-        showError(body['message'] ?? 'Failed to regenerate QR');
+        showError('Failed to regenerate QR');
       }
     } catch (e) {
       setState(() {
         regeneratingQr = false;
       });
       showError(e.toString());
+    }
+  }
+
+  Future<void> _fetchMerchantQr() async {
+    try {
+      final body = await ApiService.getMerchantQr();
+      final extracted = extractMerchantQrBase64(body);
+      if (extracted != null && extracted.isNotEmpty) {
+        setState(() {
+          merchantQrImageBase64 = extracted;
+        });
+        return;
+      }
+
+      // Some backends return a payload without the QR until a regeneration call is made.
+      try {
+        final regenerated = await ApiService.regenerateMerchantQr();
+        final regeneratedQr = extractMerchantQrBase64(regenerated);
+        if (regeneratedQr != null && regeneratedQr.isNotEmpty) {
+          setState(() {
+            merchantQrImageBase64 = regeneratedQr;
+          });
+        }
+      } catch (_) {}
+    } catch (_) {
+      // ignore fetch failure; UI can still show placeholder.
     }
   }
 
@@ -246,6 +315,38 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
       });
       showError(e.toString());
     }
+  }
+
+  Future<void> _downloadQrKit() async {
+    final qrBase64 = _merchantQrBase64;
+    if (qrBase64 == null || qrBase64.isEmpty) {
+      await _fetchMerchantQr();
+      final refreshedQrBase64 = _merchantQrBase64;
+      if (refreshedQrBase64 == null || refreshedQrBase64.isEmpty) {
+        showError('No QR code available to download.');
+        return;
+      }
+    }
+
+    try {
+      final bytes = resolveMerchantQrBytes(_merchantQrBase64);
+      if (bytes == null || bytes.isEmpty) {
+        throw Exception('QR payload could not be decoded');
+      }
+
+      final fileName =
+          'farm_merchant_qr_${DateTime.now().millisecondsSinceEpoch}.png';
+      final path = await saveFileFromBytes(Uint8List.fromList(bytes), fileName);
+
+      showSuccess('QR code saved to $path');
+    } catch (e) {
+      showError('Failed to save QR code: $e');
+    }
+  }
+
+  void _openMerchantSales() {
+    if (merchant == null) return;
+    context.pushNamed('MerchantSales');
   }
 
   void openApplyMerchantModal() {
@@ -291,7 +392,12 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                   child: ElevatedButton(
                     onPressed: applyingMerchant ? null : applyMerchant,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: FlutterFlowTheme.of(context).primary,
+                      backgroundColor: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white
+                          : Colors.black,
+                      foregroundColor: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.black
+                          : Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
@@ -372,7 +478,12 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                       child: ElevatedButton(
                         onPressed: payoutLoading ? null : requestPayout,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: FlutterFlowTheme.of(context).primary,
+                          backgroundColor: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white
+                              : Colors.black,
+                          foregroundColor: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.black
+                              : Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
@@ -455,7 +566,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                     width: 120,
                     height: 120,
                     decoration: BoxDecoration(
-                      color: FlutterFlowTheme.of(context).primary.withOpacity(0.14),
+                      color: FlutterFlowTheme.of(context).primary.withValues(alpha: 0.14),
                       borderRadius: BorderRadius.circular(32),
                     ),
                     child: Icon(
@@ -490,7 +601,12 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                     child: ElevatedButton(
                       onPressed: openApplyMerchantModal,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: FlutterFlowTheme.of(context).primary,
+                        backgroundColor: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : Colors.black,
+                        foregroundColor: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.black
+                            : Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(18),
                         ),
@@ -498,7 +614,6 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                       child: Text(
                         'Apply Merchant Account',
                         style: GoogleFonts.plusJakartaSans(
-                          color: Colors.white,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -838,26 +953,15 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                                 ),
                                 child: Padding(
                                   padding: EdgeInsets.all(24),
-                                  child: merchant?['qr_code'] != null
+                                  child: _merchantQrBase64 != null
                                       ? ClipRRect(
                                           borderRadius:
                                               BorderRadius.circular(20),
-                                          child: CachedNetworkImage(
-                                            imageUrl: merchant!['qr_code'],
+                                          child: Image.memory(
+                                            base64Decode(_merchantQrBase64!.contains(',')
+                                                ? _merchantQrBase64!.split(',').last
+                                                : _merchantQrBase64!),
                                             fit: BoxFit.cover,
-                                            placeholder: (context, url) =>
-                                                const Center(
-                                                    child:
-                                                        CircularProgressIndicator()),
-                                            errorWidget:
-                                                (context, url, error) =>
-                                                    const Center(
-                                                        child: Icon(
-                                                            Icons
-                                                                .qr_code_2_rounded,
-                                                            size: 120,
-                                                            color: Colors
-                                                                .white24)),
                                           ),
                                         )
                                       : const Center(
@@ -907,7 +1011,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                                 ),
                                 icon_present: true,
                                 icon_end_present: false,
-                                on_tap: 'navigate:Dashboard',
+                                onTapCallback: _downloadQrKit,
                                 color: FlutterFlowTheme.of(context).primaryText,
                                 variant: 'outline',
                                 size: 'medium',
@@ -1086,7 +1190,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                             content: 'View All',
                             icon_present: false,
                             icon_end_present: false,
-                            on_tap: 'navigate:Dashboard',
+                            onTapCallback: _openMerchantSales,
                             color: FlutterFlowTheme.of(context).primaryText,
                             variant: 'ghost',
                             size: 'small',

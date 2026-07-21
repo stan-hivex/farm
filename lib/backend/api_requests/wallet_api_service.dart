@@ -54,7 +54,7 @@ class WalletApiService {
     String? status,
     int page = 1,
   }) async {
-    final uri = Uri.parse('$_base/transactions').replace(
+    final uri = Uri.parse('${AppConfig.api}/transactions').replace(
       queryParameters: {
         'page': page.toString(),
         if (type != null) 'type': type,

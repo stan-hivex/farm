@@ -21,5 +21,11 @@ void main() {
       expect(UserApiService.getSuggestionValue(user), '+254712345678');
       expect(UserApiService.getSuggestionLabel(user), '+254712345678');
     });
+
+    test('only starts searching once the input has at least three characters', () {
+      expect(UserApiService.shouldSearchSuggestions('ab'), isFalse);
+      expect(UserApiService.shouldSearchSuggestions('abc'), isTrue);
+      expect(UserApiService.shouldSearchSuggestions('  abc  '), isTrue);
+    });
   });
 }

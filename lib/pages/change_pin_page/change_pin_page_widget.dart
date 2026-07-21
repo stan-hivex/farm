@@ -217,13 +217,17 @@ class _ChangePinPageWidgetState
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final keyBg = isDark ? Colors.grey[800] : Colors.black;
     final keyTxt = Colors.white;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isCompact = screenWidth < 360;
+    final keySize = isCompact ? 62.0 : 72.0;
+    final keyMargin = isCompact ? 6.0 : 8.0;
 
     return GestureDetector(
       onTap: () => add(value),
       child: Container(
-        width: 75,
-        height: 75,
-        margin: const EdgeInsets.all(8),
+        width: keySize,
+        height: keySize,
+        margin: EdgeInsets.all(keyMargin),
         decoration: BoxDecoration(
           color: keyBg,
           borderRadius: BorderRadius.circular(18),
@@ -262,14 +266,14 @@ class _ChangePinPageWidgetState
           mainAxisAlignment:
               MainAxisAlignment.center,
           children: [
-            const SizedBox(width: 90),
+            SizedBox(width: MediaQuery.of(context).size.width < 360 ? 78 : 90),
 
             key('0'),
 
             Container(
-              width: 75,
-              height: 75,
-              margin: const EdgeInsets.all(8),
+              width: MediaQuery.of(context).size.width < 360 ? 62 : 72,
+              height: MediaQuery.of(context).size.width < 360 ? 62 : 72,
+              margin: EdgeInsets.all(MediaQuery.of(context).size.width < 360 ? 6 : 8),
               decoration: BoxDecoration(
                 color: Theme.of(context).brightness == Brightness.dark
                     ? Colors.grey[800]
@@ -309,15 +313,28 @@ class _ChangePinPageWidgetState
       ),
 
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            children: [
-              const SizedBox(height: 20),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isCompactHeight = constraints.maxHeight < 700;
+            return SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    20,
+                    12,
+                    20,
+                    20,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(height: isCompactHeight ? 12 : 20),
 
-              Container(
-                width: 90,
-                height: 90,
+                      Container(
+                        width: 86,
+                        height: 86,
                 decoration: BoxDecoration(
                   color: context.surface,
                   borderRadius: BorderRadius.circular(24),
@@ -329,9 +346,9 @@ class _ChangePinPageWidgetState
                 ),
               ),
 
-              const SizedBox(height: 30),
+                      SizedBox(height: isCompactHeight ? 20 : 28),
 
-              Text(
+                      Text(
                 !step2
                     ? "Enter Old PIN"
                     : !step3
@@ -344,9 +361,9 @@ class _ChangePinPageWidgetState
                 ),
               ),
 
-              const SizedBox(height: 12),
+                      SizedBox(height: isCompactHeight ? 8 : 12),
 
-              Text(
+                      Text(
                 !step2
                     ? "Input your current transaction PIN"
                     : !step3
@@ -359,22 +376,22 @@ class _ChangePinPageWidgetState
                 ),
               ),
 
-              const SizedBox(height: 40),
+                      SizedBox(height: isCompactHeight ? 20 : 32),
 
-              if (!step2) dots(oldPin),
+                      if (!step2) dots(oldPin),
 
               if (step2 && !step3)
                 dots(newPin),
 
               if (step3) dots(confirmPin),
 
-              const SizedBox(height: 40),
+                      SizedBox(height: isCompactHeight ? 20 : 28),
 
-              keypad(),
+                      keypad(),
 
-              const Spacer(),
+                      SizedBox(height: isCompactHeight ? 16 : 24),
 
-              SizedBox(
+                      SizedBox(
                 width: double.infinity,
                 height: 55,
                 child: ElevatedButton(
@@ -413,9 +430,13 @@ class _ChangePinPageWidgetState
                 ),
               ),
 
-              const SizedBox(height: 20),
-            ],
-          ),
+                      SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );

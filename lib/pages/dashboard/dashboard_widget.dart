@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:http/http.dart' as http;
 import '/core/app_config.dart';
 import '/backend/services/api_service.dart';
@@ -14,6 +15,8 @@ import '/pages/send_receive/send_receive_widget.dart';
 import '/pages/all_transactions/all_transactions_widget.dart';
 import '/pages/growth_tracking_page/growth_tracking_page_widget.dart';
 import '/pages/merchant_dashboard/merchant_dashboard_widget.dart';
+import '/services/app_session_manager.dart';
+import '/utils/transaction_peer_resolver.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -55,6 +58,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
   String? notificationsError;
   List<Map<String, dynamic>> notifications = [];
   int unreadNotificationsCount = 0;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
@@ -62,16 +66,18 @@ class _DashboardWidgetState extends State<DashboardWidget>
     WidgetsBinding.instance.addObserver(this);
 
     _model = createModel(context, () => DashboardModel());
-
-    fetchWalletBalance();
-    fetchUserProfile();
-    fetchTransactions();
-    fetchGrowthHistory();
-    loadNotifications();
+    FFAppState().addListener(_handleAppStateChanged);
+    _startPeriodicRefresh();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_refreshDashboard());
+    });
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
+    FFAppState().removeListener(_handleAppStateChanged);
     WidgetsBinding.instance.removeObserver(this);
     _model.dispose();
     super.dispose();
@@ -81,8 +87,79 @@ class _DashboardWidgetState extends State<DashboardWidget>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed) {
-      _refreshDashboard();
+      _startPeriodicRefresh();
+      unawaited(_refreshDashboard());
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _refreshTimer?.cancel();
     }
+  }
+
+  void _handleAppStateChanged() {
+    if (!mounted) return;
+    setState(() {
+      walletBalance = FFAppState().walletBalance;
+      kesEquivalent = FFAppState().kesEquivalent;
+      profileImageUrl = FFAppState().profileImageUrl;
+      transactions = FFAppState().recentTransactions;
+      isBalanceLoading = false;
+      isTransactionsLoading = false;
+    });
+  }
+
+  void _startPeriodicRefresh() {
+    _refreshTimer?.cancel();
+    if (!FFAppState().isLoggedIn || FFAppState().accessToken.isEmpty) {
+      return;
+    }
+
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (!mounted ||
+          !FFAppState().isLoggedIn ||
+          FFAppState().accessToken.isEmpty) {
+        return;
+      }
+      unawaited(_refreshDashboard());
+    });
+  }
+
+  Future<void> _refreshDashboard() async {
+    if (!mounted ||
+        !FFAppState().isLoggedIn ||
+        FFAppState().accessToken.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      isBalanceLoading = true;
+      isTransactionsLoading = true;
+    });
+
+    try {
+      await AppSessionManager().syncNow(
+        profileTimeoutSeconds: 5,
+        walletTimeoutSeconds: 5,
+        transactionsTimeoutSeconds: 5,
+      );
+    } catch (e) {
+      debugPrint('Dashboard refresh failed: $e');
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      walletBalance = FFAppState().walletBalance;
+      kesEquivalent = FFAppState().kesEquivalent;
+      profileImageUrl = FFAppState().profileImageUrl;
+      transactions = FFAppState().recentTransactions;
+      isBalanceLoading = false;
+      isTransactionsLoading = false;
+    });
+
+    await Future.wait([
+      fetchGrowthHistory(),
+      loadNotifications(),
+    ]);
   }
 
   Future<void> logoutUser() async {
@@ -173,7 +250,8 @@ class _DashboardWidgetState extends State<DashboardWidget>
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final kycStatus = data['data']?['kyc_status'] ?? data['data']?['kycStatus'];
+        final kycStatus =
+            data['data']?['kyc_status'] ?? data['data']?['kycStatus'];
 
         if (kycStatus is String) {
           FFAppState().kycStatus = kycStatus;
@@ -186,6 +264,18 @@ class _DashboardWidgetState extends State<DashboardWidget>
     } catch (e) {
       print('PROFILE ERROR: $e');
     }
+  }
+
+  String _resolveTransactionPeer(dynamic tx, {required bool outgoing}) {
+    return resolveTransactionPeer(tx, outgoing: outgoing);
+  }
+
+  String _formatTransactionDate(dynamic value) {
+    if (value == null) return 'Date unavailable';
+    final parsed =
+        value is DateTime ? value : DateTime.tryParse(value.toString());
+    if (parsed == null) return value.toString();
+    return '${parsed.toLocal().day}/${parsed.toLocal().month}/${parsed.toLocal().year} ${parsed.toLocal().hour.toString().padLeft(2, '0')}:${parsed.toLocal().minute.toString().padLeft(2, '0')}';
   }
 
   Future<void> fetchTransactions() async {
@@ -222,16 +312,6 @@ class _DashboardWidgetState extends State<DashboardWidget>
         isTransactionsLoading = false;
       });
     }
-  }
-
-  Future<void> _refreshDashboard() async {
-    await Future.wait([
-      fetchWalletBalance(),
-      fetchUserProfile(),
-      fetchTransactions(),
-      fetchGrowthHistory(),
-      loadNotifications(),
-    ]);
   }
 
   Future<void> loadNotifications() async {
@@ -362,7 +442,9 @@ class _DashboardWidgetState extends State<DashboardWidget>
                     itemBuilder: (context, index) {
                       final item = notifications[index];
                       final title = item['title']?.toString() ?? 'Notification';
-                      final body = item['body']?.toString() ?? item['message']?.toString() ?? '';
+                      final body = item['body']?.toString() ??
+                          item['message']?.toString() ??
+                          '';
                       final isRead = item['read'] is bool
                           ? item['read'] as bool
                           : item['is_read'] is bool
@@ -371,7 +453,8 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                   ? item['isRead'] as bool
                                   : false;
                       return Card(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
                         elevation: 0,
                         color: FlutterFlowTheme.of(context).secondaryBackground,
                         child: InkWell(
@@ -386,24 +469,30 @@ class _DashboardWidgetState extends State<DashboardWidget>
                             child: Row(
                               children: [
                                 Icon(
-                                  isRead ? Icons.notifications_none_rounded : Icons.notifications_active_rounded,
+                                  isRead
+                                      ? Icons.notifications_none_rounded
+                                      : Icons.notifications_active_rounded,
                                   color: FlutterFlowTheme.of(context).primary,
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         title,
-                                        style: FlutterFlowTheme.of(context).titleSmall.override(
+                                        style: FlutterFlowTheme.of(context)
+                                            .titleSmall
+                                            .override(
                                               fontWeight: FontWeight.w600,
                                             ),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
                                         body,
-                                        style: FlutterFlowTheme.of(context).bodyMedium,
+                                        style: FlutterFlowTheme.of(context)
+                                            .bodyMedium,
                                       ),
                                     ],
                                   ),
@@ -477,7 +566,8 @@ class _DashboardWidgetState extends State<DashboardWidget>
 
     try {
       final response = await ApiService.getGrowthHistory(days: 7);
-      final history = response['data'] is List ? response['data'] as List : <dynamic>[];
+      final history =
+          response['data'] is List ? response['data'] as List : <dynamic>[];
 
       final parsedValues = <double>[];
       final parsedLabels = <String>[];
@@ -490,7 +580,8 @@ class _DashboardWidgetState extends State<DashboardWidget>
         final rawItem = item is Map<String, dynamic>
             ? item
             : Map<String, dynamic>.from(item as Map);
-        final rawValue = rawItem['total'] ?? rawItem['value'] ?? rawItem['amount'] ?? 0;
+        final rawValue =
+            rawItem['total'] ?? rawItem['value'] ?? rawItem['amount'] ?? 0;
         final value = double.tryParse(rawValue.toString()) ?? 0.0;
         final label = rawItem['date']?.toString() ??
             rawItem['day']?.toString() ??
@@ -511,9 +602,8 @@ class _DashboardWidgetState extends State<DashboardWidget>
       final maxValue = parsedValues.isNotEmpty
           ? parsedValues.reduce((a, b) => a > b ? a : b)
           : 0.0;
-      final computedMaxY = maxValue > 0
-          ? (maxValue * 1.2 > 72.0 ? maxValue * 1.2 : 72.0)
-          : 72.0;
+      final computedMaxY =
+          maxValue > 0 ? (maxValue * 1.2 > 72.0 ? maxValue * 1.2 : 72.0) : 72.0;
 
       if (!mounted) return;
 
@@ -722,8 +812,12 @@ class _DashboardWidgetState extends State<DashboardWidget>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Padding(
-                  padding:
-                      const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 32.0),
+                  padding: EdgeInsetsDirectional.fromSTEB(
+                    0.0,
+                    MediaQuery.of(context).padding.top > 0 ? 12.0 : 8.0,
+                    0.0,
+                    32.0,
+                  ),
                   child: Container(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -737,7 +831,12 @@ class _DashboardWidgetState extends State<DashboardWidget>
                             shape: BoxShape.rectangle,
                           ),
                           child: Padding(
-                            padding: const EdgeInsets.all(24.0),
+                            padding: EdgeInsets.fromLTRB(
+                              24.0,
+                              MediaQuery.of(context).padding.top > 0 ? 18.0 : 16.0,
+                              24.0,
+                              20.0,
+                            ),
                             child: Container(
                               child: Row(
                                 mainAxisSize: MainAxisSize.max,
@@ -810,37 +909,46 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                           if (isKycApproved)
                                             Icon(
                                               Icons.verified_rounded,
-                                              color: FlutterFlowTheme.of(context)
-                                                  .primaryText,
+                                              color:
+                                                  FlutterFlowTheme.of(context)
+                                                      .primaryText,
                                               size: 18.0,
                                             ),
                                         ].divide(const SizedBox(width: 4.0)),
                                       ),
-                                      if (hasKycSubmission && !isKycApproved) ...[
+                                      if (hasKycSubmission &&
+                                          !isKycApproved) ...[
                                         const SizedBox(height: 10.0),
                                         SizedBox(
                                           width: 160.0,
                                           child: ElevatedButton(
-                                            onPressed: () => context.pushNamed('KYCPAGE'),
+                                            onPressed: () =>
+                                                context.pushNamed('KYCPAGE'),
                                             style: ElevatedButton.styleFrom(
-                                              backgroundColor: FlutterFlowTheme.of(context)
-                                                  .primary,
-                                              foregroundColor: FlutterFlowTheme.of(context)
-                                                  .secondaryBackground,
-                                              padding: const EdgeInsets.symmetric(
+                                              backgroundColor:
+                                                  FlutterFlowTheme.of(context)
+                                                      .primary,
+                                              foregroundColor:
+                                                  FlutterFlowTheme.of(context)
+                                                      .secondaryBackground,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
                                                 vertical: 12.0,
                                               ),
                                               shape: RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.circular(12.0),
+                                                borderRadius:
+                                                    BorderRadius.circular(12.0),
                                               ),
                                             ),
                                             child: Text(
                                               'Verify KYC',
-                                              style: FlutterFlowTheme.of(context)
+                                              style: FlutterFlowTheme.of(
+                                                      context)
                                                   .titleSmall
                                                   .override(
                                                     fontWeight: FontWeight.w600,
-                                                    color: FlutterFlowTheme.of(context)
+                                                    color: FlutterFlowTheme.of(
+                                                            context)
                                                         .secondaryBackground,
                                                   ),
                                             ),
@@ -860,8 +968,9 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                             fillColor: Colors.transparent,
                                             icon: Icon(
                                               Icons.notifications_none_rounded,
-                                              color: FlutterFlowTheme.of(context)
-                                                  .primaryText,
+                                              color:
+                                                  FlutterFlowTheme.of(context)
+                                                      .primaryText,
                                               size: 24.0,
                                             ),
                                             onPressed: _showNotificationsSheet,
@@ -871,19 +980,22 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                               right: 6,
                                               top: 6,
                                               child: Container(
-                                                padding: const EdgeInsets.all(4),
+                                                padding:
+                                                    const EdgeInsets.all(4),
                                                 decoration: const BoxDecoration(
                                                   color: Colors.red,
                                                   shape: BoxShape.circle,
                                                 ),
-                                                constraints: const BoxConstraints(
+                                                constraints:
+                                                    const BoxConstraints(
                                                   minWidth: 16,
                                                   minHeight: 16,
                                                 ),
                                                 child: Text(
                                                   unreadNotificationsCount > 9
                                                       ? '9+'
-                                                      : unreadNotificationsCount.toString(),
+                                                      : unreadNotificationsCount
+                                                          .toString(),
                                                   style: const TextStyle(
                                                     color: Colors.white,
                                                     fontSize: 10,
@@ -899,7 +1011,8 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                         borderRadius: 8.0,
                                         buttonSize: 44.0,
                                         fillColor: Colors.transparent,
-                                        icon: (profileImageUrl?.isNotEmpty ?? false)
+                                        icon: (profileImageUrl?.isNotEmpty ??
+                                                false)
                                             ? ClipRRect(
                                                 borderRadius:
                                                     BorderRadius.circular(100),
@@ -912,8 +1025,9 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                               )
                                             : Icon(
                                                 Icons.account_circle_outlined,
-                                                color: FlutterFlowTheme.of(context)
-                                                    .primaryText,
+                                                color:
+                                                    FlutterFlowTheme.of(context)
+                                                        .primaryText,
                                                 size: 28.0,
                                               ),
                                         onPressed: () {
@@ -921,14 +1035,17 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                             context: context,
                                             builder: (context) {
                                               return Container(
-                                                padding: const EdgeInsets.all(20),
+                                                padding:
+                                                    const EdgeInsets.all(20),
                                                 child: Column(
-                                                  mainAxisSize: MainAxisSize.min,
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
                                                   children: [
                                                     ListTile(
-                                                      leading:
-                                                          const Icon(Icons.person),
-                                                      title: const Text('Profile'),
+                                                      leading: const Icon(
+                                                          Icons.person),
+                                                      title:
+                                                          const Text('Profile'),
                                                       onTap: () {
                                                         Navigator.pop(context);
                                                         context.pushNamed(
@@ -936,9 +1053,10 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                       },
                                                     ),
                                                     ListTile(
-                                                      leading:
-                                                          const Icon(Icons.logout),
-                                                      title: const Text('Logout'),
+                                                      leading: const Icon(
+                                                          Icons.logout),
+                                                      title:
+                                                          const Text('Logout'),
                                                       onTap: () {
                                                         Navigator.pop(context);
                                                         logoutUser();
@@ -965,9 +1083,13 @@ class _DashboardWidgetState extends State<DashboardWidget>
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(24.0),
                               child: Container(
-                                height: 240.0,
+                                height: MediaQuery.of(context).size.height < 700
+                                    ? 200.0
+                                    : 230.0,
+                                constraints: const BoxConstraints(minHeight: 180.0),
                                 decoration: BoxDecoration(
-                                  color: Theme.of(context).brightness == Brightness.dark
+                                  color: Theme.of(context).brightness ==
+                                          Brightness.dark
                                       ? Colors.black
                                       : FlutterFlowTheme.of(context).primary,
                                   borderRadius: BorderRadius.circular(24.0),
@@ -984,9 +1106,12 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                         width: 150.0,
                                         height: 150.0,
                                         decoration: BoxDecoration(
-                                          color: Theme.of(context).brightness == Brightness.dark
-                                              ? Colors.grey[900]!.withAlpha((0.3 * 255).toInt())
-                                              : FlutterFlowTheme.of(context).onPrimary6,
+                                          color: Theme.of(context).brightness ==
+                                                  Brightness.dark
+                                              ? Colors.grey[900]!.withAlpha(
+                                                  (0.3 * 255).toInt())
+                                              : FlutterFlowTheme.of(context)
+                                                  .onPrimary6,
                                           borderRadius:
                                               BorderRadius.circular(9999.0),
                                           shape: BoxShape.rectangle,
@@ -1000,9 +1125,12 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                         width: 100.0,
                                         height: 100.0,
                                         decoration: BoxDecoration(
-                                          color: Theme.of(context).brightness == Brightness.dark
-                                              ? Colors.grey[900]!.withAlpha((0.15 * 255).toInt())
-                                              : FlutterFlowTheme.of(context).onPrimary3,
+                                          color: Theme.of(context).brightness ==
+                                                  Brightness.dark
+                                              ? Colors.grey[900]!.withAlpha(
+                                                  (0.15 * 255).toInt())
+                                              : FlutterFlowTheme.of(context)
+                                                  .onPrimary3,
                                           borderRadius:
                                               BorderRadius.circular(9999.0),
                                           shape: BoxShape.rectangle,
@@ -1010,11 +1138,15 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                       ),
                                     ),
                                     Padding(
-                                      padding: const EdgeInsets.all(32.0),
+                                      padding: EdgeInsets.all(
+                                        MediaQuery.of(context).size.height < 700
+                                            ? 18.0
+                                            : 24.0,
+                                      ),
                                       child: Column(
                                         mainAxisSize: MainAxisSize.max,
                                         mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
+                                            MainAxisAlignment.start,
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
@@ -1054,9 +1186,14 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                                     .labelSmall
                                                                     .fontStyle,
                                                           ),
-                                                          color: Theme.of(context).brightness == Brightness.dark
+                                                          color: Theme.of(context)
+                                                                      .brightness ==
+                                                                  Brightness
+                                                                      .dark
                                                               ? Colors.white70
-                                                              : FlutterFlowTheme.of(context).onPrimary70,
+                                                              : FlutterFlowTheme
+                                                                      .of(context)
+                                                                  .onPrimary70,
                                                           letterSpacing: 0.0,
                                                           fontWeight:
                                                               FontWeight.w600,
@@ -1076,65 +1213,80 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                     ? 'Loading...'
                                                     : walletBalance
                                                         .toStringAsFixed(2),
-                                                style:
-                                                    FlutterFlowTheme.of(context)
-                                                        .headlineLarge
-                                                        .override(
-                                                          font: GoogleFonts
-                                                              .plusJakartaSans(
-                                                            fontWeight:
-                                                                FontWeight.w800,
-                                                          ),
-                                                          color: Theme.of(context).brightness == Brightness.dark
-                                                              ? Colors.white
-                                                              : FlutterFlowTheme.of(context).onPrimary,
-                                                          letterSpacing: 0.0,
-                                                          fontWeight:
-                                                              FontWeight.w800,
-                                                          lineHeight: 1.2,
-                                                        ),
+                                                style: FlutterFlowTheme.of(
+                                                        context)
+                                                    .headlineLarge
+                                                    .override(
+                                                      font: GoogleFonts
+                                                          .plusJakartaSans(
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                      ),
+                                                      color: Theme.of(context)
+                                                                  .brightness ==
+                                                              Brightness.dark
+                                                          ? Colors.white
+                                                          : FlutterFlowTheme.of(
+                                                                  context)
+                                                              .onPrimary,
+                                                      letterSpacing: 0.0,
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                      lineHeight: 1.2,
+                                                    ),
                                               ),
                                               Padding(
-                                                padding: const EdgeInsets.only(top: 8.0),
+                                                padding: const EdgeInsets.only(
+                                                    top: 8.0),
                                                 child: Text(
                                                   'a loop of growth',
                                                   overflow:
                                                       TextOverflow.ellipsis,
                                                   maxLines: 1,
-                                                  style:
-                                                      FlutterFlowTheme.of(
-                                                              context)
-                                                          .labelSmall
-                                                          .override(
-                                                            font: GoogleFonts
-                                                                .plusJakartaSans(
-                                                              fontWeight: FlutterFlowTheme.of(
+                                                  style: FlutterFlowTheme.of(
+                                                          context)
+                                                      .labelSmall
+                                                      .override(
+                                                        font: GoogleFonts
+                                                            .plusJakartaSans(
+                                                          fontWeight:
+                                                              FlutterFlowTheme.of(
                                                                       context)
                                                                   .labelSmall
                                                                   .fontWeight,
-                                                              fontStyle:
-                                                                  FontStyle
-                                                                      .italic,
-                                                            ),
-                                                            color: Theme.of(context).brightness == Brightness.dark
-                                                                ? Colors.white60
-                                                                : FlutterFlowTheme.of(context).onPrimary50,
-                                                            letterSpacing:
-                                                                0.0,
-                                                            fontWeight: FlutterFlowTheme.of(
+                                                          fontStyle:
+                                                              FontStyle.italic,
+                                                        ),
+                                                        color: Theme.of(context)
+                                                                    .brightness ==
+                                                                Brightness.dark
+                                                            ? Colors.white60
+                                                            : FlutterFlowTheme
+                                                                    .of(context)
+                                                                .onPrimary50,
+                                                        letterSpacing: 0.0,
+                                                        fontWeight:
+                                                            FlutterFlowTheme.of(
                                                                     context)
                                                                 .labelSmall
                                                                 .fontWeight,
-                                                            fontStyle:
-                                                                FontStyle
-                                                                    .italic,
-                                                            lineHeight: 1.2,
-                                                          ),
+                                                        fontStyle:
+                                                            FontStyle.italic,
+                                                        lineHeight: 1.2,
+                                                      ),
                                                 ),
                                               ),
                                             ].divide(
-                                                const SizedBox(height: 4.0)),
+                                                SizedBox(
+                                                  height: MediaQuery.of(context)
+                                                              .size
+                                                              .height <
+                                                          700
+                                                      ? 2.0
+                                                      : 4.0,
+                                                )),
                                           ),
+                                          const Spacer(),
                                           Align(
                                             alignment: Alignment.bottomRight,
                                             child: LayoutBuilder(
@@ -1143,6 +1295,18 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                     constraints.maxWidth;
                                                 final isCompact =
                                                     screenWidth < 360;
+                                                final isDarkMode =
+                                                    Theme.of(context)
+                                                            .brightness ==
+                                                        Brightness.dark;
+                                                final buttonColor =
+                                                    isDarkMode
+                                                        ? Colors.black
+                                                        : Colors.white;
+                                                final buttonTextColor =
+                                                    isDarkMode
+                                                        ? Colors.white
+                                                        : Colors.black;
 
                                                 Widget buildActionButton({
                                                   required Color color,
@@ -1154,10 +1318,9 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                     onTap: onTap,
                                                     child: Container(
                                                       width: isCompact
-                                                          ? (screenWidth - 20) / 2
-                                                          : 100.0,
-                                                      decoration:
-                                                          BoxDecoration(
+                                                          ? (screenWidth - 24) / 2
+                                                          : 96.0,
+                                                      decoration: BoxDecoration(
                                                         color: color,
                                                         borderRadius:
                                                             BorderRadius
@@ -1166,8 +1329,8 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                       padding:
                                                           const EdgeInsets
                                                               .symmetric(
-                                                        horizontal: 8.0,
-                                                        vertical: 8.0,
+                                                        horizontal: 6.0,
+                                                        vertical: 6.0,
                                                       ),
                                                       child: Row(
                                                         mainAxisAlignment:
@@ -1178,20 +1341,22 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                         children: [
                                                           Icon(
                                                             icon,
-                                                            size: 16,
-                                                            color: Colors.white,
+                                                            size: 14,
+                                                            color:
+                                                                buttonTextColor,
                                                           ),
                                                           const SizedBox(
-                                                              width: 4.0),
+                                                              width: 3.0),
                                                           Flexible(
                                                             child: Text(
                                                               label,
                                                               overflow:
                                                                   TextOverflow
                                                                       .ellipsis,
-                                                              style:
-                                                                  const TextStyle(
-                                                                color: Colors.white,
+                                                              style: TextStyle(
+                                                                color:
+                                                                    buttonTextColor,
+                                                                fontSize: 12.0,
                                                                 fontWeight:
                                                                     FontWeight.w600,
                                                               ),
@@ -1204,15 +1369,14 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                 }
 
                                                 return Wrap(
-                                                  alignment:
-                                                      WrapAlignment.end,
-                                                  spacing: 8.0,
-                                                  runSpacing: 8.0,
+                                                  alignment: WrapAlignment.end,
+                                                  spacing: 6.0,
+                                                  runSpacing: 6.0,
                                                   crossAxisAlignment:
                                                       WrapCrossAlignment.center,
                                                   children: [
                                                     buildActionButton(
-                                                      color: Colors.green,
+                                                      color: buttonColor,
                                                       icon: Icons
                                                           .arrow_downward_rounded,
                                                       label: 'Deposit',
@@ -1226,7 +1390,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                       ),
                                                     ),
                                                     buildActionButton(
-                                                      color: Colors.orange,
+                                                      color: buttonColor,
                                                       icon: Icons
                                                           .arrow_upward_rounded,
                                                       label: 'Withdraw',
@@ -1260,7 +1424,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
                             child: Container(
                               child: Padding(
                                 padding: const EdgeInsetsDirectional.fromSTEB(
-                                    0.0, 24.0, 0.0, 24.0),
+                                    0.0, 12.0, 0.0, 12.0),
                                 child: Container(
                                   child: Row(
                                     mainAxisSize: MainAxisSize.max,
@@ -1284,8 +1448,9 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                             action: 'navigate:SendReceive',
                                             icon: Icon(
                                               Icons.north_east_rounded,
-                                              color: FlutterFlowTheme.of(context)
-                                                  .primaryText,
+                                              color:
+                                                  FlutterFlowTheme.of(context)
+                                                      .primaryText,
                                               size: 24.0,
                                             ),
                                             label: 'Send',
@@ -1348,7 +1513,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
                         ),
                         Padding(
                           padding: const EdgeInsetsDirectional.fromSTEB(
-                              0.0, 0.0, 0.0, 24.0),
+                              0.0, 0.0, 0.0, 16.0),
                           child: Container(
                             child: Container(
                               child: Padding(
@@ -1377,7 +1542,11 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                       ],
                                     ),
                                     child: Padding(
-                                      padding: const EdgeInsets.all(24.0),
+                                      padding: EdgeInsets.all(
+                                        MediaQuery.of(context).size.height < 700
+                                            ? 16.0
+                                            : 20.0,
+                                      ),
                                       child: Container(
                                         child: Column(
                                           mainAxisSize: MainAxisSize.min,
@@ -1389,7 +1558,8 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                             Row(
                                               mainAxisSize: MainAxisSize.max,
                                               mainAxisAlignment:
-                                                  MainAxisAlignment.spaceBetween,
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.center,
                                               children: [
@@ -1423,8 +1593,10 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                   ),
                                                 ),
                                                 TextButton(
-                                                  onPressed: () => context.pushNamed(
-                                                    GrowthTrackingPageWidget.routeName,
+                                                  onPressed: () =>
+                                                      context.pushNamed(
+                                                    GrowthTrackingPageWidget
+                                                        .routeName,
                                                   ),
                                                   child: Text(
                                                     'View full',
@@ -1437,8 +1609,8 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                             fontWeight:
                                                                 FontWeight.w600,
                                                           ),
-                                                          color: FlutterFlowTheme.of(
-                                                                  context)
+                                                          color: FlutterFlowTheme
+                                                                  .of(context)
                                                               .primary,
                                                           letterSpacing: 0.0,
                                                           fontWeight:
@@ -1450,7 +1622,8 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                             ),
                                             Text(
                                               '${growthPercentage >= 0 ? '+' : ''}${growthPercentage.toStringAsFixed(1)}%',
-                                              style: FlutterFlowTheme.of(context)
+                                              style: FlutterFlowTheme.of(
+                                                      context)
                                                   .labelLarge
                                                   .override(
                                                     font: GoogleFonts
@@ -1481,7 +1654,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                   ),
                                             ),
                                             SizedBox(
-                                              height: 120.0,
+                                              height: 110.0,
                                               child: isGrowthLoading
                                                   ? const Center(
                                                       child:
@@ -1491,21 +1664,23 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                       ? Center(
                                                           child: Text(
                                                             'No growth data yet',
-                                                            style: FlutterFlowTheme.of(
-                                                                    context)
+                                                            style: FlutterFlowTheme
+                                                                    .of(context)
                                                                 .bodyMedium,
                                                           ),
                                                         )
                                                       : FlutterFlowLineChart(
                                                           data: [
                                                             FFLineChartData(
-                                                              xData: List.generate(
+                                                              xData:
+                                                                  List.generate(
                                                                 growthYValues
                                                                     .length,
                                                                 (index) => index
                                                                     .toDouble(),
                                                               ),
-                                                              yData: growthYValues,
+                                                              yData:
+                                                                  growthYValues,
                                                               settings:
                                                                   LineChartBarData(
                                                                 color: FlutterFlowTheme.of(
@@ -1530,20 +1705,27 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                           chartStylingInfo:
                                                               const ChartStylingInfo(
                                                             backgroundColor:
-                                                                Colors.transparent,
+                                                                Colors
+                                                                    .transparent,
                                                             showBorder: false,
                                                           ),
                                                           axisBounds:
                                                               AxisBounds(
                                                             minX: 0.0,
                                                             minY: 0.0,
-                                                            maxX: growthYValues.length > 1
-                                                                ? (growthYValues.length - 1)
+                                                            maxX: growthYValues
+                                                                        .length >
+                                                                    1
+                                                                ? (growthYValues
+                                                                            .length -
+                                                                        1)
                                                                     .toDouble()
                                                                 : 6.0,
-                                                            maxY: growthChartMaxY,
+                                                            maxY:
+                                                                growthChartMaxY,
                                                           ),
-                                                          xLabels: growthXLabels,
+                                                          xLabels:
+                                                              growthXLabels,
                                                           xAxisLabelInfo:
                                                               AxisLabelInfo(
                                                             showLabels: true,
@@ -1552,15 +1734,12 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                                         context)
                                                                     .bodySmall
                                                                     .override(
-                                                                      font:
-                                                                          GoogleFonts
-                                                                              .inter(
-                                                                        fontWeight: FlutterFlowTheme.of(
-                                                                                context)
+                                                                      font: GoogleFonts
+                                                                          .inter(
+                                                                        fontWeight: FlutterFlowTheme.of(context)
                                                                             .bodySmall
                                                                             .fontWeight,
-                                                                        fontStyle: FlutterFlowTheme.of(
-                                                                                context)
+                                                                        fontStyle: FlutterFlowTheme.of(context)
                                                                             .bodySmall
                                                                             .fontStyle,
                                                                       ),
@@ -1684,12 +1863,16 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                     final String status =
                                         tx['status'] ?? 'Completed';
 
-                                    final String title =
-                                        tx['transaction_type'] ?? 'Transaction';
+                                    final String peer = _resolveTransactionPeer(
+                                        tx,
+                                        outgoing: isOutgoing);
 
-                                    final String subtitle = isOutgoing
-                                        ? 'Sent transaction'
-                                        : 'Received transaction';
+                                    final String title = isOutgoing
+                                        ? 'Sent to $peer'
+                                        : 'Received from $peer';
+
+                                    final String subtitle =
+                                        '${tx['transaction_type'] ?? 'Transaction'} • ${_formatTransactionDate(tx['created_at'] ?? tx['createdAt'] ?? tx['timestamp'] ?? tx['date'])}';
 
                                     return Padding(
                                       padding:

@@ -1,48 +1,111 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SecureStorageService {
+  static final FlutterSecureStorage _secureStorage =
+      const FlutterSecureStorage();
+
+  static Future<String?> _readValue(String key) async {
+    if (kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(key);
+    }
+
+    try {
+      return await _secureStorage.read(key: key);
+    } catch (e) {
+      debugPrint('SecureStorage read error: $e');
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(key);
+    }
+  }
+
+  static Future<void> _writeValue(String key, String value) async {
+    if (kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(key, value);
+      return;
+    }
+
+    try {
+      await _secureStorage.write(key: key, value: value);
+    } catch (e) {
+      debugPrint('SecureStorage write error: $e');
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(key, value);
+    }
+  }
+
+  static Future<void> _deleteValue(String key) async {
+    if (kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(key);
+      return;
+    }
+
+    try {
+      await _secureStorage.delete(key: key);
+    } catch (e) {
+      debugPrint('SecureStorage delete error: $e');
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(key);
+    }
+  }
+
   static Future<DateTime?> readBiometricLastVerified() async {
-    final prefs = await SharedPreferences.getInstance();
-    final stored = prefs.getString('biometric_last_verified');
+    final stored = await _readValue('biometric_last_verified');
     return stored == null ? null : DateTime.tryParse(stored);
   }
 
   static Future<void> writeBiometricLastVerified(String value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('biometric_last_verified', value);
+    await _writeValue('biometric_last_verified', value);
+  }
+
+  static Future<void> deleteBiometricLastVerified() async {
+    await _deleteValue('biometric_last_verified');
   }
 
   static Future<void> writeDeviceFingerprint(String value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('device_fingerprint', value);
+    await _writeValue('device_fingerprint', value);
   }
 
   static Future<void> writeDeviceId(String value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('device_id', value);
+    await _writeValue('device_id', value);
+  }
+
+  static Future<String?> readDeviceId() async {
+    return _readValue('device_id');
+  }
+
+  static Future<String?> readDeviceFingerprint() async {
+    return _readValue('device_fingerprint');
   }
 
   static Future<void> clearBiometricData() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('biometric_last_verified');
-    await prefs.remove('device_fingerprint');
-    await prefs.remove('device_id');
+    await _deleteValue('biometric_last_verified');
+    await _deleteValue('device_fingerprint');
+    await _deleteValue('device_id');
   }
 
-  // Convenience methods used across the app for token persistence
+  static Future<String?> readAccessToken() async {
+    return _readValue('accessToken');
+  }
+
+  static Future<String?> readRefreshToken() async {
+    return _readValue('refreshToken');
+  }
+
   static Future<void> writeAccessToken(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('accessToken', token);
+    await _writeValue('accessToken', token);
   }
 
   static Future<void> writeRefreshToken(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('refreshToken', token);
+    await _writeValue('refreshToken', token);
   }
 
   static Future<void> clearAuthData() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('accessToken');
-    await prefs.remove('refreshToken');
+    await _deleteValue('accessToken');
+    await _deleteValue('refreshToken');
   }
 }

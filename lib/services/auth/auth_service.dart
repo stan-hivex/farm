@@ -111,44 +111,16 @@ class AuthService {
       final farmJwt = responseData['access_token'] as String? ?? '';
       final refreshToken = responseData['refresh_token'] as String? ?? '';
       final backendUser = responseData['user'] as Map<String, dynamic>?;
-      final otpRequired = responseData['otp_required'] == true;
 
-      if (kIsWeb) {
-        if (farmJwt.isNotEmpty) {
-          _persistSessionTokens(
-            farmJwt: farmJwt,
-            refreshToken: refreshToken,
-            backendUser: backendUser,
-          );
-        }
-
-        return {
-          'success': true,
-          'otpRequired': false,
-          'farmJwt': farmJwt,
-          'refreshToken': refreshToken,
-          'phone': responseData['phone']?.toString() ?? '',
-          'user': backendUser,
-          'loginMethod': 'backend',
-        };
-      }
-
-      if (otpRequired) {
-        return {
-          'success': true,
-          'otpRequired': true,
-          'phone': responseData['phone']?.toString() ?? '',
-          'user': backendUser,
-          'loginMethod': 'backend',
-        };
-      }
-
+      // Backend handles all authentication directly - no intermediate verification needed
+      // Save tokens regardless of platform
       if (farmJwt.isNotEmpty) {
         _persistSessionTokens(
           farmJwt: farmJwt,
           refreshToken: refreshToken,
           backendUser: backendUser,
         );
+        await registerFcmToken();
       }
 
       return {

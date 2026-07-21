@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
+import '/services/biometric_lock_service.dart';
 import 'package:local_auth/local_auth.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '/app_state.dart';
-import '/core/config/supabase_config.dart';
 import '/services/secure_storage_service.dart';
 import '/services/auth/auth_service.dart';
 
@@ -25,13 +24,13 @@ class BiometricLoginService {
 
   BiometricLoginService._internal();
 
-  final LocalAuthentication _localAuth = LocalAuthentication();
-  final SupabaseClient _supabase = SupabaseConfig.client;
+  // Local auth handled centrally by BiometricLockService
 
   /// Check if device supports biometric authentication.
   Future<bool> canUseBiometrics() async {
     try {
-      return await _localAuth.canCheckBiometrics;
+      final svc = BiometricLockService();
+      return await svc.canUseBiometrics();
     } catch (e) {
       debugPrint('Error checking biometric availability: $e');
       return false;
@@ -41,27 +40,26 @@ class BiometricLoginService {
   /// Get available biometric types on this device.
   Future<List<BiometricType>> getAvailableBiometrics() async {
     try {
-      return await _localAuth.getAvailableBiometrics();
+      final svc = BiometricLockService();
+      return await svc.getAvailableBiometrics();
     } catch (e) {
       debugPrint('Error getting available biometrics: $e');
       return [];
     }
   }
 
-  /// Check if user has already authenticated with biometrics before.
+  /// Check if user has a local biometric unlock session available.
   ///
-  /// This checks if:
-  /// 1. Biometrics are enabled in settings (FFAppState.biometricsEnabled)
-  /// 2. A stored Supabase session exists
+  /// This checks if biometrics are enabled and local backend tokens are stored.
   Future<bool> hasBiometricSession() async {
     try {
       if (!FFAppState().biometricsEnabled) {
         return false;
       }
-
-      // Check if Supabase has a stored session
-      final session = _supabase.auth.currentSession;
-      return session != null;
+      if (FFAppState().refreshToken.isEmpty) {
+        return false;
+      }
+      return true;
     } catch (e) {
       debugPrint('Error checking biometric session: $e');
       return false;
@@ -82,14 +80,11 @@ class BiometricLoginService {
   /// 5. Store tokens and return user data
   Future<Map<String, dynamic>> authenticateWithBiometric() async {
     try {
-      // Step 1: Authenticate locally with fingerprint/face
-      debugPrint('[Biometric] Starting local authentication...');
-      final isAuthenticated = await _localAuth.authenticate(
-        localizedReason: 'Unlock your FARM account with your fingerprint',
-        options: const AuthenticationOptions(
-          stickyAuth: true,
-          biometricOnly: true,
-        ),
+      // Step 1: Authenticate locally via BiometricLockService
+      debugPrint('[Biometric] Starting local authentication via BiometricLockService...');
+      final biometricService = BiometricLockService();
+      final isAuthenticated = await biometricService.authenticate(
+        localizedReason: 'Unlock your FARM account with your biometric',
       );
 
       if (!isAuthenticated) {
@@ -98,63 +93,40 @@ class BiometricLoginService {
 
       debugPrint('[Biometric] Local auth succeeded');
 
-      // Step 2: Verify Supabase session exists
-      final currentSession = _supabase.auth.currentSession;
-      if (currentSession == null) {
+      if (FFAppState().refreshToken.isEmpty) {
         throw Exception(
-          'No stored session found. Please log in with email/password first.',
+          'No stored refresh token found. Please log in with password first.',
         );
       }
 
-      debugPrint('[Biometric] Found stored Supabase session');
-
-      // Step 3: Refresh Supabase session
-      debugPrint('[Biometric] Refreshing Supabase session...');
-      final refreshedSession = await _supabase.auth.refreshSession();
-      if (refreshedSession.session == null) {
-        throw Exception('Failed to refresh Supabase session.');
+      debugPrint('[Biometric] Refreshing backend session with stored refresh token...');
+      final refreshedToken = await AuthService().refreshSession(force: true);
+      if (refreshedToken == null || refreshedToken.isEmpty) {
+        throw Exception('Failed to refresh backend session. Please log in again.');
       }
 
-      debugPrint('[Biometric] Supabase session refreshed');
-
-      // Step 4: Exchange new Supabase token for FARM JWT
-      debugPrint('[Biometric] Exchanging Supabase token for FARM JWT...');
-      final newSupabaseToken = refreshedSession.session!.accessToken;
-      final farmTokenResponse =
-          await AuthService().exchangeSupabaseToken(newSupabaseToken);
-
-      final farmJwt = farmTokenResponse['access_token'] as String? ?? '';
-      final refreshToken = farmTokenResponse['refresh_token'] as String? ?? '';
-      final userData =
-          farmTokenResponse['user'] as Map<String, dynamic>? ?? {};
+      final farmJwt = FFAppState().accessToken;
+      final refreshToken = FFAppState().refreshToken;
+      final userData = {
+        'id': FFAppState().userId,
+        'first_name': FFAppState().firstName,
+        'username': FFAppState().userName,
+        'phone': FFAppState().phone,
+        'kyc_status': FFAppState().kycStatus,
+        'role': FFAppState().role,
+      };
 
       if (farmJwt.isEmpty) {
-        throw Exception('Failed to obtain FARM JWT from backend.');
+        throw Exception('Failed to restore backend access token.');
       }
 
-      debugPrint('[Biometric] FARM JWT obtained');
+      debugPrint('[Biometric] Backend token refresh succeeded');
 
-      // Step 5: Store tokens in app state and secure storage
-      FFAppState().accessToken = farmJwt;
-      FFAppState().refreshToken = refreshToken;
-      FFAppState().userId = userData['id'] ?? '';
-      FFAppState().firstName = userData['first_name'] ?? '';
-      FFAppState().userName = userData['username'] ?? '';
-      FFAppState().phone = userData['phone'] ?? '';
-      FFAppState().kycStatus = userData['kyc_status'] ?? '';
-      FFAppState().role = (userData['role'] ?? 'user').toString();
-      FFAppState().isLoggedIn = true;
-
-      // Persist to secure storage
       await SecureStorageService.writeAccessToken(farmJwt);
       await SecureStorageService.writeRefreshToken(refreshToken);
+      await BiometricLockService().markVerified();
 
-      // Update biometric verification timestamp
-      await SecureStorageService.writeBiometricLastVerified(
-        DateTime.now().toIso8601String(),
-      );
-
-      debugPrint('[Biometric] Tokens stored successfully');
+      debugPrint('[Biometric] Biometric unlock succeeded');
 
       return {
         'success': true,

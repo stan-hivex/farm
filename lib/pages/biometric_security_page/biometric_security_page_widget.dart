@@ -1,15 +1,12 @@
 import '/flutter_flow/flutter_flow_util.dart';
 import '/core/theme_extensions.dart';
 import 'package:flutter/foundation.dart';
+import 'package:local_auth/local_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
-import 'package:local_auth/local_auth.dart';
-
-import '/services/device_fingerprint_service.dart';
-import '/services/secure_storage_service.dart';
-import '/backend/api_requests/biometric_api_service.dart';
+import '/services/biometric_lock_service.dart';
 import '../dashboard/dashboard_widget.dart';
 import 'biometric_security_page_model.dart';
 
@@ -37,8 +34,6 @@ class _BiometricSecurityPageWidgetState
   late BiometricSecurityPageModel _model;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
-
-  final LocalAuthentication auth = LocalAuthentication();
 
   bool isLoading = false;
   bool biometricAvailable = false;
@@ -99,8 +94,9 @@ class _BiometricSecurityPageWidgetState
         return;
       }
 
-      final canCheck = await auth.canCheckBiometrics;
-      final available = await auth.getAvailableBiometrics();
+      final biometricService = BiometricLockService();
+      final canCheck = await biometricService.canUseBiometrics();
+      final available = await biometricService.getAvailableBiometrics();
 
       if (mounted) {
         setState(() {
@@ -117,8 +113,9 @@ class _BiometricSecurityPageWidgetState
           }
         });
       }
-    } catch (e) {
+    } catch (e, stack) {
       debugPrint("BIOMETRIC CHECK ERROR: $e");
+      debugPrint(stack.toString());
       if (mounted) {
         setState(() {
           biometricAvailable = false;
@@ -129,219 +126,16 @@ class _BiometricSecurityPageWidgetState
     }
   }
 
-  Future<String> _resolveDeviceFingerprint() async {
-    final existingFingerprint = await DeviceFingerprintService.getDeviceFingerprint();
-    if (existingFingerprint.trim().isNotEmpty) {
-      return existingFingerprint;
-    }
-
-    final fallbackFingerprint =
-        'placeholder-${selectedBiometricMethod}-${DateTime.now().millisecondsSinceEpoch}';
-    await SecureStorageService.writeDeviceFingerprint(fallbackFingerprint);
-    return fallbackFingerprint;
-  }
-
   Future<void> enableBiometrics() async {
     HapticFeedback.mediumImpact();
-
     setState(() {
       isLoading = true;
     });
 
     try {
-      final biometricType = selectedBiometricMethod == 'faceID'
-          ? 'faceID'
-          : 'fingerprint';
-
-      if (!_supportsPlatformBiometrics) {
-        final deviceFingerprint = await _resolveDeviceFingerprint();
-
-        await SecureStorageService.writeDeviceFingerprint(deviceFingerprint);
-        FFAppState().biometricsEnabled = true;
-
-        final result = await BiometricApiService.enableBiometrics(
-          token: FFAppState().accessToken,
-          deviceFingerprint: deviceFingerprint,
-          biometricType: biometricType,
-        );
-
-        if (result['success'] == false) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                backgroundColor: context.errorColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                content: Text(
-                  'Backend error: ${result['message']}',
-                  style: TextStyle(color: context.onSurface),
-                ),
-              ),
-            );
-          }
-          setState(() => isLoading = false);
-          return;
-        }
-
-        if (result['deviceId'] != null) {
-          await SecureStorageService.writeDeviceId(result['deviceId']);
-        }
-
-        await SecureStorageService.writeBiometricLastVerified(
-          DateTime.now().toIso8601String(),
-        );
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              backgroundColor: context.background,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              content: Text(
-                'Biometric security enabled for this device. Backend registration completed.',
-                style: TextStyle(
-                  color: context.onSurface,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          );
-
-          final destination = widget.returnPath ?? DashboardWidget.routePath;
-          context.go(destination);
-        }
-
-        setState(() => isLoading = false);
-        return;
-      }
-
-      final canCheck = await auth.canCheckBiometrics;
-
-      if (!canCheck) {
-        final deviceFingerprint = await _resolveDeviceFingerprint();
-
-        await SecureStorageService.writeDeviceFingerprint(deviceFingerprint);
-        FFAppState().biometricsEnabled = true;
-
-        final result = await BiometricApiService.enableBiometrics(
-          token: FFAppState().accessToken,
-          deviceFingerprint: deviceFingerprint,
-          biometricType: biometricType,
-        );
-
-        if (result['success'] == false) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                backgroundColor: context.errorColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                content: Text(
-                  'Backend error: ${result['message']}',
-                  style: TextStyle(color: context.onSurface),
-                ),
-              ),
-            );
-          }
-          setState(() => isLoading = false);
-          return;
-        }
-
-        if (result['deviceId'] != null) {
-          await SecureStorageService.writeDeviceId(result['deviceId']);
-        }
-
-        await SecureStorageService.writeBiometricLastVerified(
-          DateTime.now().toIso8601String(),
-        );
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              backgroundColor: context.background,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              content: Text(
-                'Biometric placeholder secured for ${selectedBiometricMethod == 'faceID' ? 'Face ID' : 'Fingerprint'}.',
-                style: TextStyle(
-                  color: context.onSurface,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          );
-
-          final destination = widget.returnPath ?? DashboardWidget.routePath;
-          context.go(destination);
-        }
-
-        setState(() => isLoading = false);
-        return;
-      }
-
-      final authenticated = await auth.authenticate(
-        localizedReason:
-            'Confirm your identity to view your FARM wallet and authorize secure transactions.',
-        options: const AuthenticationOptions(
-          biometricOnly: true,
-          stickyAuth: true,
-          useErrorDialogs: true,
-        ),
-      );
-
-      if (authenticated) {
-        final deviceFingerprint = await _resolveDeviceFingerprint();
-
-        // Store device fingerprint locally
-        await SecureStorageService.writeDeviceFingerprint(deviceFingerprint);
-
-        // Enable biometrics in the app state
-        FFAppState().biometricsEnabled = true;
-
-        // Call backend to register biometric
-        final result = await BiometricApiService.enableBiometrics(
-          token: FFAppState().accessToken,
-          deviceFingerprint: deviceFingerprint,
-          biometricType: biometricType,
-        );
-
-        if (result['success'] == false) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                backgroundColor: context.errorColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                content: Text(
-                  'Backend error: ${result['message']}',
-                  style: TextStyle(color: context.onSurface),
-                ),
-              ),
-            );
-          }
-          setState(() => isLoading = false);
-          return;
-        }
-
-        // Store device ID from backend
-        if (result['deviceId'] != null) {
-          await SecureStorageService.writeDeviceId(result['deviceId']);
-        }
-
-        // Store verification timestamp
-        await SecureStorageService.writeBiometricLastVerified(
-          DateTime.now().toIso8601String(),
-        );
-
-        await Future.delayed(
-          const Duration(milliseconds: 1200),
-        );
-
+      final biometricService = BiometricLockService();
+      final ok = await biometricService.enableBiometrics();
+      if (ok) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -363,9 +157,9 @@ class _BiometricSecurityPageWidgetState
           context.go(destination);
         }
       }
-    } catch (e) {
-      debugPrint("BIOMETRIC ERROR: $e");
-
+    } catch (e, stack) {
+      debugPrint('BIOMETRIC ERROR: $e');
+      debugPrint(stack.toString());
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: context.errorColor,
@@ -380,11 +174,11 @@ class _BiometricSecurityPageWidgetState
           ),
         ),
       );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
     }
-
-    setState(() {
-      isLoading = false;
-    });
   }
 
   Widget buildFeatureCard({

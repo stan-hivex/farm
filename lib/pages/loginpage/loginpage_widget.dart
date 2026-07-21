@@ -14,7 +14,7 @@ import '/services/secure_storage_service.dart';
 import '/services/auth/auth_service.dart';
 import '/services/auth/biometric_login_service.dart';
 import '/pages/forgot_password_page/forgot_password_page_widget.dart';
-import '/pages/otppage/otppage_widget.dart';
+
 
 /// Create a premium black and white fintech login page for FARM App.
 ///
@@ -45,7 +45,6 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
   bool passwordVisible = false;
   bool isLoading = false;
   bool _biometricAvailable = false;
-  bool _otpNavigationInProgress = false;
   String _biometricButtonLabel = 'Login with Biometric';
   Map<String, String> _selectedCountry = {
     'name': 'Algeria',
@@ -246,36 +245,8 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
         countryCode: _selectedCountry['code'],
       );
 
-      if (kIsWeb) {
-        await _finalizeSuccessfulLogin(response);
-        return;
-      }
-
-      if (response['otpRequired'] == true) {
-        if (_otpNavigationInProgress) {
-          return;
-        }
-
-        setState(() => _otpNavigationInProgress = true);
-
-        final pendingPhone = response['phone']?.toString() ?? identifier;
-
-        if (mounted) {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => OtppageWidget(
-                phone: pendingPhone,
-                identifier: identifier,
-                password: password,
-                countryCode: _selectedCountry['code'],
-              ),
-            ),
-          );
-        }
-
-        return;
-      }
-
+      // Backend handles all authentication - no OTP verification needed
+      // Mobile and web flows are now unified
       await _finalizeSuccessfulLogin(response);
     } catch (e) {
       if (mounted) {
@@ -299,9 +270,6 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
       if (mounted) {
         setState(() {
           isLoading = false;
-          if (!_otpNavigationInProgress) {
-            _otpNavigationInProgress = false;
-          }
         });
       }
     }
@@ -567,6 +535,10 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                                                 final c = _africanCountries[i];
                                                 return ListTile(
                                                   leading: Text(c['flag'] ?? ''),
+                                                  title: Text(
+                                                    c['name'] ?? '',
+                                                    style: FlutterFlowTheme.of(context).bodyMedium,
+                                                  ),
                                                   trailing: Text(c['code'] ?? ''),
                                                   onTap: () => Navigator.of(ctx).pop(c),
                                                 );
@@ -596,7 +568,14 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                                   children: [
                                     Text(_selectedCountry['flag'] ?? ''),
                                     const SizedBox(width: 8),
-                                    Text(_selectedCountry['code'] ?? ''),
+                                    Flexible(
+                                      child: Text(
+                                        '${_selectedCountry['name'] ?? ''} ${_selectedCountry['code'] ?? ''}',
+                                        style: FlutterFlowTheme.of(context).bodyMedium,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
                                     const Icon(Icons.arrow_drop_down),
                                   ],
                                 ),

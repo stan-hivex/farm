@@ -114,6 +114,18 @@ class ApiService {
           timeoutSeconds: timeoutSeconds,
         );
       }
+
+      if (FFAppState().accessToken.isNotEmpty) {
+        await Future.delayed(const Duration(milliseconds: 400));
+        return _request(
+          method: method,
+          path: path,
+          body: body,
+          requiresAuth: requiresAuth,
+          isRetry: true,
+          timeoutSeconds: timeoutSeconds,
+        );
+      }
     }
 
     Map<String, dynamic> decoded = {};
@@ -422,7 +434,7 @@ class ApiService {
   }) =>
       _request(
         method: 'GET',
-        path: '/wallet/transactions?page=$page&limit=$limit'
+        path: '/transactions?page=$page&limit=$limit'
             '${type != null ? "&type=$type" : ""}'
             '${status != null ? "&status=$status" : ""}',
         timeoutSeconds: timeoutSeconds,
@@ -436,6 +448,20 @@ class ApiService {
         path: '/analytics/growth-history?days=$days',
         timeoutSeconds: timeoutSeconds,
       );
+
+  // ── Merchant ──────────────────────────────────────────────────────────────
+  static Future<Map<String, dynamic>> getMerchantQr({
+    int timeoutSeconds = 20,
+  }) =>
+      _request(
+        method: 'GET',
+        path: '/merchant/qr',
+        timeoutSeconds: timeoutSeconds,
+      );
+
+  static Future<Map<String, dynamic>> regenerateMerchantQr() =>
+      _request(method: 'POST', path: '/merchant/qr/regenerate');
+
   // ── Deposit ───────────────────────────────────────────────────────────────
   static Future<Map<String, dynamic>> initiateDeposit({
     required double amountFiat,
@@ -547,9 +573,6 @@ class ApiService {
   // ── Merchants ─────────────────────────────────────────────────────────────
   static Future<Map<String, dynamic>> getMerchantDashboard() =>
       _request(method: 'GET', path: '/merchant/dashboard');
-
-  static Future<Map<String, dynamic>> getMerchantQr() =>
-      _request(method: 'GET', path: '/merchant/qr');
 
   static Future<Map<String, dynamic>> validateQr(String qrPayload) => _request(
         method: 'POST',

@@ -30,6 +30,10 @@ class UserApiService {
     return phone;
   }
 
+  static bool shouldSearchSuggestions(String value) {
+    return value.trim().length >= 3;
+  }
+
   static Future<List<dynamic>> searchUsers({
     required String token,
     required String query,

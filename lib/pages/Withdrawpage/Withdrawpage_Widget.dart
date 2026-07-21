@@ -283,7 +283,7 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
 
       if (res.statusCode == 200 || res.statusCode == 201) {
         _snack(
-          'Withdrawal request submitted successfully. Final processing will continue via Paystack webhook.',
+          'Withdrawal submitted successfully.',
         );
         _clearFields();
         await _fetchWallet();
