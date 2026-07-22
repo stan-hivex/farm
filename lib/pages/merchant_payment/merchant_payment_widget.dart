@@ -62,6 +62,14 @@ class _MerchantPaymentWidgetState extends State<MerchantPaymentWidget> {
         pin: pin,
       );
 
+      // Optimistic update: ensure the app's main wallet UI reflects
+      // the incoming platform credit immediately. The backend should
+      // also record this on the server; this client-side increment
+      // provides immediate feedback if the server-side platform
+      // wallet update is not yet visible.
+      final current = FFAppState().walletBalance;
+      FFAppState().walletBalance = current + amount;
+
       await AppSessionManager().syncNow(
         profileTimeoutSeconds: 5,
         walletTimeoutSeconds: 5,

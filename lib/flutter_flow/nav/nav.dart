@@ -11,6 +11,8 @@ import '/pages/support/live_chat_page_widget.dart';
 import '/pages/support/email_support_page_widget.dart';
 import '/pages/notifications/user_notifications_page_widget.dart';
 import '/pages/growth_tracking_page/growth_tracking_page_widget.dart';
+import '/pages/payment_requests/request_money_widget.dart';
+import '/pages/payment_requests/incoming_requests_widget.dart';
 import '/index.dart';
 
 export 'package:go_router/go_router.dart';
@@ -135,6 +137,16 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           name: 'MerchantSales',
           path: '/merchantSales',
           builder: (context, params) => const MerchantSalesWidget(),
+        ),
+        FFRoute(
+          name: RequestMoneyWidget.routeName,
+          path: '/request-money',
+          builder: (context, params) => const RequestMoneyWidget(),
+        ),
+        FFRoute(
+          name: IncomingRequestsWidget.routeName,
+          path: '/incoming-requests',
+          builder: (context, params) => const IncomingRequestsWidget(),
         ),
         FFRoute(
           name: AllTransactionsWidget.routeName,

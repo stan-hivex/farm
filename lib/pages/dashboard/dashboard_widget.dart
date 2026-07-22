@@ -15,6 +15,7 @@ import '/pages/send_receive/send_receive_widget.dart';
 import '/pages/all_transactions/all_transactions_widget.dart';
 import '/pages/growth_tracking_page/growth_tracking_page_widget.dart';
 import '/pages/merchant_dashboard/merchant_dashboard_widget.dart';
+import '/pages/notifications/user_notifications_page_widget.dart';
 import '/services/app_session_manager.dart';
 import '/utils/transaction_peer_resolver.dart';
 import 'package:flutter/material.dart';
@@ -102,6 +103,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
       kesEquivalent = FFAppState().kesEquivalent;
       profileImageUrl = FFAppState().profileImageUrl;
       transactions = FFAppState().recentTransactions;
+      unreadNotificationsCount = FFAppState().unreadNotificationCount;
       isBalanceLoading = false;
       isTransactionsLoading = false;
     });
@@ -323,16 +325,28 @@ class _DashboardWidgetState extends State<DashboardWidget>
     });
 
     try {
-      final response = await ApiService.getNotifications();
-      final rawNotifications = response['data'];
-      final items = rawNotifications is List
-          ? rawNotifications
-              .map((item) => item is Map<String, dynamic>
-                  ? item
-                  : Map<String, dynamic>.from(item as Map))
-              .toList()
-          : <Map<String, dynamic>>[];
-      final parsed = items.cast<Map<String, dynamic>>();
+      final items = <Map<String, dynamic>>[];
+      var page = 1;
+      while (true) {
+        final response = await ApiService.getNotifications(
+          page: page,
+          limit: 100,
+        );
+        final rawNotifications = response['data'];
+        if (rawNotifications is! List) break;
+        items.addAll(
+          rawNotifications.map((item) => item is Map<String, dynamic>
+              ? item
+              : Map<String, dynamic>.from(item as Map)),
+        );
+        final meta = response['meta'];
+        final lastPage = meta is Map
+            ? int.tryParse(meta['last_page']?.toString() ?? '') ?? page
+            : page;
+        if (page >= lastPage || rawNotifications.isEmpty) break;
+        page++;
+      }
+      final parsed = items;
       final unread = parsed.where((item) {
         final read = item['read'] is bool
             ? item['read'] as bool
@@ -350,6 +364,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
         unreadNotificationsCount = unread;
         isNotificationsLoading = false;
       });
+      FFAppState().unreadNotificationCount = unread;
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -357,159 +372,6 @@ class _DashboardWidgetState extends State<DashboardWidget>
         isNotificationsLoading = false;
       });
     }
-  }
-
-  Future<void> markNotificationRead(String id) async {
-    try {
-      await ApiService.markNotificationRead(notificationId: id);
-      await loadNotifications();
-    } catch (_) {}
-  }
-
-  Future<void> _showNotificationsSheet() async {
-    await loadNotifications();
-
-    if (!mounted) return;
-
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24.0)),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: FlutterFlowTheme.of(context).secondaryText,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Notifications',
-                      style: FlutterFlowTheme.of(context).titleMedium.override(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              if (isNotificationsLoading)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else if (notificationsError != null)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 24),
-                  child: Text(
-                    'Unable to load notifications right now.\n$notificationsError',
-                    textAlign: TextAlign.center,
-                    style: FlutterFlowTheme.of(context).bodyMedium,
-                  ),
-                )
-              else if (notifications.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 24),
-                  child: Text(
-                    'No notifications yet.',
-                    style: FlutterFlowTheme.of(context).bodyMedium,
-                  ),
-                )
-              else
-                Flexible(
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    physics: const BouncingScrollPhysics(),
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemCount: notifications.length,
-                    itemBuilder: (context, index) {
-                      final item = notifications[index];
-                      final title = item['title']?.toString() ?? 'Notification';
-                      final body = item['body']?.toString() ??
-                          item['message']?.toString() ??
-                          '';
-                      final isRead = item['read'] is bool
-                          ? item['read'] as bool
-                          : item['is_read'] is bool
-                              ? item['is_read'] as bool
-                              : item['isRead'] is bool
-                                  ? item['isRead'] as bool
-                                  : false;
-                      return Card(
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
-                        elevation: 0,
-                        color: FlutterFlowTheme.of(context).secondaryBackground,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(16),
-                          onTap: () async {
-                            if (!isRead && item['id'] != null) {
-                              await markNotificationRead(item['id'].toString());
-                            }
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.all(14),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  isRead
-                                      ? Icons.notifications_none_rounded
-                                      : Icons.notifications_active_rounded,
-                                  color: FlutterFlowTheme.of(context).primary,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        title,
-                                        style: FlutterFlowTheme.of(context)
-                                            .titleSmall
-                                            .override(
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        body,
-                                        style: FlutterFlowTheme.of(context)
-                                            .bodyMedium,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-            ],
-          ),
-        );
-      },
-    );
   }
 
   Future<void> sendTransaction({
@@ -973,7 +835,14 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                       .primaryText,
                                               size: 24.0,
                                             ),
-                                            onPressed: _showNotificationsSheet,
+                                            onPressed: () async {
+                                              await context.pushNamed(
+                                                UserNotificationsPageWidget.routeName,
+                                              );
+                                              if (mounted) {
+                                                await loadNotifications();
+                                              }
+                                            },
                                           ),
                                           if (unreadNotificationsCount > 0)
                                             Positioned(

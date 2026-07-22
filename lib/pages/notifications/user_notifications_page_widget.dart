@@ -37,15 +37,28 @@ class _UserNotificationsPageWidgetState extends State<UserNotificationsPageWidge
     });
 
     try {
-      final response = await ApiService.getNotifications();
-      final rawNotifications = response['data'];
-      final items = rawNotifications is List
-          ? rawNotifications
-              .map((item) => item is Map<String, dynamic>
-                  ? item
-                  : Map<String, dynamic>.from(item as Map))
-              .toList()
-          : <Map<String, dynamic>>[];
+      final items = <Map<String, dynamic>>[];
+      var page = 1;
+      while (true) {
+        final response = await ApiService.getNotifications(
+          page: page,
+          limit: 100,
+        );
+        final rawNotifications = response['data'];
+        if (rawNotifications is! List) break;
+        items.addAll(
+          rawNotifications.map((item) => item is Map<String, dynamic>
+              ? item
+              : Map<String, dynamic>.from(item as Map)),
+        );
+
+        final meta = response['meta'];
+        final lastPage = meta is Map
+            ? int.tryParse(meta['last_page']?.toString() ?? '') ?? page
+            : page;
+        if (page >= lastPage || rawNotifications.isEmpty) break;
+        page++;
+      }
       final parsed = items.cast<Map<String, dynamic>>();
         final visibleItems = parsed.where((item) {
         final id = item['id']?.toString() ?? '';
@@ -274,6 +287,103 @@ class _UserNotificationsPageWidgetState extends State<UserNotificationsPageWidge
     }
   }
 
+  Future<void> _showNotificationActions(
+    List<Map<String, dynamic>> items, {
+    required bool isGroup,
+  }) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24.0)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: FlutterFlowTheme.of(context).secondaryText,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: const Icon(Icons.done_all_rounded),
+                title: const Text('Mark all as read'),
+                onTap: () async {
+                  Navigator.of(sheetContext).pop();
+                  await markAllRead();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline_rounded),
+                title: Text(isGroup ? 'Delete this group' : 'Delete notification'),
+                onTap: () async {
+                  Navigator.of(sheetContext).pop();
+                  await _confirmDeleteNotifications(
+                    items,
+                    title: isGroup ? 'Delete this group?' : 'Delete notification?',
+                    message: isGroup
+                        ? 'All notifications in this group will be permanently deleted.'
+                        : 'This notification will be permanently deleted.',
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_sweep_outlined),
+                title: const Text('Delete all notifications'),
+                onTap: () async {
+                  Navigator.of(sheetContext).pop();
+                  await _confirmDeleteAllNotifications();
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteAllNotifications() async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete all notifications?'),
+        content: const Text(
+          'Every notification will be permanently deleted from your account.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete all'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete != true) return;
+
+    try {
+      await ApiService.deleteAllNotifications();
+      hiddenNotificationIds.clear();
+      await loadNotifications();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to delete notifications: $e')),
+      );
+    }
+  }
+
   Future<void> _showGroupDetails(
     List<Map<String, dynamic>> items,
     String groupLabel,
@@ -384,10 +494,9 @@ class _UserNotificationsPageWidgetState extends State<UserNotificationsPageWidge
                       color: FlutterFlowTheme.of(context).secondaryBackground,
                       child: InkWell(
                         borderRadius: BorderRadius.circular(16),
-                        onLongPress: () => _confirmDeleteNotifications(
+                        onLongPress: () => _showNotificationActions(
                           [item],
-                          title: 'Delete notification?',
-                          message: 'This notification will be removed from your list.',
+                          isGroup: false,
                         ),
                         onTap: () async {
                           if (!isRead && item['id'] != null) {
@@ -540,10 +649,9 @@ class _UserNotificationsPageWidgetState extends State<UserNotificationsPageWidge
                               color: FlutterFlowTheme.of(context).secondaryBackground,
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(16),
-                                onLongPress: () => _confirmDeleteNotifications(
+                                onLongPress: () => _showNotificationActions(
                                   items,
-                                  title: 'Delete this group?',
-                                  message: 'All notifications in this group will be removed from your list.',
+                                  isGroup: true,
                                 ),
                                 onTap: () => _showGroupDetails(items, groupLabel),
                                 child: Padding(

@@ -12,6 +12,7 @@ import 'core/app_theme.dart';
 import 'web_url_strategy.dart';
 import 'services/app_session_manager.dart';
 import 'services/biometric_lock_service.dart';
+import 'services/notification_service.dart';
 import 'pages/biometric_unlock_page/biometric_unlock_page_widget.dart';
 
 Widget buildSafeErrorWidget(FlutterErrorDetails details) {
@@ -42,6 +43,7 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   await FFAppState().initializePersistedState();
+  await NotificationService.initialize();
   await FlutterFlowTheme.initialize();
 
   if (FFAppState().isLoggedIn && FFAppState().refreshToken.isNotEmpty) {

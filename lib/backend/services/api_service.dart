@@ -372,8 +372,11 @@ class ApiService {
   }) =>
       _request(
         method: 'POST',
-        path: '/auth/device-token',
-        body: {'token': token, if (platform != null) 'platform': platform},
+        path: '/notifications/register-device',
+        body: {
+          'deviceToken': token,
+          if (platform != null) 'platform': platform,
+        },
       );
 
   static Future<Map<String, dynamic>> resendOtp() =>
@@ -704,15 +707,23 @@ class ApiService {
         },
       );
 
-    static Future<Map<String, dynamic>> getNotifications({int timeoutSeconds = 20}) =>
-      _request(method: 'GET', path: '/users/notifications', timeoutSeconds: timeoutSeconds);
+  static Future<Map<String, dynamic>> getNotifications({
+    int timeoutSeconds = 20,
+    int page = 1,
+    int limit = 100,
+  }) =>
+      _request(
+        method: 'GET',
+        path: '/notifications?page=$page&limit=$limit',
+        timeoutSeconds: timeoutSeconds,
+      );
 
   static Future<Map<String, dynamic>> markNotificationRead({
     required String notificationId,
   }) =>
       _request(
-        method: 'PUT',
-        path: '/users/notifications/$notificationId/read',
+        method: 'PATCH',
+        path: '/notifications/$notificationId/read',
       );
 
   static Future<Map<String, dynamic>> markAllNotificationsRead() =>
@@ -727,6 +738,12 @@ class ApiService {
       _request(
         method: 'DELETE',
         path: '/users/notifications/$notificationId',
+      );
+
+  static Future<Map<String, dynamic>> deleteAllNotifications() =>
+      _request(
+        method: 'DELETE',
+        path: '/users/notifications',
       );
 
   // ── Health check ──────────────────────────────────────────────────────────

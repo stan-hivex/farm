@@ -44,6 +44,7 @@ dependencies:
   firebase_auth: ^5.5.0
   firebase_auth_web: ^5.15.0
   firebase_messaging: ^15.2.7
+  flutter_local_notifications: ^19.4.0
   firebase_core_platform_interface: 5.4.0
   firebase_core_web: 2.23.0
   firebase_performance: 0.10.1+7
@@ -115,9 +116,9 @@ flutter_launcher_icons:
   android: true
   ios: true
   remove_alpha_ios: true
-  image_path: "assets/images/app_logo_padded.png"
+  image_path: "assets/images/app_logo.png"
   adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: "assets/images/app_logo_padded.png"
+  adaptive_icon_foreground: "assets/images/app_logo.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

@@ -2,19 +2,17 @@ import 'package:http/http.dart' as http;
 import '/core/app_config.dart';
 
 import '/components/action_circle/action_circle_widget.dart';
-import '/components/scan_overlay_corner/scan_overlay_corner_widget.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/core/theme_extensions.dart';
 import '/backend/api_requests/wallet_api_service.dart';
 import '/backend/api_requests/user_api_service.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:image_picker/image_picker.dart';
 
 import 'q_r_scanner_model.dart';
@@ -30,11 +28,40 @@ class QRScannerWidget extends StatefulWidget {
   State<QRScannerWidget> createState() => _QRScannerWidgetState();
 }
 
+class _HolePainter extends CustomPainter {
+  final Rect holeRect;
+  final double borderRadius;
+  final Color overlayColor;
+
+  _HolePainter({required this.holeRect, this.borderRadius = 24.0, this.overlayColor = const Color(0x80000000)});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = overlayColor;
+
+    // draw full overlay
+    final layerRect = Offset.zero & size;
+    canvas.saveLayer(layerRect, Paint());
+    canvas.drawRect(layerRect, paint);
+
+    // clear the hole (rounded rect)
+    final clearPaint = Paint()..blendMode = BlendMode.clear;
+    final rrect = RRect.fromRectAndRadius(holeRect, Radius.circular(borderRadius));
+    canvas.drawRRect(rrect, clearPaint);
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _HolePainter oldDelegate) {
+    return oldDelegate.holeRect != holeRect || oldDelegate.overlayColor != overlayColor || oldDelegate.borderRadius != borderRadius;
+  }
+}
+
 class _QRScannerWidgetState extends State<QRScannerWidget> {
   late QRScannerModel _model;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
-
   final MobileScannerController cameraController =
       MobileScannerController();
 
@@ -514,6 +541,8 @@ void showMyQrCode() {
 
   @override
   Widget build(BuildContext context) {
+    
+
     return GestureDetector(
       onTap: () {
         FocusScope.of(context).unfocus();
@@ -523,28 +552,13 @@ void showMyQrCode() {
         key: scaffoldKey,
         backgroundColor:
             FlutterFlowTheme.of(context).primary,
-        body: Stack(
-          children: [
-            CachedNetworkImage(
-              fadeInDuration:
-                  const Duration(milliseconds: 0),
-              fadeOutDuration:
-                  const Duration(milliseconds: 0),
-              imageUrl:
-                  'https://dimg.dreamflow.cloud/v1/image/blurry%20dark%20modern%20interior%20background',
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-            ),
-
-            /// DARK OVERLAY
-            Container(
-              color: context.background.withAlpha((0.45 * 255).round()),
-            ),
-
-            SafeArea(
-              child: Column(
-                children: [
+        body: SafeArea(
+          child: Container(
+            width: double.infinity,
+            height: double.infinity,
+            color: FlutterFlowTheme.of(context).primary,
+            child: Column(
+              children: [
                   /// TOP BAR
                   Padding(
                     padding: const EdgeInsets.all(24),
@@ -611,154 +625,97 @@ void showMyQrCode() {
                     ),
                   ),
 
-                  const Spacer(),
+                  Expanded(
+                    flex: 5,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final previewW = constraints.maxWidth;
+                        final previewH = constraints.maxHeight;
+                        final minDim = math.min(previewW, previewH);
+                        final holeSize = minDim * 0.98; // ~98% of the smaller side
 
-                  /// SCANNER SECTION
-                  Column(
-                    children: [
-                      SizedBox(
-                        width: 280,
-                        height: 280,
-                        child: Stack(
+                        return Stack(
                           alignment: Alignment.center,
                           children: [
-                            /// CAMERA
+                            // Camera preview with rounded corners
                             ClipRRect(
-    borderRadius: BorderRadius.circular(24),
-    child: MobileScanner(
-      fit: BoxFit.cover,
-      controller: cameraController,
-      scanWindow: Rect.fromCenter(
-  center: const Offset(140, 140),
-  width: 250,
-  height: 250,
-),
-                                onDetect: (capture) async {
-                                  final List<Barcode>
-                                      barcodes =
-                                      capture.barcodes;
-
-                                  for (final barcode
-                                      in barcodes) {
-                                    final String? code =
-                                        barcode.rawValue;
-
-                                    if (code != null) {
-                                      await validateQr(
-                                          code);
-                                      break;
+                              borderRadius: BorderRadius.circular(24),
+                              child: SizedBox(
+                                width: previewW,
+                                height: previewH,
+                                child: MobileScanner(
+                                  fit: BoxFit.cover,
+                                  controller: cameraController,
+                                  scanWindow: Rect.fromCenter(
+                                    center: Offset(previewW / 2, previewH / 2),
+                                    width: holeSize,
+                                    height: holeSize,
+                                  ),
+                                  onDetect: (capture) async {
+                                    final List<Barcode> barcodes = capture.barcodes;
+                                    for (final barcode in barcodes) {
+                                      final String? code = barcode.rawValue;
+                                      if (code != null) {
+                                        await validateQr(code);
+                                        break;
+                                      }
                                     }
-                                  }
-                                },
-                              ),
-                            ),
-
-                            /// OVERLAY CORNERS
-                            Positioned(
-                              top: 0,
-                              left: 0,
-                              child: wrapWithModel(
-                                model: _model
-                                    .scanOverlayCornerModel1,
-                                updateCallback: () =>
-                                    safeSetState(() {}),
-                                child:
-                                    const ScanOverlayCornerWidget(
-                                  border_side:
-                                      Color(0x00000000),
-                                  radius: 0,
+                                  },
                                 ),
                               ),
                             ),
 
-                            Positioned(
-                              top: 0,
-                              right: 0,
-                              child: wrapWithModel(
-                                model: _model
-                                    .scanOverlayCornerModel2,
-                                updateCallback: () =>
-                                    safeSetState(() {}),
-                                child:
-                                    const ScanOverlayCornerWidget(
-                                  border_side:
-                                      Color(0x00000000),
-                                  radius: 0,
+                            // Semi-transparent overlay with transparent center (hole)
+                            Positioned.fill(
+                              child: IgnorePointer(
+                                child: CustomPaint(
+                                  painter: _HolePainter(
+                                    holeRect: Rect.fromCenter(
+                                      center: Offset(previewW / 2, previewH / 2),
+                                      width: holeSize,
+                                      height: holeSize,
+                                    ),
+                                    borderRadius: 24.0,
+                                    overlayColor: Colors.black54,
+                                  ),
                                 ),
                               ),
                             ),
 
-                            Positioned(
-                              bottom: 0,
-                              left: 0,
-                              child: wrapWithModel(
-                                model: _model
-                                    .scanOverlayCornerModel3,
-                                updateCallback: () =>
-                                    safeSetState(() {}),
-                                child:
-                                    const ScanOverlayCornerWidget(
-                                  border_side:
-                                      Color(0x00000000),
-                                  radius: 0,
+                            // Scanning line centered inside the hole
+                            SizedBox(
+                              width: holeSize,
+                              height: holeSize,
+                              child: IgnorePointer(
+                                child: Center(
+                                  child: Lottie.network(
+                                    'https://dimg.dreamflow.cloud/v1/lottie/horizontal+scanning+line',
+                                    width: holeSize,
+                                    height: holeSize,
+                                    fit: BoxFit.contain,
+                                    animate: true,
+                                  ),
                                 ),
-                              ),
-                            ),
-
-                            Positioned(
-                              bottom: 0,
-                              right: 0,
-                              child: wrapWithModel(
-                                model: _model
-                                    .scanOverlayCornerModel4,
-                                updateCallback: () =>
-                                    safeSetState(() {}),
-                                child:
-                                    const ScanOverlayCornerWidget(
-                                  border_side:
-                                      Color(0x00000000),
-                                  radius: 0,
-                                ),
-                              ),
-                            ),
-
-                            /// SCANNING LINE
-                            IgnorePointer(
-                              child: Lottie.network(
-                                'https://dimg.dreamflow.cloud/v1/lottie/horizontal+scanning+line',
-                                width: 240,
-                                height: 240,
-                                fit: BoxFit.contain,
-                                animate: true,
                               ),
                             ),
                           ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      Opacity(
-                        opacity: 0.9,
-                        child: Text(
-                          'Align QR code within the frame',
-                          style:
-                              FlutterFlowTheme.of(context)
-                                  .bodyMedium
-                                  .override(
-                                    font:
-                                        GoogleFonts.inter(),
-                                    color:
-                                        FlutterFlowTheme.of(
-                                                context)
-                                            .onPrimary,
-                                  ),
-                        ),
-                      ),
-                    ],
+                        );
+                      },
+                    ),
                   ),
 
-                  const Spacer(),
+                  const SizedBox(height: 24),
+
+                  Opacity(
+                    opacity: 0.9,
+                    child: Text(
+                      'Align QR code within the frame',
+                      style: FlutterFlowTheme.of(context).bodyMedium.override(
+                        font: GoogleFonts.inter(),
+                        color: FlutterFlowTheme.of(context).onPrimary,
+                      ),
+                    ),
+                  ),
 
                   /// ACTION BUTTONS
                   Padding(
@@ -942,7 +899,6 @@ void showMyQrCode() {
                 ],
               ),
             ),
-          ],
         ),
       ),
     );

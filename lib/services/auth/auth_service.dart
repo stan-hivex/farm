@@ -1,4 +1,3 @@
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:http/http.dart' as http;
@@ -10,6 +9,7 @@ import '/backend/services/turnstile_payload.dart';
 import '/services/auth/refresh_manager.dart';
 import '/services/secure_storage_service.dart';
 import '/services/app_session_manager.dart';
+import '/services/notification_service.dart';
 
 /// Centralized authentication service for the FARM app.
 ///
@@ -120,7 +120,7 @@ class AuthService {
           refreshToken: refreshToken,
           backendUser: backendUser,
         );
-        await registerFcmToken();
+        await NotificationService.registerForCurrentUser();
       }
 
       return {
@@ -162,7 +162,7 @@ class AuthService {
           refreshToken: refreshToken,
           backendUser: backendUser,
         );
-        await registerFcmToken();
+        await NotificationService.registerForCurrentUser();
       }
 
       return {
@@ -199,7 +199,7 @@ class AuthService {
           refreshToken: refreshToken,
           backendUser: backendUser,
         );
-        await registerFcmToken();
+        await NotificationService.registerForCurrentUser();
       }
 
       return {
@@ -214,29 +214,7 @@ class AuthService {
   }
 
   Future<void> registerFcmToken() async {
-    try {
-      if (kIsWeb) {
-        return;
-      }
-
-      final messaging = FirebaseMessaging.instance;
-      if (defaultTargetPlatform == TargetPlatform.iOS ||
-          defaultTargetPlatform == TargetPlatform.macOS) {
-        await messaging.requestPermission();
-      }
-
-      final token = await messaging.getToken();
-      if (token == null || token.isEmpty) {
-        return;
-      }
-
-      await ApiService.registerDeviceToken(
-        token: token,
-        platform: defaultTargetPlatform.name,
-      );
-    } catch (e) {
-      debugPrint('[AuthService] FCM registration failed: $e');
-    }
+    await NotificationService.registerForCurrentUser();
   }
 
   void _persistSessionTokens({

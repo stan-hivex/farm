@@ -44,11 +44,15 @@ class _ScanOverlayCornerWidgetState extends State<ScanOverlayCornerWidget> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 40.0,
-      height: 40.0,
+      width: 120.0,
+      height: 120.0,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(0.0),
-        shape: BoxShape.rectangle,
+        borderRadius: BorderRadius.circular(widget.radius),
+        color: Colors.transparent,
+        border: Border(
+          top: BorderSide(color: widget.border_side, width: 6.0),
+          left: BorderSide(color: widget.border_side, width: 6.0),
+        ),
       ),
     );
   }

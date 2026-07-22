@@ -2231,6 +2231,7 @@ file:///C:/farm/lib/app_state.dart
 file:///C:/farm/lib/backend/api_requests/api_manager.dart
 file:///C:/farm/lib/backend/api_requests/escrow_api_service.dart
 file:///C:/farm/lib/backend/api_requests/get_streamed_response.dart
+file:///C:/farm/lib/backend/api_requests/payment_request_api_service.dart
 file:///C:/farm/lib/backend/api_requests/user_api_service.dart
 file:///C:/farm/lib/backend/api_requests/wallet_api_service.dart
 file:///C:/farm/lib/backend/models/escrow_model.dart
@@ -2317,6 +2318,8 @@ file:///C:/farm/lib/pages/merchant_sales/merchant_sales_widget.dart
 file:///C:/farm/lib/pages/notifications/user_notifications_page_widget.dart
 file:///C:/farm/lib/pages/onboarding/onboarding_model.dart
 file:///C:/farm/lib/pages/onboarding/onboarding_widget.dart
+file:///C:/farm/lib/pages/payment_requests/incoming_requests_widget.dart
+file:///C:/farm/lib/pages/payment_requests/request_money_widget.dart
 file:///C:/farm/lib/pages/pin_setup_page/pin_setup_page_model.dart
 file:///C:/farm/lib/pages/pin_setup_page/pin_setup_page_widget.dart
 file:///C:/farm/lib/pages/profile_settings/profile_settings_model.dart
