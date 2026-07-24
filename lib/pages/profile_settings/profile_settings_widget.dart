@@ -129,7 +129,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
           'first_name': FFAppState().firstName,
           'last_name': '',
           'username': FFAppState().userName,
-          'email': email,
+          'email': FFAppState().email,
           'phone': FFAppState().phone,
           'kyc_status': FFAppState().kycStatus,
           'profile_image': FFAppState().profileImageUrl,
@@ -138,6 +138,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
         fullName = FFAppState().firstName;
         username = FFAppState().userName;
         phone = FFAppState().phone;
+        email = FFAppState().email;
         kycStatus = FFAppState().kycStatus;
         profileImage = FFAppState().profileImageUrl;
         initials = FFAppState().firstName.isNotEmpty
@@ -272,6 +273,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                   setState(() {
                     if (fieldType == 'email') {
                       email = newValue;
+                      FFAppState().email = newValue;
                     } else {
                       phone = newValue;
                     }

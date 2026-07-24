@@ -2,6 +2,7 @@ import '/services/auth/auth_service.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'registerpage_model.dart';
@@ -859,19 +860,19 @@ class _RegisterpageWidgetState extends State<RegisterpageWidget> {
 
                       final fullPhone =
                           '$_selectedCountryCode${phoneController.text.trim()}';
-                      final registerData = {
-                        "first_name": firstNameController.text.trim(),
-                        "last_name": lastNameController.text.trim(),
-                        "username": usernameController.text.trim(),
-                        "phone": fullPhone,
-                        "email": emailController.text.trim(),
-                        "password": passwordController.text.trim(),
-                        "country": _selectedCountry?.trim() ?? '',
-                        "referral_code": referralController.text.trim(),
+                      final body = {
+                        'first_name': firstNameController.text.trim(),
+                        'last_name': lastNameController.text.trim(),
+                        'username': usernameController.text.trim(),
+                        'phone': fullPhone,
+                        'email': emailController.text.trim(),
+                        'password': passwordController.text.trim(),
+                        'country': _selectedCountry?.trim() ?? '',
+                        'referral_code': referralController.text.trim(),
                       };
 
                       print('REGISTER DATA');
-                      print(registerData);
+                      print(body);
 
                       final email = emailController.text.trim();
                       final password = passwordController.text.trim();
@@ -898,6 +899,8 @@ class _RegisterpageWidgetState extends State<RegisterpageWidget> {
                           referralCode: referralController.text.trim(),
                         );
 
+                        if (!mounted) return;
+
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text(
@@ -916,11 +919,14 @@ class _RegisterpageWidgetState extends State<RegisterpageWidget> {
                       } catch (e) {
                         print('ERROR: $e');
 
+                        final message = e.toString().contains('Could not connect to backend server')
+                            ? 'Could not connect to backend server. Please check your internet connection and try again.'
+                            : 'Registration failed. Please try again.';
+
+                        if (!mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Could not connect to backend server',
-                            ),
+                          SnackBar(
+                            content: Text(message),
                             backgroundColor: Colors.red,
                           ),
                         );

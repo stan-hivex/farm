@@ -1,9 +1,8 @@
-import 'dart:js_util' as js_util;
+import 'dart:html' as html;
 
 String getBrowserPlatformLabel() {
   try {
-    final navigator = js_util.getProperty(js_util.globalThis, 'navigator');
-    final userAgent = js_util.getProperty(navigator, 'userAgent')?.toString() ?? '';
+    final userAgent = html.window.navigator.userAgent;
     final isAndroid = userAgent.contains('Android');
     final isChrome = userAgent.contains('Chrome') && !userAgent.contains('Chromium') && !userAgent.contains('Edg');
     final isSafari = userAgent.contains('Safari') && !userAgent.contains('Chrome') && !userAgent.contains('Chromium') && !userAgent.contains('Edg');
@@ -19,9 +18,8 @@ String getBrowserPlatformLabel() {
 
 String getBrowserHostname() {
   try {
-    final location = js_util.getProperty(js_util.globalThis, 'location');
-    final hostname = js_util.getProperty(location, 'hostname');
-    return hostname?.toString() ?? 'unknown';
+    final hostname = html.window.location.hostname ?? '';
+    return hostname.isEmpty ? 'unknown' : hostname;
   } catch (_) {
     return 'unknown';
   }

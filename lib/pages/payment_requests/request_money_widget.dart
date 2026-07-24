@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '/core/app_config.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/backend/api_requests/payment_request_api_service.dart';
 

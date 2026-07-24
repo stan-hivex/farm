@@ -107,6 +107,7 @@ class AppSessionManager {
               FFAppState().firstName = profileData['first_name']?.toString() ?? FFAppState().firstName;
               FFAppState().userName = profileData['username']?.toString() ?? FFAppState().userName;
               FFAppState().phone = profileData['phone']?.toString() ?? FFAppState().phone;
+              FFAppState().email = profileData['email']?.toString() ?? FFAppState().email;
               FFAppState().kycStatus = profileData['kyc_status']?.toString() ?? FFAppState().kycStatus;
               FFAppState().emailVerified = profileData['email_verified'] == true;
               FFAppState().role = profileData['role']?.toString() ?? FFAppState().role;
@@ -146,6 +147,7 @@ class AppSessionManager {
             FFAppState().firstName = profileData['first_name']?.toString() ?? FFAppState().firstName;
             FFAppState().userName = profileData['username']?.toString() ?? FFAppState().userName;
             FFAppState().phone = profileData['phone']?.toString() ?? FFAppState().phone;
+            FFAppState().email = profileData['email']?.toString() ?? FFAppState().email;
             FFAppState().kycStatus = profileData['kyc_status']?.toString() ?? FFAppState().kycStatus;
             FFAppState().emailVerified = profileData['email_verified'] == true;
             FFAppState().role = profileData['role']?.toString() ?? FFAppState().role;
@@ -359,6 +361,7 @@ class AppSessionManager {
           FFAppState().firstName = profileData['first_name']?.toString() ?? FFAppState().firstName;
           FFAppState().userName = profileData['username']?.toString() ?? FFAppState().userName;
           FFAppState().phone = profileData['phone']?.toString() ?? FFAppState().phone;
+          FFAppState().email = profileData['email']?.toString() ?? FFAppState().email;
           FFAppState().kycStatus = profileData['kyc_status']?.toString() ?? FFAppState().kycStatus;
           FFAppState().emailVerified = profileData['email_verified'] == true;
           FFAppState().role = profileData['role']?.toString() ?? FFAppState().role;

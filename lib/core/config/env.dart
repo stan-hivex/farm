@@ -20,8 +20,6 @@ class Env {
 
   static final appHost = dotenv.env['APP_HOST'] ?? 'farm.com';
 
-  static final turnstileSiteKey = dotenv.env['TURNSTILE_SITE_KEY'] ?? '';
-
   static final apiVersion = '/api/v1';
 
   static String get api => '$apiBaseUrl$apiVersion';

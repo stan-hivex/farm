@@ -6,6 +6,7 @@
 // @dart = 3.0
 
 import 'dart:io'; // flutter_ignore: dart_io_import.
+import 'package:flutter_local_notifications/flutter_local_notifications.dart' as flutter_local_notifications;
 import 'package:image_picker_android/image_picker_android.dart' as image_picker_android;
 import 'package:local_auth_android/local_auth_android.dart' as local_auth_android;
 import 'package:path_provider_android/path_provider_android.dart' as path_provider_android;
@@ -13,6 +14,7 @@ import 'package:shared_preferences_android/shared_preferences_android.dart' as s
 import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:url_launcher_android/url_launcher_android.dart' as url_launcher_android;
 import 'package:webview_flutter_android/webview_flutter_android.dart' as webview_flutter_android;
+import 'package:flutter_local_notifications/flutter_local_notifications.dart' as flutter_local_notifications;
 import 'package:image_picker_ios/image_picker_ios.dart' as image_picker_ios;
 import 'package:local_auth_darwin/local_auth_darwin.dart' as local_auth_darwin;
 import 'package:path_provider_foundation/path_provider_foundation.dart' as path_provider_foundation;
@@ -23,11 +25,13 @@ import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart' as web
 import 'package:app_links_linux/app_links_linux.dart' as app_links_linux;
 import 'package:device_info_plus/device_info_plus.dart' as device_info_plus;
 import 'package:file_selector_linux/file_selector_linux.dart' as file_selector_linux;
+import 'package:flutter_local_notifications_linux/flutter_local_notifications_linux.dart' as flutter_local_notifications_linux;
 import 'package:image_picker_linux/image_picker_linux.dart' as image_picker_linux;
 import 'package:path_provider_linux/path_provider_linux.dart' as path_provider_linux;
 import 'package:shared_preferences_linux/shared_preferences_linux.dart' as shared_preferences_linux;
 import 'package:url_launcher_linux/url_launcher_linux.dart' as url_launcher_linux;
 import 'package:file_selector_macos/file_selector_macos.dart' as file_selector_macos;
+import 'package:flutter_local_notifications/flutter_local_notifications.dart' as flutter_local_notifications;
 import 'package:image_picker_macos/image_picker_macos.dart' as image_picker_macos;
 import 'package:local_auth_darwin/local_auth_darwin.dart' as local_auth_darwin;
 import 'package:path_provider_foundation/path_provider_foundation.dart' as path_provider_foundation;
@@ -37,6 +41,7 @@ import 'package:url_launcher_macos/url_launcher_macos.dart' as url_launcher_maco
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart' as webview_flutter_wkwebview;
 import 'package:device_info_plus/device_info_plus.dart' as device_info_plus;
 import 'package:file_selector_windows/file_selector_windows.dart' as file_selector_windows;
+import 'package:flutter_local_notifications_windows/flutter_local_notifications_windows.dart' as flutter_local_notifications_windows;
 import 'package:flutter_secure_storage_windows/flutter_secure_storage_windows.dart' as flutter_secure_storage_windows;
 import 'package:image_picker_windows/image_picker_windows.dart' as image_picker_windows;
 import 'package:local_auth_windows/local_auth_windows.dart' as local_auth_windows;
@@ -50,6 +55,15 @@ class _PluginRegistrant {
   @pragma('vm:entry-point')
   static void register() {
     if (Platform.isAndroid) {
+      try {
+        flutter_local_notifications.AndroidFlutterLocalNotificationsPlugin.registerWith();
+      } catch (err) {
+        print(
+          '`flutter_local_notifications` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
       try {
         image_picker_android.ImagePickerAndroid.registerWith();
       } catch (err) {
@@ -114,6 +128,15 @@ class _PluginRegistrant {
       }
 
     } else if (Platform.isIOS) {
+      try {
+        flutter_local_notifications.IOSFlutterLocalNotificationsPlugin.registerWith();
+      } catch (err) {
+        print(
+          '`flutter_local_notifications` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
       try {
         image_picker_ios.ImagePickerIOS.registerWith();
       } catch (err) {
@@ -206,6 +229,15 @@ class _PluginRegistrant {
       }
 
       try {
+        flutter_local_notifications_linux.LinuxFlutterLocalNotificationsPlugin.registerWith();
+      } catch (err) {
+        print(
+          '`flutter_local_notifications_linux` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
+      try {
         image_picker_linux.ImagePickerLinux.registerWith();
       } catch (err) {
         print(
@@ -247,6 +279,15 @@ class _PluginRegistrant {
       } catch (err) {
         print(
           '`file_selector_macos` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
+      try {
+        flutter_local_notifications.MacOSFlutterLocalNotificationsPlugin.registerWith();
+      } catch (err) {
+        print(
+          '`flutter_local_notifications` threw an error: $err. '
           'The app may not function as expected until you remove this plugin from pubspec.yaml'
         );
       }
@@ -329,6 +370,15 @@ class _PluginRegistrant {
       } catch (err) {
         print(
           '`file_selector_windows` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
+      try {
+        flutter_local_notifications_windows.FlutterLocalNotificationsWindows.registerWith();
+      } catch (err) {
+        print(
+          '`flutter_local_notifications_windows` threw an error: $err. '
           'The app may not function as expected until you remove this plugin from pubspec.yaml'
         );
       }

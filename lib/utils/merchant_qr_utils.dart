@@ -5,7 +5,8 @@ String? extractMerchantQrBase64(dynamic source) {
 
   if (source is String) {
     final value = source.trim();
-    return value.isEmpty ? null : value;
+    if (value.isEmpty) return null;
+    return _looksLikeQrImage(value) ? value : null;
   }
 
   if (source is Map) {
@@ -13,19 +14,20 @@ String? extractMerchantQrBase64(dynamic source) {
 
     for (final key in [
       'qr_image_base64',
+      'qr_image_data_url',
       'qrImageBase64',
+      'qrImageDataUrl',
       'qr_image',
       'qrImage',
-      'qr_code',
-      'qrCode',
-      'qr',
       'image',
       'image_base64',
+      'imageDataUrl',
     ]) {
       final value = map[key];
       if (value is String) {
         final normalized = value.trim();
-        if (normalized.isNotEmpty) return normalized;
+        if (normalized.isEmpty) continue;
+        if (_looksLikeQrImage(normalized)) return normalized;
       }
     }
 
@@ -37,6 +39,18 @@ String? extractMerchantQrBase64(dynamic source) {
     if (map.containsKey('merchant')) {
       final nested = extractMerchantQrBase64(map['merchant']);
       if (nested != null) return nested;
+    }
+
+    for (final value in map.values) {
+      if (value is String) {
+        final normalized = value.trim();
+        if (normalized.isEmpty) continue;
+        if (_looksLikeQrImage(normalized)) return normalized;
+      }
+      if (value is Map) {
+        final nested = extractMerchantQrBase64(value);
+        if (nested != null) return nested;
+      }
     }
   }
 
@@ -63,4 +77,14 @@ List<int>? resolveMerchantQrBytes(String? qrPayload) {
       return null;
     }
   }
+}
+
+bool _looksLikeQrImage(String value) {
+  final normalized = value.trim();
+  if (normalized.isEmpty) return false;
+
+  return normalized.startsWith('data:image/') ||
+      normalized.startsWith('iVBORw0K') ||
+      normalized.startsWith('/9j/') ||
+      normalized.startsWith('R0lGOD');
 }

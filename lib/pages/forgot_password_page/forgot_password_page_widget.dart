@@ -6,8 +6,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 import '/services/auth/auth_service.dart';
 import '/pages/loginpage/loginpage_widget.dart';
-import '/components/turnstile_widget.dart';
-import '/core/config/env.dart';
 import 'forgot_password_page_model.dart';
 export 'forgot_password_page_model.dart';
 
@@ -39,7 +37,6 @@ class _ForgotPasswordPageWidgetState extends State<ForgotPasswordPageWidget> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   bool _isSubmitting = false;
-  String _turnstileToken = '';
 
   @override
   void initState() {
@@ -59,23 +56,11 @@ class _ForgotPasswordPageWidgetState extends State<ForgotPasswordPageWidget> {
       return;
     }
 
-    if (Env.turnstileSiteKey.isNotEmpty && _turnstileToken.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content:
-              Text('Please complete the security check before continuing.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
     setState(() => _isSubmitting = true);
 
     try {
       await AuthService().sendPasswordReset(
         email: _emailController.text.trim(),
-        turnstileToken: _turnstileToken,
       );
       if (!mounted) {
         return;
@@ -199,15 +184,6 @@ class _ForgotPasswordPageWidgetState extends State<ForgotPasswordPageWidget> {
                     },
                   ),
                   const SizedBox(height: 20),
-                  if (Env.turnstileSiteKey.isNotEmpty) ...[
-                    TurnstileWidget(
-                      siteKey: Env.turnstileSiteKey,
-                      onTokenChanged: (token) {
-                        setState(() => _turnstileToken = token);
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                  ],
                   FilledButton.icon(
                     onPressed: _isSubmitting ? null : _submit,
                     icon: _isSubmitting

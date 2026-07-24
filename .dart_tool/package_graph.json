@@ -43,6 +43,7 @@
         "http",
         "image_picker",
         "intl",
+        "js",
         "json_path",
         "local_auth",
         "lottie",
@@ -476,6 +477,13 @@
         "maybe_just_nothing",
         "petitparser",
         "rfc_6901"
+      ]
+    },
+    {
+      "name": "js",
+      "version": "0.6.7",
+      "dependencies": [
+        "meta"
       ]
     },
     {
@@ -1717,13 +1725,6 @@
         "ffi",
         "meta",
         "xml"
-      ]
-    },
-    {
-      "name": "js",
-      "version": "0.6.7",
-      "dependencies": [
-        "meta"
       ]
     },
     {

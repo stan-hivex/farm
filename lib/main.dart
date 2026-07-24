@@ -4,11 +4,13 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'firebase_options.dart';
 import 'flutter_flow/flutter_flow_theme.dart';
 import 'flutter_flow/flutter_flow_util.dart';
 import 'core/app_theme.dart';
+import 'core/config/app_config.dart';
 import 'web_url_strategy.dart';
 import 'services/app_session_manager.dart';
 import 'services/biometric_lock_service.dart';
@@ -42,6 +44,16 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  if (AppConfig.supabaseUrl.isNotEmpty && AppConfig.supabaseAnonKey.isNotEmpty) {
+    await Supabase.initialize(
+      url: AppConfig.supabaseUrl,
+      publishableKey: AppConfig.supabaseAnonKey,
+    );
+  } else {
+    debugPrint('Supabase initialization skipped: missing environment values.');
+  }
+
   await FFAppState().initializePersistedState();
   await NotificationService.initialize();
   await FlutterFlowTheme.initialize();

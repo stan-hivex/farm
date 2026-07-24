@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:http/http.dart' as http;
@@ -5,7 +7,6 @@ import '/core/config/supabase_config.dart';
 import '/core/config/env.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/backend/services/api_service.dart';
-import '/backend/services/turnstile_payload.dart';
 import '/services/auth/refresh_manager.dart';
 import '/services/secure_storage_service.dart';
 import '/services/app_session_manager.dart';
@@ -41,12 +42,10 @@ class AuthService {
   /// Sign up a new user with email and password.
   ///
   /// Flow:
-  /// 1. Create account in Supabase
-  /// 2. Supabase sends verification email
-  /// 3. User clicks link in email
-  /// 4. Session is established
-  /// 5. Backend creates FARM user, wallet, and issues JWT
-  Future<AuthResponse> signUp({
+  /// 1. Send registration payload directly to the FARM backend
+  /// 2. Backend validates the input and creates the FARM user and wallet
+  /// 3. Backend sends OTP to the provided phone number for verification
+  Future<void> signUp({
     required String email,
     required String password,
     required String firstName,
@@ -55,18 +54,8 @@ class AuthService {
     required String phone,
     String? country,
     String? referralCode,
-    String? turnstileToken,
   }) async {
     try {
-      final response = await _supabase.auth.signUp(
-        email: email,
-        password: password,
-      );
-
-      if (response.user == null) {
-        throw Exception('Sign up failed: User is null');
-      }
-
       await ApiService.register(
         firstName: firstName,
         lastName: lastName,
@@ -76,13 +65,19 @@ class AuthService {
         email: email,
         country: country,
         referralCode: referralCode,
-        turnstileToken: turnstileToken,
       );
-
-      return response;
     } on AuthException catch (e) {
       throw Exception('Sign up error: ${e.message}');
+    } on AssertionError catch (_) {
+      throw Exception(
+        'Sign up service is not ready. Please restart the app and try again.',
+      );
     } catch (e) {
+      if (e is SocketException || e is http.ClientException || e is TimeoutException) {
+        throw Exception(
+          'Could not connect to backend server. Please check your internet connection and try again.',
+        );
+      }
       throw Exception('Sign up failed: $e');
     }
   }
@@ -94,7 +89,6 @@ class AuthService {
   Future<Map<String, dynamic>> login({
     required String identifier,
     required String password,
-    String? turnstileToken,
     String? countryCode,
   }) async {
     try {
@@ -103,7 +97,6 @@ class AuthService {
       final response = await ApiService.login(
         identifier: normalizedIdentifier,
         password: password,
-        turnstileToken: turnstileToken,
         countryCode: countryCode,
       );
 
@@ -141,14 +134,12 @@ class AuthService {
     required String identifier,
     required String firebaseToken,
     String? countryCode,
-    String? turnstileToken,
   }) async {
     try {
       final response = await ApiService.completeFirebaseLogin(
         identifier: identifier,
         firebaseToken: firebaseToken,
         countryCode: countryCode,
-        turnstileToken: turnstileToken,
       );
 
       final responseData = response['data'] as Map<String, dynamic>? ?? {};
@@ -180,12 +171,10 @@ class AuthService {
   /// Verify phone with backend using the Firebase ID token.
   Future<Map<String, dynamic>> verifyPhone({
     required String firebaseIdToken,
-    String? turnstileToken,
   }) async {
     try {
       final response = await ApiService.verifyPhone(
         firebaseIdToken: firebaseIdToken,
-        turnstileToken: turnstileToken,
       );
 
       final responseData = response['data'] as Map<String, dynamic>? ?? {};
@@ -230,6 +219,7 @@ class AuthService {
       FFAppState().firstName = backendUser['first_name']?.toString() ?? '';
       FFAppState().userName = backendUser['username']?.toString() ?? '';
       FFAppState().phone = backendUser['phone']?.toString() ?? '';
+      FFAppState().email = backendUser['email']?.toString() ?? '';
       FFAppState().kycStatus = backendUser['kyc_status']?.toString() ?? '';
       FFAppState().emailVerified = backendUser['email_verified'] == true;
       FFAppState().role = backendUser['role']?.toString() ?? 'user';
@@ -252,10 +242,7 @@ class AuthService {
   /// 4. Issues a FARM JWT for API authentication
   ///
   /// Public method used by AuthService.login() and BiometricLoginService.
-  Future<Map<String, dynamic>> exchangeSupabaseToken(
-    String supabaseToken, {
-    String? turnstileToken,
-  }) async {
+  Future<Map<String, dynamic>> exchangeSupabaseToken(String supabaseToken) async {
     try {
       final response = await http.post(
         Uri.parse('${Env.api}/auth/supabase'),
@@ -263,12 +250,7 @@ class AuthService {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $supabaseToken',
         },
-        body: jsonEncode(
-          attachTurnstileToken(
-            {'supabase_token': supabaseToken},
-            turnstileToken: turnstileToken,
-          ),
-        ),
+        body: jsonEncode({'supabase_token': supabaseToken}),
       );
 
       final bodyData = jsonDecode(response.body) as Map<String, dynamic>;
@@ -348,13 +330,9 @@ class AuthService {
   /// Send a password reset email with a secure reset link.
   Future<void> sendPasswordReset({
     required String email,
-    String? turnstileToken,
   }) async {
     try {
-      await ApiService.forgotPassword(
-        email: email,
-        turnstileToken: turnstileToken,
-      );
+      await ApiService.forgotPassword(email: email);
     } catch (e) {
       throw Exception('Password reset failed: $e');
     }

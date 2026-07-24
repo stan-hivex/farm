@@ -31,6 +31,7 @@ class FFAppState extends ChangeNotifier {
     _firstName = prefs.getString('firstName') ?? '';
     _userName = prefs.getString('userName') ?? '';
     _phone = prefs.getString('phone') ?? '';
+    _email = prefs.getString('email') ?? '';
     _kycStatus = prefs.getString('kycStatus') ?? '';
     _isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
     _biometricsEnabled = prefs.getBool('biometricsEnabled') ?? false;
@@ -162,6 +163,17 @@ class FFAppState extends ChangeNotifier {
     notifyListeners();
     SharedPreferences.getInstance().then(
       (prefs) => prefs.setString('phone', value),
+    );
+  }
+
+  String _email = '';
+  String get email => _email;
+  set email(String value) {
+    if (_email == value) return;
+    _email = value;
+    notifyListeners();
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setString('email', value),
     );
   }
 

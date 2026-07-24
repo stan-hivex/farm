@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import '/backend/services/turnstile_payload.dart';
 import 'package:http/http.dart' as http;
 import '/core/app_config.dart';
 import '/app_state.dart';
@@ -160,22 +159,18 @@ class ApiService {
   static Future<Map<String, dynamic>> login({
     required String identifier,
     required String password,
-    String? turnstileToken,
     String? countryCode,
   }) =>
       _request(
         method: 'POST',
         path: '/auth/login',
-        body: attachTurnstileToken(
-          {
-            'identifier': identifier,
-            'phone': identifier,
-            if (countryCode != null && countryCode.isNotEmpty)
-              'country_code': countryCode,
-            'password': password,
-          },
-          turnstileToken: turnstileToken,
-        ),
+        body: {
+          'identifier': identifier,
+          'phone': identifier,
+          if (countryCode != null && countryCode.isNotEmpty)
+            'country_code': countryCode,
+          'password': password,
+        },
         requiresAuth: false,
         timeoutSeconds: 60,
       );
@@ -184,32 +179,24 @@ class ApiService {
     required String identifier,
     required String firebaseToken,
     String? countryCode,
-    String? turnstileToken,
   }) =>
       _request(
         method: 'POST',
         path: '/auth/firebase-login',
-        body: attachTurnstileToken(
-          {
-            'identifier': identifier,
-            'firebaseIdToken': firebaseToken,
-          },
-          turnstileToken: turnstileToken,
-        ),
+        body: {
+          'identifier': identifier,
+          'firebaseIdToken': firebaseToken,
+        },
         requiresAuth: false,
         timeoutSeconds: 60,
       );
 
   static Future<Map<String, dynamic>> verifyPhone({
     required String firebaseIdToken,
-    String? turnstileToken,
   }) {
-    final body = attachTurnstileToken(
-      {
-        'firebaseIdToken': firebaseIdToken,
-      },
-      turnstileToken: turnstileToken,
-    );
+    final body = {
+      'firebaseIdToken': firebaseIdToken,
+    };
 
     debugPrint(jsonEncode(body));
 
@@ -231,26 +218,23 @@ class ApiService {
     String? email,
     String? country,
     String? referralCode,
-    String? turnstileToken,
   }) =>
       _request(
         method: 'POST',
         path: '/auth/register',
-        body: attachTurnstileToken(
-          {
-            'first_name': firstName,
-            'last_name': lastName,
-            'username': username,
-            'phone': phone,
-            'password': password,
-            if (email != null && email.isNotEmpty) 'email': email,
-            if (country != null && country.isNotEmpty) 'country': country,
-            if (referralCode != null && referralCode.isNotEmpty)
-              'referral_code': referralCode,
-          },
-          turnstileToken: turnstileToken,
-        ),
+        body: {
+          'first_name': firstName,
+          'last_name': lastName,
+          'username': username,
+          'phone': phone,
+          'password': password,
+          if (email != null && email.isNotEmpty) 'email': email,
+          if (country != null && country.isNotEmpty) 'country': country,
+          if (referralCode != null && referralCode.isNotEmpty)
+            'referral_code': referralCode,
+        },
         requiresAuth: false,
+        timeoutSeconds: 60,
       );
 
   static Future<Map<String, dynamic>> verifyOtp({
@@ -267,13 +251,11 @@ class ApiService {
 
   static Future<Map<String, dynamic>> forgotPassword({
     required String email,
-    String? turnstileToken,
   }) =>
       _request(
         method: 'POST',
         path: '/auth/forgot-password',
-        body: attachTurnstileToken({'email': email},
-            turnstileToken: turnstileToken),
+        body: {'email': email},
         requiresAuth: false,
       );
 

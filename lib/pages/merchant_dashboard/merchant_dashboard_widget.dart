@@ -9,7 +9,6 @@ import '/backend/services/api_service.dart';
 import '/core/app_config.dart';
 import '/utils/download_file.dart';
 import '/utils/merchant_qr_utils.dart';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -49,11 +48,11 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
   String? merchantQrImageBase64;
 
   String? get _merchantQrBase64 {
-    return merchantQrImageBase64 ??
-        merchant?['qr_image_base64'] ??
-        merchant?['qrImageBase64'] ??
-        merchant?['qr_image'] ??
-        merchant?['qrImage'];
+    if (merchantQrImageBase64 != null && merchantQrImageBase64!.isNotEmpty) {
+      return merchantQrImageBase64;
+    }
+
+    return extractMerchantQrBase64(merchant);
   }
 
   final TextEditingController amountController = TextEditingController();
@@ -318,18 +317,48 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
   }
 
   Future<void> _downloadQrKit() async {
-    final qrBase64 = _merchantQrBase64;
-    if (qrBase64 == null || qrBase64.isEmpty) {
-      await _fetchMerchantQr();
-      final refreshedQrBase64 = _merchantQrBase64;
-      if (refreshedQrBase64 == null || refreshedQrBase64.isEmpty) {
-        showError('No QR code available to download.');
-        return;
+    String? qrSource = _merchantQrBase64;
+    if (qrSource == null || qrSource.isEmpty) {
+      qrSource = extractMerchantQrBase64(merchant);
+    }
+
+    if (qrSource == null || qrSource.isEmpty) {
+      try {
+        await _fetchMerchantQr();
+      } catch (_) {}
+      qrSource = _merchantQrBase64;
+    }
+
+    if (qrSource == null || qrSource.isEmpty) {
+      try {
+        await fetchDashboard();
+      } catch (_) {}
+      qrSource = _merchantQrBase64;
+    }
+
+    if (qrSource == null || qrSource.isEmpty) {
+      try {
+        final body = await ApiService.getMerchantQr();
+        qrSource = extractMerchantQrBase64(body);
+      } catch (_) {}
+    }
+
+    if (qrSource == null || qrSource.isEmpty) {
+      try {
+        final body = await ApiService.regenerateMerchantQr();
+        qrSource = extractMerchantQrBase64(body);
+      } catch (_) {}
+    }
+
+    if (qrSource == null || qrSource.isEmpty) {
+      if (mounted) {
+        showError('No QR code available to download yet. Please try again shortly.');
       }
+      return;
     }
 
     try {
-      final bytes = resolveMerchantQrBytes(_merchantQrBase64);
+      final bytes = resolveMerchantQrBytes(qrSource);
       if (bytes == null || bytes.isEmpty) {
         throw Exception('QR payload could not be decoded');
       }
@@ -337,10 +366,19 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
       final fileName =
           'farm_merchant_qr_${DateTime.now().millisecondsSinceEpoch}.png';
       final path = await saveFileFromBytes(Uint8List.fromList(bytes), fileName);
+      if (mounted) {
+        setState(() {
+          merchantQrImageBase64 = qrSource;
+        });
+      }
 
-      showSuccess('QR code saved to $path');
+      if (mounted) {
+        showSuccess('QR code saved to $path');
+      }
     } catch (e) {
-      showError('Failed to save QR code: $e');
+      if (mounted) {
+        showError('Failed to save QR code: $e');
+      }
     }
   }
 
@@ -957,12 +995,24 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                                       ? ClipRRect(
                                           borderRadius:
                                               BorderRadius.circular(20),
-                                          child: Image.memory(
-                                            base64Decode(_merchantQrBase64!.contains(',')
-                                                ? _merchantQrBase64!.split(',').last
-                                                : _merchantQrBase64!),
-                                            fit: BoxFit.cover,
-                                          ),
+                                          child: () {
+                                            final qrBytes = resolveMerchantQrBytes(
+                                              _merchantQrBase64,
+                                            );
+                                            if (qrBytes == null || qrBytes.isEmpty) {
+                                              return const Center(
+                                                child: Icon(
+                                                  Icons.qr_code_2_rounded,
+                                                  size: 120,
+                                                ),
+                                              );
+                                            }
+
+                                            return Image.memory(
+                                              Uint8List.fromList(qrBytes),
+                                              fit: BoxFit.cover,
+                                            );
+                                          }(),
                                         )
                                       : const Center(
                                           child: Icon(
