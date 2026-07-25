@@ -381,27 +381,33 @@
     },
     {
       "name": "flutter_local_notifications",
-      "rootUri": "file:///C:/Users/u/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_local_notifications-19.5.0",
+      "rootUri": "file:///C:/Users/u/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_local_notifications-22.2.0",
       "packageUri": "lib/",
-      "languageVersion": "3.4"
+      "languageVersion": "3.10"
     },
     {
       "name": "flutter_local_notifications_linux",
-      "rootUri": "file:///C:/Users/u/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_local_notifications_linux-6.0.0",
+      "rootUri": "file:///C:/Users/u/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_local_notifications_linux-8.0.1",
       "packageUri": "lib/",
-      "languageVersion": "3.4"
+      "languageVersion": "3.10"
     },
     {
       "name": "flutter_local_notifications_platform_interface",
-      "rootUri": "file:///C:/Users/u/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_local_notifications_platform_interface-9.1.0",
+      "rootUri": "file:///C:/Users/u/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_local_notifications_platform_interface-12.1.0",
       "packageUri": "lib/",
-      "languageVersion": "3.4"
+      "languageVersion": "3.10"
+    },
+    {
+      "name": "flutter_local_notifications_web",
+      "rootUri": "file:///C:/Users/u/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_local_notifications_web-1.0.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.10"
     },
     {
       "name": "flutter_local_notifications_windows",
-      "rootUri": "file:///C:/Users/u/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_local_notifications_windows-1.0.3",
+      "rootUri": "file:///C:/Users/u/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_local_notifications_windows-3.1.1",
       "packageUri": "lib/",
-      "languageVersion": "3.4"
+      "languageVersion": "3.10"
     },
     {
       "name": "flutter_localizations",
@@ -993,9 +999,9 @@
     },
     {
       "name": "timezone",
-      "rootUri": "file:///C:/Users/u/AppData/Local/Pub/Cache/hosted/pub.dev/timezone-0.10.1",
+      "rootUri": "file:///C:/Users/u/AppData/Local/Pub/Cache/hosted/pub.dev/timezone-0.11.1",
       "packageUri": "lib/",
-      "languageVersion": "2.19"
+      "languageVersion": "3.10"
     },
     {
       "name": "typed_data",

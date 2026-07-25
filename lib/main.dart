@@ -1,16 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'firebase_options.dart';
 import 'flutter_flow/flutter_flow_theme.dart';
 import 'flutter_flow/flutter_flow_util.dart';
 import 'core/app_theme.dart';
-import 'core/config/app_config.dart';
 import 'web_url_strategy.dart';
 import 'services/app_session_manager.dart';
 import 'services/biometric_lock_service.dart';
@@ -20,6 +19,11 @@ import 'pages/biometric_unlock_page/biometric_unlock_page_widget.dart';
 Widget buildSafeErrorWidget(FlutterErrorDetails details) {
   debugPrint('Suppressing app error overlay: ${details.exception}');
   return const SizedBox.shrink();
+}
+
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
 }
 
 void main() async {
@@ -44,16 +48,7 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
-  if (AppConfig.supabaseUrl.isNotEmpty && AppConfig.supabaseAnonKey.isNotEmpty) {
-    await Supabase.initialize(
-      url: AppConfig.supabaseUrl,
-      publishableKey: AppConfig.supabaseAnonKey,
-    );
-  } else {
-    debugPrint('Supabase initialization skipped: missing environment values.');
-  }
-
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   await FFAppState().initializePersistedState();
   await NotificationService.initialize();
   await FlutterFlowTheme.initialize();

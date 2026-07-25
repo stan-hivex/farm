@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import '/backend/services/turnstile_payload.dart';
 import 'package:http/http.dart' as http;
 import '/core/app_config.dart';
 import '/app_state.dart';
@@ -159,18 +160,22 @@ class ApiService {
   static Future<Map<String, dynamic>> login({
     required String identifier,
     required String password,
+    String? turnstileToken,
     String? countryCode,
   }) =>
       _request(
         method: 'POST',
         path: '/auth/login',
-        body: {
-          'identifier': identifier,
-          'phone': identifier,
-          if (countryCode != null && countryCode.isNotEmpty)
-            'country_code': countryCode,
-          'password': password,
-        },
+        body: attachTurnstileToken(
+          {
+            'identifier': identifier,
+            'phone': identifier,
+            if (countryCode != null && countryCode.isNotEmpty)
+              'country_code': countryCode,
+            'password': password,
+          },
+          turnstileToken: turnstileToken,
+        ),
         requiresAuth: false,
         timeoutSeconds: 60,
       );
@@ -179,24 +184,32 @@ class ApiService {
     required String identifier,
     required String firebaseToken,
     String? countryCode,
+    String? turnstileToken,
   }) =>
       _request(
         method: 'POST',
         path: '/auth/firebase-login',
-        body: {
-          'identifier': identifier,
-          'firebaseIdToken': firebaseToken,
-        },
+        body: attachTurnstileToken(
+          {
+            'identifier': identifier,
+            'firebaseIdToken': firebaseToken,
+          },
+          turnstileToken: turnstileToken,
+        ),
         requiresAuth: false,
         timeoutSeconds: 60,
       );
 
   static Future<Map<String, dynamic>> verifyPhone({
     required String firebaseIdToken,
+    String? turnstileToken,
   }) {
-    final body = {
-      'firebaseIdToken': firebaseIdToken,
-    };
+    final body = attachTurnstileToken(
+      {
+        'firebaseIdToken': firebaseIdToken,
+      },
+      turnstileToken: turnstileToken,
+    );
 
     debugPrint(jsonEncode(body));
 
@@ -218,23 +231,26 @@ class ApiService {
     String? email,
     String? country,
     String? referralCode,
+    String? turnstileToken,
   }) =>
       _request(
         method: 'POST',
         path: '/auth/register',
-        body: {
-          'first_name': firstName,
-          'last_name': lastName,
-          'username': username,
-          'phone': phone,
-          'password': password,
-          if (email != null && email.isNotEmpty) 'email': email,
-          if (country != null && country.isNotEmpty) 'country': country,
-          if (referralCode != null && referralCode.isNotEmpty)
-            'referral_code': referralCode,
-        },
+        body: attachTurnstileToken(
+          {
+            'first_name': firstName,
+            'last_name': lastName,
+            'username': username,
+            'phone': phone,
+            'password': password,
+            if (email != null && email.isNotEmpty) 'email': email,
+            if (country != null && country.isNotEmpty) 'country': country,
+            if (referralCode != null && referralCode.isNotEmpty)
+              'referral_code': referralCode,
+          },
+          turnstileToken: turnstileToken,
+        ),
         requiresAuth: false,
-        timeoutSeconds: 60,
       );
 
   static Future<Map<String, dynamic>> verifyOtp({
@@ -251,11 +267,13 @@ class ApiService {
 
   static Future<Map<String, dynamic>> forgotPassword({
     required String email,
+    String? turnstileToken,
   }) =>
       _request(
         method: 'POST',
         path: '/auth/forgot-password',
-        body: {'email': email},
+        body: attachTurnstileToken({'email': email},
+            turnstileToken: turnstileToken),
         requiresAuth: false,
       );
 
@@ -710,8 +728,8 @@ class ApiService {
 
   static Future<Map<String, dynamic>> markAllNotificationsRead() =>
       _request(
-        method: 'PUT',
-        path: '/users/notifications/read-all',
+        method: 'PATCH',
+        path: '/notifications/read-all',
       );
 
   static Future<Map<String, dynamic>> deleteNotification({
@@ -719,13 +737,13 @@ class ApiService {
   }) =>
       _request(
         method: 'DELETE',
-        path: '/users/notifications/$notificationId',
+        path: '/notifications/$notificationId',
       );
 
   static Future<Map<String, dynamic>> deleteAllNotifications() =>
       _request(
         method: 'DELETE',
-        path: '/users/notifications',
+        path: '/notifications',
       );
 
   // ── Health check ──────────────────────────────────────────────────────────

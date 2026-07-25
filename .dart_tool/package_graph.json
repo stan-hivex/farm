@@ -43,7 +43,6 @@
         "http",
         "image_picker",
         "intl",
-        "js",
         "json_path",
         "local_auth",
         "lottie",
@@ -480,13 +479,6 @@
       ]
     },
     {
-      "name": "js",
-      "version": "0.6.7",
-      "dependencies": [
-        "meta"
-      ]
-    },
-    {
       "name": "intl",
       "version": "0.20.2",
       "dependencies": [
@@ -631,12 +623,13 @@
     },
     {
       "name": "flutter_local_notifications",
-      "version": "19.5.0",
+      "version": "22.2.0",
       "dependencies": [
         "clock",
         "flutter",
         "flutter_local_notifications_linux",
         "flutter_local_notifications_platform_interface",
+        "flutter_local_notifications_web",
         "flutter_local_notifications_windows",
         "timezone"
       ]
@@ -1221,7 +1214,7 @@
     },
     {
       "name": "timezone",
-      "version": "0.10.1",
+      "version": "0.11.1",
       "dependencies": [
         "http",
         "path"
@@ -1229,14 +1222,26 @@
     },
     {
       "name": "flutter_local_notifications_platform_interface",
-      "version": "9.1.0",
+      "version": "12.1.0",
       "dependencies": [
-        "plugin_platform_interface"
+        "plugin_platform_interface",
+        "timezone"
+      ]
+    },
+    {
+      "name": "flutter_local_notifications_web",
+      "version": "1.0.0",
+      "dependencies": [
+        "collection",
+        "flutter",
+        "flutter_local_notifications_platform_interface",
+        "timezone",
+        "web"
       ]
     },
     {
       "name": "flutter_local_notifications_windows",
-      "version": "1.0.3",
+      "version": "3.1.1",
       "dependencies": [
         "ffi",
         "flutter",
@@ -1248,7 +1253,7 @@
     },
     {
       "name": "flutter_local_notifications_linux",
-      "version": "6.0.0",
+      "version": "8.0.1",
       "dependencies": [
         "dbus",
         "ffi",
@@ -1725,6 +1730,13 @@
         "ffi",
         "meta",
         "xml"
+      ]
+    },
+    {
+      "name": "js",
+      "version": "0.6.7",
+      "dependencies": [
+        "meta"
       ]
     },
     {

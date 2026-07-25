@@ -1,3 +1,4 @@
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -26,8 +27,6 @@ class NotificationService {
   static Future<void> initialize() async {
     if (_initialized) return;
     _initialized = true;
-
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
     if (!kIsWeb) {
       await _initializeLocalNotifications();
@@ -94,7 +93,7 @@ class NotificationService {
     );
 
     await _localNotifications.initialize(
-      settings,
+      settings: settings,
       onDidReceiveNotificationResponse: (response) {
         final payload = response.payload;
         if (payload == null || payload.isEmpty) return;
@@ -132,10 +131,10 @@ class NotificationService {
     if (title.isEmpty && body.isEmpty) return;
 
     await _localNotifications.show(
-      message.hashCode,
-      title,
-      body,
-      const NotificationDetails(
+      id: message.hashCode,
+      title: title,
+      body: body,
+      notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'farm_notifications',
           'FARM notifications',
