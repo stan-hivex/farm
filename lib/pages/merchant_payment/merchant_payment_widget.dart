@@ -118,11 +118,20 @@ class _MerchantPaymentWidgetState extends State<MerchantPaymentWidget> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Pay to ${widget.businessName}',
-                style: theme.titleLarge.copyWith(fontWeight: FontWeight.bold)),
+            Text(
+              widget.businessName.isNotEmpty
+                  ? 'Pay to ${widget.businessName}'
+                  : 'Pay to merchant',
+              style: theme.titleLarge.copyWith(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 12),
-            Text('Merchant ID: ${widget.merchantId}',
-                style: theme.bodyMedium),
+            if (widget.businessName.isNotEmpty)
+              Text(
+                'Business: ${widget.businessName}',
+                style: theme.bodyMedium,
+              ),
+            const SizedBox(height: 4),
+            Text('Merchant ID: ${widget.merchantId}', style: theme.bodyMedium),
             const SizedBox(height: 24),
             Text('Amount', style: theme.bodyMedium.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),

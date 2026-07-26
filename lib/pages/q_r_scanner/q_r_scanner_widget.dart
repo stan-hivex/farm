@@ -7,6 +7,7 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/backend/api_requests/wallet_api_service.dart';
 import '/backend/api_requests/user_api_service.dart';
+import '/utils/merchant_qr_parser.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -272,6 +273,21 @@ class _QRScannerWidgetState extends State<QRScannerWidget> {
     isProcessing = true;
 
     try {
+      final localMerchantQr = parseMerchantQrPayload(qrPayload);
+      if (localMerchantQr != null) {
+        if (mounted) {
+          context.pushNamed(
+            'MerchantPayment',
+            queryParameters: {
+              'merchantId': localMerchantQr.merchantId,
+              'businessName': localMerchantQr.businessName,
+              'qrPayload': qrPayload,
+            },
+          );
+        }
+        return;
+      }
+
       final response = await http.post(
         Uri.parse(
           '${AppConfig.api}/qr/validate',
@@ -324,10 +340,10 @@ class _QRScannerWidgetState extends State<QRScannerWidget> {
           context.pushNamed(
             'MerchantPayment',
             queryParameters: {
-              'merchantId':
-                  qrData['merchant_id'].toString(),
-              'businessName':
-                  qrData['business_name'].toString(),
+              'merchantId': qrData['merchant_id']?.toString() ?? '',
+              'businessName': qrData['business_name']?.toString() ??
+                  qrData['display_name']?.toString() ??
+                  'Merchant',
               'qrPayload': qrPayload,
             },
           );

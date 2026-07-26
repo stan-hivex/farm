@@ -58,6 +58,7 @@
         "percent_indicator",
         "plugin_platform_interface",
         "provider",
+        "share_plus",
         "shared_preferences",
         "shared_preferences_android",
         "shared_preferences_foundation",
@@ -191,7 +192,7 @@
     },
     {
       "name": "url_launcher_windows",
-      "version": "3.1.4",
+      "version": "3.1.5",
       "dependencies": [
         "flutter",
         "url_launcher_platform_interface"
@@ -199,7 +200,7 @@
     },
     {
       "name": "url_launcher_web",
-      "version": "2.4.1",
+      "version": "2.4.2",
       "dependencies": [
         "flutter",
         "flutter_web_plugins",
@@ -385,6 +386,26 @@
       "version": "4.2.2",
       "dependencies": [
         "flutter"
+      ]
+    },
+    {
+      "name": "share_plus",
+      "version": "12.0.2",
+      "dependencies": [
+        "cross_file",
+        "ffi",
+        "file",
+        "flutter",
+        "flutter_web_plugins",
+        "meta",
+        "mime",
+        "share_plus_platform_interface",
+        "url_launcher_linux",
+        "url_launcher_platform_interface",
+        "url_launcher_web",
+        "url_launcher_windows",
+        "web",
+        "win32"
       ]
     },
     {
@@ -1112,9 +1133,42 @@
       ]
     },
     {
+      "name": "win32",
+      "version": "5.15.0",
+      "dependencies": [
+        "ffi"
+      ]
+    },
+    {
       "name": "ffi",
       "version": "2.2.0",
       "dependencies": []
+    },
+    {
+      "name": "share_plus_platform_interface",
+      "version": "6.1.0",
+      "dependencies": [
+        "cross_file",
+        "flutter",
+        "meta",
+        "mime",
+        "path_provider",
+        "plugin_platform_interface",
+        "uuid"
+      ]
+    },
+    {
+      "name": "mime",
+      "version": "2.0.0",
+      "dependencies": []
+    },
+    {
+      "name": "cross_file",
+      "version": "0.3.5+2",
+      "dependencies": [
+        "meta",
+        "web"
+      ]
     },
     {
       "name": "platform",
@@ -1313,13 +1367,6 @@
       "dependencies": [
         "ffi",
         "win32"
-      ]
-    },
-    {
-      "name": "win32",
-      "version": "5.15.0",
-      "dependencies": [
-        "ffi"
       ]
     },
     {
@@ -1766,14 +1813,6 @@
       ]
     },
     {
-      "name": "cross_file",
-      "version": "0.3.5+2",
-      "dependencies": [
-        "meta",
-        "web"
-      ]
-    },
-    {
       "name": "file_selector_macos",
       "version": "0.9.5",
       "dependencies": [
@@ -1790,11 +1829,6 @@
         "file_selector_platform_interface",
         "flutter"
       ]
-    },
-    {
-      "name": "mime",
-      "version": "2.0.0",
-      "dependencies": []
     },
     {
       "name": "vm_service",

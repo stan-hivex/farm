@@ -7,11 +7,10 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/backend/services/api_service.dart';
 import '/core/app_config.dart';
-import '/utils/download_file.dart';
+import '/services/qr_download_service.dart';
 import '/utils/merchant_qr_utils.dart';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 
@@ -363,23 +362,92 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
         throw Exception('QR payload could not be decoded');
       }
 
-      final fileName =
-          'farm_merchant_qr_${DateTime.now().millisecondsSinceEpoch}.png';
-      final path = await saveFileFromBytes(Uint8List.fromList(bytes), fileName);
+      final fileName = 'farm_merchant_qr_${DateTime.now().millisecondsSinceEpoch}.png';
+      final result = await QrDownloadService.instance.downloadQr(
+        Uint8List.fromList(bytes),
+        fileName: fileName,
+      );
+
       if (mounted) {
         setState(() {
           merchantQrImageBase64 = qrSource;
         });
       }
 
+      if (!result.success) {
+        if (mounted) showError(result.message);
+        return;
+      }
+
       if (mounted) {
-        showSuccess('QR code saved to $path');
+        _showQrSavedDialog(result);
       }
     } catch (e) {
       if (mounted) {
-        showError('Failed to save QR code: $e');
+        showError('Failed to save QR code: ${e.toString()}');
       }
     }
+  }
+
+  Future<void> _shareQrKit() async {
+    try {
+      final qrSource = _merchantQrBase64 ?? extractMerchantQrBase64(merchant);
+      if (qrSource == null || qrSource.isEmpty) {
+        showError('No QR code available to share.');
+        return;
+      }
+
+      final bytes = resolveMerchantQrBytes(qrSource);
+      if (bytes == null || bytes.isEmpty) {
+        throw Exception('QR payload could not be decoded');
+      }
+
+      await QrDownloadService.instance.shareQr(Uint8List.fromList(bytes));
+    } catch (e) {
+      showError('Failed to share QR code: ${e.toString()}');
+    }
+  }
+
+  Future<void> _openQrKit() async {
+    try {
+      await QrDownloadService.instance.openSavedQr();
+    } catch (e) {
+      showError('Unable to open saved QR code: ${e.toString()}');
+    }
+  }
+
+  void _showQrSavedDialog(QrDownloadResult result) {
+    final message = result.destination == QrDownloadDestination.iosPhotos
+        ? 'Saved to Photos'
+        : result.destination == QrDownloadDestination.androidDownloads
+            ? 'Saved to Downloads/Farm Africa'
+            : 'QR Code saved successfully.';
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('✓ QR Code Saved'),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _openQrKit();
+              },
+              child: const Text('OPEN'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _shareQrKit();
+              },
+              child: const Text('SHARE'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _openMerchantSales() {
@@ -813,12 +881,6 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                                         lineHeight: 1.3,
                                       ),
                                 ),
-                                SvgPicture.network(
-                                  'https://cdn.simpleicons.org/algorand/ffffff.svg',
-                                  width: 20,
-                                  height: 20,
-                                  fit: BoxFit.contain,
-                                ),
                               ],
                             ),
                             Text(
@@ -849,12 +911,14 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
                                 Icon(
-                                  Icons.trending_up_rounded,
+                                  (stats?['monthly_growth_percentage'] ?? 0) >= 0
+                                      ? Icons.trending_up_rounded
+                                      : Icons.trending_down_rounded,
                                   color: FlutterFlowTheme.of(context).onPrimary,
                                   size: 16,
                                 ),
                                 Text(
-                                  '+12% from last month',
+                                  '${(stats?['monthly_growth_percentage'] ?? 0) >= 0 ? '+' : ''}${stats?['monthly_growth_percentage']?.toStringAsFixed(2) ?? '0.00'}% from last month',
                                   style: FlutterFlowTheme.of(context)
                                       .labelSmall
                                       .override(
@@ -1070,7 +1134,30 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                                 disabled: false,
                               ),
                             ),
+                            wrapWithModel(
+                              model: _model.buttonModel2,
+                              updateCallback: () => safeSetState(() {}),
+                              child: ButtonWidget(
+                                content: 'Share QR',
+                                icon: Icon(
+                                  Icons.share_rounded,
+                                  color:
+                                      FlutterFlowTheme.of(context).primaryText,
+                                  size: 16,
+                                ),
+                                icon_present: true,
+                                icon_end_present: false,
+                                onTapCallback: _shareQrKit,
+                                color: FlutterFlowTheme.of(context).primaryText,
+                                variant: 'outline',
+                                size: 'medium',
+                                full_width: true,
+                                loading: false,
+                                disabled: false,
+                              ),
+                            ),
                           ].divide(SizedBox(height: 24)),
+
                         ),
                       ),
                     ),

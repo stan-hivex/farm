@@ -1,11 +1,11 @@
 
-import '/pages/dashboard/dashboard_widget.dart';
 import '/components/pin_digit_box_widget.dart';
 import '/components/security_note_widget.dart';
 
 
 import 'package:http/http.dart' as http;
 import '/core/app_config.dart';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -49,12 +49,50 @@ class _PinSetupPageWidgetState
       context,
       () => PinSetupPageModel(),
     );
+    // fetch current security settings (to know if PIN exists)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      fetchSecuritySettings();
+    });
   }
 
   @override
   void dispose() {
     _model.dispose();
     super.dispose();
+  }
+
+  bool hasPin = false;
+  bool securityLoading = true;
+
+  Future<void> fetchSecuritySettings() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConfig.api}/security/settings'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${FFAppState().accessToken}',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final remoteHasPin = data['has_pin'] ?? false;
+        FFAppState().hasPin = remoteHasPin;
+        setState(() {
+          hasPin = remoteHasPin;
+          securityLoading = false;
+        });
+      } else {
+        setState(() {
+          securityLoading = false;
+        });
+      }
+    } catch (e) {
+      print('SECURITY FETCH ERROR: $e');
+      setState(() {
+        securityLoading = false;
+      });
+    }
   }
 
   void onKeyPressed(String value) {
@@ -160,9 +198,12 @@ class _PinSetupPageWidgetState
           ),
         );
 
-        context.goNamed(
-          DashboardWidget.routeName,
-        );
+        FFAppState().hasPin = true;
+        setState(() {
+          hasPin = true;
+        });
+
+        context.pop(true);
       } else {
   final data = jsonDecode(response.body);
 
@@ -221,13 +262,13 @@ class _PinSetupPageWidgetState
         width: 70,
         height: 70,
         decoration: BoxDecoration(
-          color: context.isDarkMode ? context.background : context.textPrimary,
+          color: context.isDarkMode ? context.background : Colors.black,
           borderRadius:
               BorderRadius.circular(18),
         ),
         child: Icon(
           Icons.backspace_outlined,
-          color: context.isDarkMode ? Colors.white : context.onSurface,
+          color: Colors.white,
         ),
       ),
     );
@@ -336,7 +377,19 @@ class _PinSetupPageWidgetState
                           .bodyMedium,
                 ),
 
-                const SizedBox(height: 40),
+                const SizedBox(height: 12),
+
+                // show PIN configured status
+                if (!securityLoading)
+                  Text(
+                    hasPin ? 'PIN already set' : '',
+                    textAlign: TextAlign.center,
+                    style: FlutterFlowTheme.of(context).bodySmall.copyWith(
+                          color: hasPin ? context.successColor : context.onSurface,
+                        ),
+                  ),
+
+                const SizedBox(height: 28),
 
                 Text(
                   !_isConfirming

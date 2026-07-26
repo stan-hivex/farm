@@ -277,7 +277,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
     final parsed =
         value is DateTime ? value : DateTime.tryParse(value.toString());
     if (parsed == null) return value.toString();
-    return '${parsed.toLocal().day}/${parsed.toLocal().month}/${parsed.toLocal().year} ${parsed.toLocal().hour.toString().padLeft(2, '0')}:${parsed.toLocal().minute.toString().padLeft(2, '0')}';
+    return dateTimeFormat('MMM d, yyyy • h:mm a', parsed.toLocal());
   }
 
   Future<void> fetchTransactions() async {

@@ -69,6 +69,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
     FFAppState().addListener(_handleAppStateChanged);
     biometricLockTimeoutSeconds = FFAppState().biometricLockTimeoutSeconds;
     biometricsEnabled = FFAppState().biometricsEnabled;
+    hasPin = FFAppState().hasPin;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -105,6 +106,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
       profileImage = FFAppState().profileImageUrl;
       biometricsEnabled = FFAppState().biometricsEnabled;
       biometricLockTimeoutSeconds = FFAppState().biometricLockTimeoutSeconds;
+      hasPin = FFAppState().hasPin;
       isProfileLoading = false;
     });
   }
@@ -144,6 +146,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
         initials = FFAppState().firstName.isNotEmpty
             ? FFAppState().firstName[0].toUpperCase()
             : '';
+        hasPin = FFAppState().hasPin;
         isProfileLoading = false;
       });
     } catch (e) {
@@ -172,13 +175,17 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
         final remoteBiometricsEnabled = data['biometrics_enabled'] ?? false;
         final resolvedBiometricsEnabled =
             FFAppState().biometricsEnabled || remoteBiometricsEnabled;
+        final remoteHasPin = data['has_pin'] ?? false;
 
         if (FFAppState().biometricsEnabled != resolvedBiometricsEnabled) {
           FFAppState().biometricsEnabled = resolvedBiometricsEnabled;
         }
+        if (FFAppState().hasPin != remoteHasPin) {
+          FFAppState().hasPin = remoteHasPin;
+        }
 
         setState(() {
-          hasPin = data['has_pin'] ?? false;
+          hasPin = remoteHasPin;
           biometricsEnabled = resolvedBiometricsEnabled;
           accountLocked = data['pin_locked'] ?? false;
 
@@ -683,7 +690,10 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
 // SECURITY & PIN
                               GestureDetector(
                                 onTap: () async {
-                                  context.pushNamed('pin_setup_page');
+                                  final result = await context.pushNamed('pin_setup_page');
+                                  if (result == true) {
+                                    await fetchSecuritySettings();
+                                  }
                                 },
                                 child: Container(
                                   padding: const EdgeInsets.all(18),
@@ -738,9 +748,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                                 accountLocked
                                                     ? 'Account Locked'
                                                     : hasPin
-                                                        ? biometricsEnabled
-                                                            ? 'PIN + Biometrics Enabled'
-                                                            : 'PIN is set'
+                                                        ? 'PIN already set'
                                                         : 'No PIN Configured',
                                                 style: TextStyle(
                                                   color: accountLocked

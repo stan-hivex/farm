@@ -60,7 +60,7 @@ class _NotificationSettingsPageWidgetState
     
     try {
       final response = await http.get(
-      Uri.parse('$baseUrl/user/settings/notifications'),
+      Uri.parse('$baseUrl/notifications/settings'),
       headers: {'Authorization': 'Bearer $token'},
     );
 
@@ -148,8 +148,8 @@ class _NotificationSettingsPageWidgetState
     try {
       isSaving = true;
       
-      final response = await http.patch(
-        Uri.parse('$baseUrl/user/settings/notifications'),
+      final response = await http.put(
+        Uri.parse('$baseUrl/notifications/settings'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',

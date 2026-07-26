@@ -35,6 +35,7 @@ class FFAppState extends ChangeNotifier {
     _kycStatus = prefs.getString('kycStatus') ?? '';
     _isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
     _biometricsEnabled = prefs.getBool('biometricsEnabled') ?? false;
+    _hasPin = prefs.getBool('hasPin') ?? false;
     _pushNotifications = prefs.getBool('pushNotifications') ?? true;
     _emailNotifications = prefs.getBool('emailNotifications') ?? false;
     _inAppNotifications = prefs.getBool('inAppNotifications') ?? true;
@@ -207,6 +208,17 @@ class FFAppState extends ChangeNotifier {
     notifyListeners();
     SharedPreferences.getInstance().then(
       (prefs) => prefs.setBool('biometricsEnabled', value),
+    );
+  }
+
+  bool _hasPin = false;
+  bool get hasPin => _hasPin;
+  set hasPin(bool value) {
+    if (_hasPin == value) return;
+    _hasPin = value;
+    notifyListeners();
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setBool('hasPin', value),
     );
   }
 
@@ -406,6 +418,7 @@ class FFAppState extends ChangeNotifier {
     kycStatus = '';
     isLoggedIn = false;
     biometricsEnabled = false;
+    hasPin = false;
     role = '';
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('accessToken');

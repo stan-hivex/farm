@@ -118,7 +118,10 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
     setState(() => isLoading = true);
 
     try {
-      // POST /api/v1/deposit/create — backend deposit creation endpoint
+      final endpoint = selectedMethod == 'CRYPTO'
+          ? '${AppConfig.api}/crypto/deposit'
+          : '${AppConfig.api}/deposit/create';
+
       final paymentMethodRaw = selectedMethod == 'CARD'
           ? 'card'
           : selectedMethod == 'BANK_TRANSFER'
@@ -144,7 +147,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
       }
 
       final res = await http.post(
-        Uri.parse('${AppConfig.api}/deposit/create'),
+        Uri.parse(endpoint),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${FFAppState().accessToken}',

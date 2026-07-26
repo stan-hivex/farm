@@ -18,6 +18,10 @@
 	<string>APPL</string>
 	<key>NSFaceIDUsageDescription</key>
 <string>Use Face ID to securely access FARM.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Save QR codes to your Photos library so you can access them from the Photos app.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Allow access to your Photos library to save QR codes.</string>
 
 	<key>CFBundleShortVersionString</key>
 	<string>$(FLUTTER_BUILD_NAME)</string>
