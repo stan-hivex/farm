@@ -40,6 +40,19 @@ String dateTimeFormat(String format, DateTime? dateTime, {String? locale}) {
   return DateFormat(format, locale).format(dateTime);
 }
 
+String dateTimeFormatEastAfricanTime(String format, DateTime? dateTime, {String? locale}) {
+  if (dateTime == null) {
+    return '';
+  }
+
+  final utcDateTime = dateTime.toUtc();
+  final eatDateTime = utcDateTime.add(const Duration(hours: 3));
+  if (format == 'relative') {
+    return timeago.format(eatDateTime, locale: locale, allowFromNow: true);
+  }
+  return DateFormat(format, locale).format(eatDateTime);
+}
+
 Future launchURL(String url) async {
   var uri = Uri.parse(url);
   try {

@@ -3,6 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 import '/app_state.dart';
 import '/core/app_config.dart';
 import '/backend/api_requests/api_manager.dart';
+import '/services/app_session_manager.dart';
+import '/services/transaction_authentication_service.dart';
+import '/services/transaction_authorization_service.dart';
+import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class SuperadminWalletPage extends StatefulWidget {
@@ -32,6 +36,10 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
   final _cryptoAddressController = TextEditingController();
   final _cryptoNetworkController = TextEditingController();
   final _pinController = TextEditingController();
+  final FocusNode _pinFocusNode = FocusNode();
+  bool _pinEntryEnabled = false;
+  bool _isBiometricChecking = false;
+  TransactionAuthenticationResult? _lastPinAuthResult;
 
   final List<String> _banks = [
     'ABSA Bank Kenya',
@@ -68,7 +76,37 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
     _cryptoAddressController.dispose();
     _cryptoNetworkController.dispose();
     _pinController.dispose();
+    _pinFocusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _promptBiometricForPinField() async {
+    if (_lastPinAuthResult?.biometricUsed == true) {
+      return;
+    }
+
+    try {
+      setState(() => _isBiometricChecking = true);
+      final authResult = await TransactionAuthorizationService().authorizeTransaction(
+        localizedReason: 'Confirm withdrawal',
+      ).then((r) => r.toTransactionAuthenticationResult());
+
+      if (authResult.biometricUsed) {
+        if (!mounted) return;
+        await _processWithdrawal(preAuthResult: authResult);
+        return;
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _lastPinAuthResult = authResult;
+        _pinEntryEnabled = true;
+      });
+      _pinFocusNode.requestFocus();
+    } finally {
+      if (!mounted) return;
+      setState(() => _isBiometricChecking = false);
+    }
   }
 
   Future<void> _loadWalletData() async {
@@ -108,8 +146,8 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
     }
   }
 
-  Future<void> _processWithdrawal() async {
-    if (_amountController.text.isEmpty || _pinController.text.isEmpty) {
+  Future<void> _processWithdrawal({TransactionAuthenticationResult? preAuthResult}) async {
+    if (_amountController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill all required fields')),
       );
@@ -117,6 +155,76 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
     }
 
     try {
+      final authResult = preAuthResult ?? _lastPinAuthResult ?? await TransactionAuthorizationService().authorizeTransaction(
+        localizedReason: 'Confirm withdrawal',
+      ).then((r) => r.toTransactionAuthenticationResult());
+
+      final usedBiometric = authResult?.biometricUsed == true;
+      if (usedBiometric) {
+        final token = FFAppState().accessToken;
+        final Map<String, dynamic> body = {
+          'amount': double.parse(_amountController.text),
+          'method': _selectedWithdrawalMethod,
+          'pin': null,
+          'biometric_auth': true,
+          'device_fingerprint': authResult?.deviceFingerprint,
+        };
+
+        if (_selectedWithdrawalMethod == 'MOBILE_MONEY') {
+          if (_phoneController.text.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Phone number required for mobile money')),
+            );
+            return;
+          }
+          body['phoneNumber'] = _phoneController.text;
+        } else if (_selectedWithdrawalMethod == 'BANK_TRANSFER') {
+          if (_selectedBank == null || _accountNumberController.text.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Bank and account number required for bank transfer')),
+            );
+            return;
+          }
+          body['accountNumber'] = _accountNumberController.text;
+          body['bankName'] = _selectedBank;
+        }
+
+        final response = await http.post(
+          Uri.parse('${AppConfig.api}/withdraw/create'),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode(body),
+        );
+
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          await AppSessionManager().syncNow(
+            profileTimeoutSeconds: 5,
+            walletTimeoutSeconds: 5,
+            transactionsTimeoutSeconds: 5,
+          );
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Withdrawal request submitted successfully')),
+          );
+          _loadWalletData();
+          _fetchWithdrawalHistory();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Withdrawal failed: ${response.body}')),
+          );
+        }
+        return;
+      }
+
+      if (_pinController.text.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('PIN is required to authorize withdrawal')),
+        );
+        return;
+      }
+
       final token = FFAppState().accessToken;
 
       final Map<String, dynamic> body = {
@@ -478,7 +586,7 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: isComplete ? Colors.green.withOpacity(0.15) : Colors.orange.withOpacity(0.15),
+                                  color: isComplete ? Colors.green.withValues(alpha: 0.15) : Colors.orange.withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
@@ -510,12 +618,12 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [accent.withOpacity(0.1), accent.withOpacity(0.05)],
+          colors: [accent.withValues(alpha: 0.1), accent.withValues(alpha: 0.05)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: accent.withOpacity(0.3)),
+        border: Border.all(color: accent.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -606,7 +714,7 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: accent.withOpacity(0.15),
+              color: accent.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(Icons.account_balance_wallet_rounded, color: accent, size: 24),
@@ -722,7 +830,73 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
             const SizedBox(height: 14),
           ],
 
-          _buildInputField('PIN', _pinController, 'Your transaction PIN', accent, isPassword: true),
+          if (_pinEntryEnabled)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'PIN',
+                  style: GoogleFonts.plusJakartaSans(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: _pinController,
+                  focusNode: _pinFocusNode,
+                  readOnly: !_pinEntryEnabled || _isBiometricChecking,
+                  keyboardType: TextInputType.number,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    hintText: 'Your transaction PIN',
+                    hintStyle: GoogleFonts.plusJakartaSans(color: Colors.white38),
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.05),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: Colors.white10),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: Colors.white10),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: accent),
+                    ),
+                    suffixIcon: _isBiometricChecking
+                        ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : null,
+                  ),
+                  onTap: () async {
+                    if (!_pinEntryEnabled && !_isBiometricChecking) {
+                      await _promptBiometricForPinField();
+                    }
+                  },
+                ),
+              ],
+            )
+          else if (!_isBiometricChecking)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: accent,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                onPressed: _promptBiometricForPinField,
+                child: const Text('Continue'),
+              ),
+            ),
         ],
       ),
     );
@@ -751,7 +925,7 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
             hintText: hint,
             hintStyle: GoogleFonts.plusJakartaSans(color: Colors.white38),
             filled: true,
-            fillColor: Colors.white.withOpacity(0.05),
+            fillColor: Colors.white.withValues(alpha: 0.05),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: BorderSide(color: Colors.white10),

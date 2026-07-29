@@ -25,8 +25,10 @@ class WalletApiService {
     required String token,
     required String recipient,
     required double amount,
-    required String pin,
+    String? pin,
     String? description,
+    bool? biometricAuth,
+    String? deviceFingerprint,
   }) async {
     final res = await http.post(
       Uri.parse('$_base/send'),
@@ -37,7 +39,9 @@ class WalletApiService {
       body: jsonEncode({
         'recipient_identifier': recipient,
         'amount': amount,
-        'pin': pin,
+        if (pin != null) 'pin': pin,
+        if (biometricAuth == true) 'biometric_auth': true,
+        if (deviceFingerprint != null) 'device_fingerprint': deviceFingerprint,
         'description': description ?? '',
       }),
     );
@@ -151,7 +155,9 @@ class WalletApiService {
   static Future<Map<String, dynamic>> acceptTransferRequest({
     required String token,
     required String requestId,
-    required String pin,
+    String? pin,
+    bool? biometricAuth,
+    String? deviceFingerprint,
   }) async {
     final res = await http.post(
       Uri.parse('$_transferBase/accept'),
@@ -161,7 +167,9 @@ class WalletApiService {
       },
       body: jsonEncode({
         'request_id': requestId,
-        'pin': pin,
+        if (pin != null) 'pin': pin,
+        if (biometricAuth == true) 'biometric_auth': true,
+        if (deviceFingerprint != null) 'device_fingerprint': deviceFingerprint,
       }),
     );
     final body = jsonDecode(res.body);

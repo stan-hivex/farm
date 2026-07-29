@@ -43,12 +43,19 @@ class PaymentRequestApiService {
   static Future<Map<String, dynamic>> acceptPaymentRequest({
     required String token,
     required String requestId,
-    required String pin,
+    String? pin,
+    bool? biometricAuth,
+    String? deviceFingerprint,
   }) async {
     final res = await http.post(Uri.parse('$_base/accept'), headers: {
       'Authorization': 'Bearer $token',
       'Content-Type': 'application/json',
-    }, body: jsonEncode({'request_id': requestId, 'pin': pin}));
+    }, body: jsonEncode({
+      'request_id': requestId,
+      if (pin != null) 'pin': pin,
+      if (biometricAuth == true) 'biometric_auth': true,
+      if (deviceFingerprint != null) 'device_fingerprint': deviceFingerprint,
+    }));
     final body = jsonDecode(res.body);
     if (res.statusCode != 200 && res.statusCode != 201) {
       throw Exception(body['message'] ?? 'Failed to accept payment request');

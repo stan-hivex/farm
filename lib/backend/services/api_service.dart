@@ -586,12 +586,20 @@ class ApiService {
   static Future<Map<String, dynamic>> merchantPay({
     required String qrPayload,
     required double amount,
-    required String pin,
+    String? pin,
+    bool? biometricAuth,
+    String? deviceFingerprint,
   }) =>
       _request(
         method: 'POST',
         path: '/qr/merchant-pay',
-        body: {'qr_payload': qrPayload, 'amount': amount, 'pin': pin},
+        body: {
+          'qr_payload': qrPayload,
+          'amount': amount,
+          if (pin != null) 'pin': pin,
+          if (biometricAuth == true) 'biometric_auth': true,
+          if (deviceFingerprint != null) 'device_fingerprint': deviceFingerprint,
+        },
       );
 
   // ── KYC ───────────────────────────────────────────────────────────────────

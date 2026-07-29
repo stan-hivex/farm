@@ -1,10 +1,12 @@
 import '/backend/api_requests/user_api_service.dart';
 import '/backend/api_requests/wallet_api_service.dart';
+import '/services/transaction_authentication_service.dart';
+import '/services/transaction_authorization_service.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/components/kyc_required_widget.dart';
-import '/utils/send_amount_cooldown.dart';
+import '/services/app_session_manager.dart';
 import '/utils/transaction_peer_resolver.dart';
 
 import 'package:flutter/material.dart';
@@ -97,14 +99,15 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
   final amountController = TextEditingController();
 
   final pinController = TextEditingController();
+  final FocusNode _pinFieldFocusNode = FocusNode();
+  bool _pinEntryEnabled = false;
+  bool _isBiometricChecking = false;
+  TransactionAuthenticationResult? _lastPinFieldAuthResult;
 
   final descriptionController = TextEditingController();
 
   bool isLoading = true;
   bool isSending = false;
-
-  double? _lastSentAmount;
-  DateTime? _lastSentAt;
 
   bool showReceive = false;
   bool isRequesting = false;
@@ -138,6 +141,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
     recipientController.dispose();
     amountController.dispose();
     pinController.dispose();
+    _pinFieldFocusNode.dispose();
     descriptionController.dispose();
     successController.dispose();
 
@@ -244,12 +248,46 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
     return text.isEmpty ? fallback : text;
   }
 
-  Future<void> sendFunds() async {
-    final amount = enteredAmount;
+  Future<void> _promptBiometricForPinField() async {
+    if (_lastPinFieldAuthResult?.biometricUsed == true) {
+      return;
+    }
 
-    if (recipientController.text.isEmpty ||
-        amountController.text.isEmpty ||
-        pinController.text.isEmpty) {
+    try {
+      setState(() => _isBiometricChecking = true);
+      final authResult = await TransactionAuthorizationService().authorizeTransaction(
+        localizedReason: 'Confirm to authorize this transfer',
+      ).then((r) => r.toTransactionAuthenticationResult());
+
+      if (authResult.biometricUsed) {
+        if (mounted) {
+          setState(() {
+            _lastPinFieldAuthResult = authResult;
+            _pinEntryEnabled = false;
+          });
+        }
+
+        await _sendFundsWithAuth(authResult);
+        return;
+      }
+
+      if (mounted) {
+        setState(() {
+          _lastPinFieldAuthResult = authResult;
+          _pinEntryEnabled = true;
+        });
+      }
+
+      _pinFieldFocusNode.requestFocus();
+    } finally {
+      if (mounted) {
+        setState(() => _isBiometricChecking = false);
+      }
+    }
+  }
+
+  Future<void> sendFunds({TransactionAuthenticationResult? preAuthResult}) async {
+    if (recipientController.text.isEmpty || amountController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -261,42 +299,75 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
       return;
     }
 
-    if (SendAmountCooldown.shouldBlockDuplicateSend(
-      amount: amount,
-      lastSentAmount: _lastSentAmount,
-      lastSentAt: _lastSentAt,
-    )) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'You can only resend the same amount after 1 minute.',
-          ),
-          backgroundColor: Colors.orange,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      final authResult = preAuthResult ??
+        (_pinEntryEnabled && _lastPinFieldAuthResult != null
+          ? _lastPinFieldAuthResult
+          : null);
+
+    if (authResult == null && !_pinEntryEnabled) {
+      final biometricAuthResult = await TransactionAuthorizationService().authorizeTransaction(
+        localizedReason: 'Confirm to authorize this transfer',
+      ).then((r) => r.toTransactionAuthenticationResult());
+      if (biometricAuthResult.biometricUsed) {
+        await _sendFundsWithAuth(biometricAuthResult);
+        return;
+      }
+      if (mounted) {
+        setState(() {
+          _pinEntryEnabled = true;
+        });
+      }
+      await _sendFundsWithAuth(biometricAuthResult);
       return;
     }
 
-    try {
+    if (authResult?.biometricUsed == true) {
+      await _sendFundsWithAuth(authResult!);
+      return;
+    }
+
+    await _sendFundsWithAuth(authResult ?? const TransactionAuthenticationResult(outcome: TransactionAuthenticationOutcome.pinRequired));
+  }
+
+  Future<void> _sendFundsWithAuth(TransactionAuthenticationResult authResult) async {
+    final amount = enteredAmount;
+    final token = context.read<FFAppState>().accessToken;
+
+    if (!authResult.biometricUsed && pinController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enter your transaction PIN'),
+        ),
+      );
       setState(() {
-        isSending = true;
+        _pinEntryEnabled = true;
       });
+      _pinFieldFocusNode.requestFocus();
+      return;
+    }
 
-      final token = context.read<FFAppState>().accessToken;
+    setState(() {
+      isSending = true;
+    });
 
+    try {
       amountController.clear();
 
       await WalletApiService.sendFunds(
         token: token,
         recipient: recipientController.text.trim(),
         amount: amount,
-        pin: pinController.text.trim(),
+        pin: authResult.biometricUsed ? null : pinController.text.trim(),
         description: descriptionController.text.trim(),
+        biometricAuth: authResult.biometricUsed ? true : null,
+        deviceFingerprint: authResult.deviceFingerprint,
       );
 
-      _lastSentAmount = amount;
-      _lastSentAt = DateTime.now();
+      await AppSessionManager().syncNow(
+        profileTimeoutSeconds: 5,
+        walletTimeoutSeconds: 5,
+        transactionsTimeoutSeconds: 5,
+      );
 
       successController.forward();
 
@@ -535,16 +606,35 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
     }
   }
 
-  Future<void> acceptTransferRequest(String requestId, String pin) async {
+  Future<void> acceptTransferRequest(
+    String requestId, {
+    String? pin,
+    TransactionAuthenticationResult? preAuthResult,
+  }) async {
     try {
       final token = context.read<FFAppState>().accessToken;
+      final authResult = preAuthResult ?? await TransactionAuthorizationService().authorizeTransaction(
+        localizedReason: 'Confirm transfer',
+      ).then((r) => r.toTransactionAuthenticationResult());
+
       await WalletApiService.acceptTransferRequest(
-          token: token, requestId: requestId, pin: pin);
+        token: token,
+        requestId: requestId,
+        pin: authResult?.biometricUsed == true ? null : pin,
+        biometricAuth: authResult?.biometricUsed == true ? true : null,
+        deviceFingerprint: authResult?.deviceFingerprint,
+      );
+      await AppSessionManager().syncNow(
+        profileTimeoutSeconds: 5,
+        walletTimeoutSeconds: 5,
+        transactionsTimeoutSeconds: 5,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('Transfer completed successfully'),
-              backgroundColor: Colors.green),
+            content: Text('Transfer completed successfully'),
+            backgroundColor: Colors.green,
+          ),
         );
       }
       fetchWallet();
@@ -554,9 +644,10 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(e.toString().replaceAll('Exception: ', '')),
-              backgroundColor: Colors.red,
-              behavior: SnackBarBehavior.floating),
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     }
@@ -607,10 +698,25 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
     }
   }
 
-  void _showPinConfirmDialog(
-      String requestId, String requesterUsername, double amount) {
+  Future<void> _showPinConfirmDialog(
+    String requestId,
+    String requesterUsername,
+    double amount,
+  ) async {
+    final authResult = await TransactionAuthorizationService().authorizeTransaction(
+      localizedReason: 'Confirm transfer',
+    ).then((r) => r.toTransactionAuthenticationResult());
+
+    if (authResult.biometricUsed) {
+      await acceptTransferRequest(
+        requestId,
+        preAuthResult: authResult,
+      );
+      return;
+    }
+
     final tempPin = TextEditingController();
-    showDialog(
+    final confirmed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
@@ -644,26 +750,42 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
-              rejectTransferRequest(requestId);
+              Navigator.pop(context, false);
             },
             child: const Text('Reject'),
           ),
           ElevatedButton(
             onPressed: () {
-              if (tempPin.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please enter PIN')));
-                return;
-              }
-              Navigator.pop(context);
-              acceptTransferRequest(requestId, tempPin.text);
-              tempPin.dispose();
+              Navigator.pop(context, true);
             },
             child: const Text('Confirm'),
           ),
         ],
       ),
+    );
+
+    if (confirmed != true) {
+      tempPin.dispose();
+      rejectTransferRequest(requestId);
+      return;
+    }
+
+    final pin = tempPin.text.trim();
+    tempPin.dispose();
+
+    if (pin.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter PIN')),
+        );
+      }
+      return;
+    }
+
+    await acceptTransferRequest(
+      requestId,
+      pin: pin,
+      preAuthResult: authResult,
     );
   }
 
@@ -1666,32 +1788,65 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                                       const SizedBox(
                                         height: 20,
                                       ),
-                                      TextField(
-                                        controller: pinController,
-                                        obscureText: true,
-                                        keyboardType: TextInputType.number,
-                                        decoration: InputDecoration(
-                                          filled: true,
-                                          fillColor:
-                                              FlutterFlowTheme.of(context)
-                                                  .secondaryBackground,
-                                          hintText: 'Enter PIN',
-                                          prefixIcon: const Icon(
-                                            Icons.lock,
-                                          ),
-                                          border: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              18,
+                                      if (_pinEntryEnabled)
+                                        TextField(
+                                          controller: pinController,
+                                          focusNode: _pinFieldFocusNode,
+                                          obscureText: true,
+                                          keyboardType: TextInputType.number,
+                                          readOnly: _isBiometricChecking,
+                                          onTap: () async {
+                                            if (!_pinEntryEnabled && !_isBiometricChecking) {
+                                              await _promptBiometricForPinField();
+                                            }
+                                          },
+                                          decoration: InputDecoration(
+                                            filled: true,
+                                            fillColor:
+                                                FlutterFlowTheme.of(context)
+                                                    .secondaryBackground,
+                                            hintText: 'Enter PIN',
+                                            prefixIcon: const Icon(
+                                              Icons.lock,
                                             ),
-                                            borderSide: BorderSide(
-                                              color:
-                                                  FlutterFlowTheme.of(context)
-                                                      .secondaryText
-                                                      .withAlpha(61),
+                                            border: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(
+                                                18,
+                                              ),
+                                              borderSide: BorderSide(
+                                                color:
+                                                    FlutterFlowTheme.of(context)
+                                                        .secondaryText
+                                                        .withAlpha(61),
+                                              ),
+                                            ),
+                                          ),
+                                        )
+                                      else if (!_isBiometricChecking)
+                                        SizedBox(
+                                          height: 58,
+                                          child: ElevatedButton(
+                                            onPressed: _promptBiometricForPinField,
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor:
+                                                  selectedTabBackground,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                  18,
+                                                ),
+                                              ),
+                                            ),
+                                            child: const Text(
+                                              'Continue',
+                                              style: TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
                                             ),
                                           ),
                                         ),
-                                      ),
                                       const SizedBox(
                                         height: 24,
                                       ),
@@ -1723,35 +1878,36 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                                       const SizedBox(
                                         height: 24,
                                       ),
-                                      SizedBox(
-                                        height: 58,
-                                        child: ElevatedButton(
-                                          onPressed:
-                                              isSending ? null : sendFunds,
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor:
-                                                selectedTabBackground,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(
-                                                18,
+                                      if (_pinEntryEnabled)
+                                        SizedBox(
+                                          height: 58,
+                                          child: ElevatedButton(
+                                            onPressed:
+                                                isSending ? null : sendFunds,
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor:
+                                                  selectedTabBackground,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                  18,
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                          child: isSending
-                                              ? const CircularProgressIndicator(
-                                                  color: Colors.white,
-                                                )
-                                              : const Text(
-                                                  'Send FARM',
-                                                  style: TextStyle(
-                                                    fontSize: 18,
-                                                    fontWeight: FontWeight.bold,
+                                            child: isSending
+                                                ? const CircularProgressIndicator(
                                                     color: Colors.white,
+                                                  )
+                                                : const Text(
+                                                    'Send FARM',
+                                                    style: TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Colors.white,
+                                                    ),
                                                   ),
-                                                ),
+                                          ),
                                         ),
-                                      ),
                                     ],
                                   )
                                 else

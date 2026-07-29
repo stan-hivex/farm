@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import '/app_state.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/backend/api_requests/payment_request_api_service.dart';
+import '/services/app_session_manager.dart';
+import '/services/transaction_authorization_service.dart';
 
 class IncomingRequestsWidget extends StatefulWidget {
   const IncomingRequestsWidget({super.key});
@@ -26,23 +29,51 @@ class _IncomingRequestsWidgetState extends State<IncomingRequestsWidget> {
 
   Future<void> _pay(String requestId) async {
     final pinCtrl = TextEditingController();
-    final ok = await showModalBottomSheet<bool>(context: context, isScrollControlled: true, builder: (ctx) {
-      return Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 16, right: 16, top: 16),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('Enter PIN to confirm'),
-          const SizedBox(height: 8),
-          TextField(controller: pinCtrl, keyboardType: TextInputType.number, obscureText: true, decoration: const InputDecoration(labelText: 'PIN')),
-          const SizedBox(height: 12),
-          Row(children: [Expanded(child: ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirm')))])
-        ]),
-      );
-    });
+    final authResult = await TransactionAuthorizationService().authorizeTransaction(
+      localizedReason: 'Confirm payment',
+    ).then((r) => r.toTransactionAuthenticationResult());
 
-    if (ok != true) return;
+    String? pin;
+    if (authResult.biometricUsed != true) {
+      final ok = await showModalBottomSheet<bool>(context: context, isScrollControlled: true, builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 16, right: 16, top: 16),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('Enter PIN to confirm'),
+            const SizedBox(height: 8),
+            TextField(controller: pinCtrl, keyboardType: TextInputType.number, obscureText: true, decoration: const InputDecoration(labelText: 'PIN')),
+            const SizedBox(height: 12),
+            Row(children: [Expanded(child: ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirm')))])
+          ]),
+        );
+      });
+
+      if (ok != true) {
+        pinCtrl.dispose();
+        return;
+      }
+
+      pin = pinCtrl.text.trim();
+      pinCtrl.dispose();
+      if (pin.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter your transaction PIN')));
+        return;
+      }
+    }
 
     try {
-      final res = await PaymentRequestApiService.acceptPaymentRequest(token: FFAppState().accessToken, requestId: requestId, pin: pinCtrl.text.trim());
+        final res = await PaymentRequestApiService.acceptPaymentRequest(
+          token: FFAppState().accessToken,
+          requestId: requestId,
+          pin: authResult.biometricUsed == true ? null : pin!,
+          biometricAuth: authResult.biometricUsed == true ? true : null,
+          deviceFingerprint: authResult.deviceFingerprint,
+      );
+      await AppSessionManager().syncNow(
+        profileTimeoutSeconds: 5,
+        walletTimeoutSeconds: 5,
+        transactionsTimeoutSeconds: 5,
+      );
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res['message'] ?? 'Paid')));
       setState(() => _load());
     } catch (e) {

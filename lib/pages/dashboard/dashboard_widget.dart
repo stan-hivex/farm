@@ -17,6 +17,8 @@ import '/pages/growth_tracking_page/growth_tracking_page_widget.dart';
 import '/pages/merchant_dashboard/merchant_dashboard_widget.dart';
 import '/pages/notifications/user_notifications_page_widget.dart';
 import '/services/app_session_manager.dart';
+import '/services/transaction_authentication_service.dart';
+import '/services/transaction_authorization_service.dart';
 import '/utils/transaction_peer_resolver.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -277,7 +279,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
     final parsed =
         value is DateTime ? value : DateTime.tryParse(value.toString());
     if (parsed == null) return value.toString();
-    return dateTimeFormat('MMM d, yyyy • h:mm a', parsed.toLocal());
+    return dateTimeFormatEastAfricanTime('MMM d, yyyy • h:mm a', parsed.toUtc());
   }
 
   Future<void> fetchTransactions() async {
@@ -374,48 +376,116 @@ class _DashboardWidgetState extends State<DashboardWidget>
     }
   }
 
-  Future<void> sendTransaction({
+  Future<bool> sendTransaction({
     required String recipient,
     required double amount,
     required String pin,
     String? description,
+    TransactionAuthenticationResult? preAuthResult,
   }) async {
     try {
+      final authResult = preAuthResult ?? await TransactionAuthorizationService().authorizeTransaction(
+        localizedReason: 'Confirm transaction',
+      ).then((r) => r.toTransactionAuthenticationResult());
+
+      final usedBiometric = authResult?.biometricUsed == true;
+      if (usedBiometric) {
+        final body = {
+          "recipient_identifier": recipient,
+          "amount": amount,
+          "pin": null,
+          "description": description ?? "Transfer",
+          "biometric_auth": true,
+          "device_fingerprint": authResult?.deviceFingerprint,
+        };
+
+        final response = await http.post(
+          Uri.parse('${AppConfig.api}/wallet/send'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${FFAppState().accessToken}',
+          },
+          body: jsonEncode(body),
+        );
+
+        print('SEND STATUS: ${response.statusCode}');
+        print('SEND BODY: ${response.body}');
+
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          await AppSessionManager().syncNow(
+            profileTimeoutSeconds: 5,
+            walletTimeoutSeconds: 5,
+            transactionsTimeoutSeconds: 5,
+          );
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Transaction successful")),
+            );
+          }
+          return true;
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Transaction failed: ${response.body}")),
+          );
+        }
+        return false;
+      }
+
+      if (pin.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("PIN is required to authorize transaction")),
+          );
+        }
+        return false;
+      }
+
+      final body = {
+        "recipient_identifier": recipient,
+        "amount": amount,
+        "pin": pin,
+        "description": description ?? "Transfer",
+      };
+
       final response = await http.post(
         Uri.parse('${AppConfig.api}/wallet/send'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${FFAppState().accessToken}',
         },
-        body: jsonEncode({
-          "recipient_identifier": recipient,
-          "amount": amount,
-          "pin": pin,
-          "description": description ?? "Transfer",
-        }),
+        body: jsonEncode(body),
       );
 
       print('SEND STATUS: ${response.statusCode}');
       print('SEND BODY: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        await fetchWalletBalance();
-        await fetchTransactions();
+        await AppSessionManager().syncNow(
+          profileTimeoutSeconds: 5,
+          walletTimeoutSeconds: 5,
+          transactionsTimeoutSeconds: 5,
+        );
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("Transaction successful")),
           );
         }
+        return true;
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text("Failed: ${response.body}")),
           );
         }
+        return false;
       }
     } catch (e) {
       print('SEND ERROR: $e');
+      return false;
     }
   }
 
@@ -528,60 +598,156 @@ class _DashboardWidgetState extends State<DashboardWidget>
     final amountController = TextEditingController();
     final pinController = TextEditingController();
     final descController = TextEditingController();
+    final pinFocusNode = FocusNode();
+    bool pinEntryEnabled = false;
+    bool isBiometricChecking = false;
+    TransactionAuthenticationResult? lastPinAuthResult;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            left: 20,
-            right: 20,
-            top: 20,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text("New Transaction",
-                  style: FlutterFlowTheme.of(context).titleMedium),
-              TextField(
-                controller: recipientController,
-                decoration: const InputDecoration(labelText: "Recipient"),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 20,
+                right: 20,
+                top: 20,
               ),
-              TextField(
-                controller: amountController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: "Amount"),
-              ),
-              TextField(
-                controller: pinController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: "PIN"),
-              ),
-              TextField(
-                controller: descController,
-                decoration: const InputDecoration(labelText: "Description"),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () async {
-                  await sendTransaction(
-                    recipient: recipientController.text.trim(),
-                    amount: double.tryParse(amountController.text) ?? 0,
-                    pin: pinController.text.trim(),
-                    description: descController.text,
-                  );
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text("New Transaction",
+                      style: FlutterFlowTheme.of(context).titleMedium),
+                  TextField(
+                    controller: recipientController,
+                    decoration: const InputDecoration(labelText: "Recipient"),
+                  ),
+                  TextField(
+                    controller: amountController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: "Amount"),
+                  ),
+                  if (pinEntryEnabled)
+                    TextField(
+                      controller: pinController,
+                      focusNode: pinFocusNode,
+                      obscureText: true,
+                      readOnly: !pinEntryEnabled || isBiometricChecking,
+                      onTap: () async {
+                        if (!pinEntryEnabled && !isBiometricChecking) {
+                          setState(() => isBiometricChecking = true);
+                          final authResult = await TransactionAuthorizationService().authorizeTransaction(
+                            localizedReason: 'Confirm transaction',
+                          ).then((r) => r.toTransactionAuthenticationResult());
+                          if (!mounted) return;
 
-                  Navigator.pop(context);
-                },
-                child: const Text("Send"),
+                          if (authResult.biometricUsed) {
+                            final success = await sendTransaction(
+                              recipient: recipientController.text.trim(),
+                              amount: double.tryParse(amountController.text.trim()) ?? 0,
+                              pin: '',
+                              description: descController.text.trim(),
+                              preAuthResult: authResult,
+                            );
+                            if (!mounted) return;
+                            setState(() => isBiometricChecking = false);
+                            if (success) {
+                              Navigator.pop(context);
+                            }
+                            return;
+                          }
+
+                          setState(() {
+                            lastPinAuthResult = authResult;
+                            pinEntryEnabled = true;
+                            isBiometricChecking = false;
+                          });
+                          pinFocusNode.requestFocus();
+                        }
+                      },
+                      decoration: InputDecoration(
+                        labelText: "PIN",
+                        suffixIcon: isBiometricChecking
+                            ? const SizedBox(
+                                height: 24,
+                                width: 24,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : null,
+                      ),
+                    )
+                  else if (!isBiometricChecking)
+                    ElevatedButton(
+                      onPressed: () async {
+                        setState(() => isBiometricChecking = true);
+                        final authResult = await TransactionAuthorizationService().authorizeTransaction(
+                          localizedReason: 'Confirm transaction',
+                        ).then((r) => r.toTransactionAuthenticationResult());
+                        if (!mounted) return;
+
+                        if (authResult.biometricUsed) {
+                          final success = await sendTransaction(
+                            recipient: recipientController.text.trim(),
+                            amount: double.tryParse(amountController.text.trim()) ?? 0,
+                            pin: '',
+                            description: descController.text.trim(),
+                            preAuthResult: authResult,
+                          );
+                          if (!mounted) return;
+                          setState(() => isBiometricChecking = false);
+                          if (success) {
+                            Navigator.pop(context);
+                          }
+                          return;
+                        }
+
+                        setState(() {
+                          lastPinAuthResult = authResult;
+                          pinEntryEnabled = true;
+                          isBiometricChecking = false;
+                        });
+                        pinFocusNode.requestFocus();
+                      },
+                      child: const Text("Continue"),
+                    ),
+                  TextField(
+                    controller: descController,
+                    decoration: const InputDecoration(labelText: "Description"),
+                  ),
+                  const SizedBox(height: 20),
+                  if (pinEntryEnabled)
+                    ElevatedButton(
+                      onPressed: () async {
+                        final success = await sendTransaction(
+                          recipient: recipientController.text.trim(),
+                          amount: double.tryParse(amountController.text) ?? 0,
+                          pin: pinController.text.trim(),
+                          description: descController.text,
+                          preAuthResult: lastPinAuthResult,
+                        );
+
+                        if (success && mounted) {
+                          Navigator.pop(context);
+                        }
+                      },
+                      child: const Text("Send"),
+                    ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
-    );
+    ).whenComplete(() {
+      recipientController.dispose();
+      amountController.dispose();
+      pinController.dispose();
+      descController.dispose();
+      pinFocusNode.dispose();
+    });
   }
 
   @override
@@ -1732,16 +1898,34 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                     final String status =
                                         tx['status'] ?? 'Completed';
 
-                                    final String peer = _resolveTransactionPeer(
-                                        tx,
-                                        outgoing: isOutgoing);
+                                    final String txType =
+                                        (tx['transaction_type'] ?? tx['type'] ?? 'Transaction')
+                                            .toString();
+                                    final bool isMerchantPayment =
+                                        txType.toLowerCase() == 'merchant_payment';
+                                    final String merchantName =
+                                        tx['merchant_business_name']?.toString().trim() ?? '';
+                                    final String peerUsername = isOutgoing
+                                        ? (tx['recipient_username']?.toString().trim().isNotEmpty == true
+                                            ? '@${tx['recipient_username']}'
+                                            : _resolveTransactionPeer(tx, outgoing: true))
+                                        : (tx['sender_username']?.toString().trim().isNotEmpty == true
+                                            ? '@${tx['sender_username']}'
+                                            : _resolveTransactionPeer(tx, outgoing: false));
+                                    final String peerWithMerchant = merchantName.isNotEmpty
+                                        ? '$peerUsername ($merchantName)'
+                                        : peerUsername;
 
-                                    final String title = isOutgoing
-                                        ? 'Sent to $peer'
-                                        : 'Received from $peer';
+                                    final String title = isMerchantPayment
+                                        ? (isOutgoing
+                                            ? 'Sent to $peerWithMerchant'
+                                            : 'Received from $peerWithMerchant')
+                                        : (isOutgoing
+                                            ? 'Sent to $peerUsername'
+                                            : 'Received from $peerUsername');
 
                                     final String subtitle =
-                                        '${tx['transaction_type'] ?? 'Transaction'} • ${_formatTransactionDate(tx['created_at'] ?? tx['createdAt'] ?? tx['timestamp'] ?? tx['date'])}';
+                                        '${isMerchantPayment ? 'merchant_payment' : txType} • ${_formatTransactionDate(tx['created_at'] ?? tx['createdAt'] ?? tx['timestamp'] ?? tx['date'])}';
 
                                     return Padding(
                                       padding:

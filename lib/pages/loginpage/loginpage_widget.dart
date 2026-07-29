@@ -145,9 +145,21 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
   }
 
   Future<void> _finalizeSuccessfulLogin(Map<String, dynamic> response) async {
-    final accessToken = response['farmJwt'] as String? ?? '';
-    final refreshToken = response['refreshToken'] as String? ?? '';
-    final data = response['user'] as Map<String, dynamic>?;
+    final payload = response['data'] is Map<String, dynamic>
+        ? response['data'] as Map<String, dynamic>
+        : response['data'] is Map
+            ? Map<String, dynamic>.from(response['data'] as Map)
+            : <String, dynamic>{};
+
+    final accessToken = (payload['access_token'] as String? ?? '')
+        .trim();
+    final refreshToken = (payload['refresh_token'] as String? ?? '')
+        .trim();
+    final data = payload['user'] is Map<String, dynamic>
+        ? payload['user'] as Map<String, dynamic>
+        : payload['user'] is Map
+            ? Map<String, dynamic>.from(payload['user'] as Map)
+            : null;
 
     if (accessToken.isNotEmpty && data != null) {
       FFAppState().accessToken = accessToken;

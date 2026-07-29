@@ -179,6 +179,13 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
     return totals;
   }
 
+  String _formatMerchantTransactionDate(dynamic value) {
+    if (value == null) return '';
+    final parsed = DateTime.tryParse(value.toString());
+    if (parsed == null) return value.toString();
+    return dateTimeFormatEastAfricanTime('MMM d, yyyy • h:mm a', parsed);
+  }
+
   Future<void> applyMerchant() async {
     try {
       setState(() {
@@ -1371,8 +1378,10 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                                   updateCallback: () => safeSetState(() {}),
                                   child: MerchantTransactionItemWidget(
                                     amount: '${tx['amount'] ?? 0}',
-                                    customer: tx['customer_name'] ?? '@user',
-                                    date: tx['created_at'] ?? '',
+                                    customer: tx['customer_name']?.toString().trim().isNotEmpty == true
+                                        ? tx['customer_name']
+                                        : '@user',
+                                    date: _formatMerchantTransactionDate(tx['created_at'] ?? tx['createdAt'] ?? tx['timestamp']),
                                     icon: Icon(
                                       Icons.person_rounded,
                                       color: FlutterFlowTheme.of(context)

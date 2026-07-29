@@ -143,7 +143,7 @@ class BiometricLockService {
         FFAppState().biometricLastVerified = DateTime.now();
       });
 
-      debugPrint('Stored fingerprint and deviceId: $deviceId');
+      debugPrint('Stored fingerprint and deviceId: $deviceId (fingerprint_len=${fingerprint.length})');
       return true;
     } catch (e, stack) {
       debugPrint('===== BIOMETRIC ERROR =====');

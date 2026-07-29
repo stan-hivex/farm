@@ -162,7 +162,7 @@ class _AllTransactionsWidgetState extends State<AllTransactionsWidget> {
     if (value == null) return '';
     final parsed = DateTime.tryParse(value.toString());
     if (parsed == null) return value.toString();
-    return dateTimeFormat('MMM d, yyyy • h:mm a', parsed);
+    return dateTimeFormatEastAfricanTime('MMM d, yyyy • h:mm a', parsed);
   }
 
   String _resolveTransactionPeer(Map<String, dynamic> tx,
@@ -272,13 +272,30 @@ class _AllTransactionsWidgetState extends State<AllTransactionsWidget> {
                       final isOutgoing = tx['is_outgoing'] == true ||
                           type.toLowerCase().contains('send');
                       final status = (tx['status'] ?? 'Completed').toString();
+                      final merchantName =
+                          tx['merchant_business_name']?.toString().trim() ?? '';
                       final peer =
                           _resolveTransactionPeer(tx, isOutgoing: isOutgoing);
+                      final payerUsername = !isOutgoing
+                          ? (tx['sender_username']?.toString().trim().isNotEmpty == true
+                              ? '@${tx['sender_username']}'
+                              : peer)
+                          : (tx['recipient_username']?.toString().trim().isNotEmpty == true
+                              ? '@${tx['recipient_username']}'
+                              : peer);
+                      final peerWithMerchant = merchantName.isNotEmpty
+                          ? '$payerUsername ($merchantName)'
+                          : payerUsername;
+                      final isMerchantPayment =
+                          type.toLowerCase() == 'merchant_payment';
                       final amountText =
                           '${isOutgoing ? '-' : '+'}${double.tryParse(amount.toString())?.toStringAsFixed(2) ?? amount} FARM';
                       final dateText = _formatDate(tx['created_at'] ??
                           tx['createdAt'] ??
                           tx['timestamp']);
+                      final peerLabel = isMerchantPayment
+                          ? '${isOutgoing ? 'To' : 'From'} $peerWithMerchant'
+                          : '${isOutgoing ? 'To' : 'From'} $peer';
 
                       return Card(
                         shape: RoundedRectangleBorder(
@@ -341,7 +358,7 @@ class _AllTransactionsWidgetState extends State<AllTransactionsWidget> {
                                     ),
                                     const SizedBox(height: 6),
                                     Text(
-                                      '${isOutgoing ? 'To' : 'From'} $peer • $dateText',
+                                      '$peerLabel • $dateText',
                                       style: theme.bodySmall.copyWith(
                                           fontWeight: FontWeight.w600),
                                     ),

@@ -32,7 +32,7 @@ class _MerchantSalesWidgetState extends State<MerchantSalesWidget> {
     });
 
     try {
-      final response = await ApiService.getTransactions(page: 1, limit: 100);
+      final response = await ApiService.getTransactions(type: 'merchant_payment', page: 1, limit: 100);
       final raw = response['data'];
       final items = raw is List
           ? raw.map<Map<String, dynamic>>((item) {
@@ -41,17 +41,9 @@ class _MerchantSalesWidgetState extends State<MerchantSalesWidget> {
             }).toList()
           : <Map<String, dynamic>>[];
 
-      final filtered = items.where((tx) {
-        final type = (tx['transaction_type'] ?? tx['type'] ?? '').toString().toLowerCase();
-        if (!(type.contains('merchant') || type.contains('qr') || type.contains('sale'))) {
-          return false;
-        }
-        return true;
-      }).toList();
-
       if (!mounted) return;
       setState(() {
-        sales = filtered;
+        sales = items;
         loading = false;
       });
     } catch (e) {
@@ -67,7 +59,7 @@ class _MerchantSalesWidgetState extends State<MerchantSalesWidget> {
     if (value == null) return '';
     final parsed = DateTime.tryParse(value.toString());
     if (parsed == null) return value.toString();
-    return dateTimeFormat('MMM d, yyyy • h:mm a', parsed);
+    return dateTimeFormatEastAfricanTime('MMM d, yyyy • h:mm a', parsed);
   }
 
   @override
@@ -103,7 +95,18 @@ class _MerchantSalesWidgetState extends State<MerchantSalesWidget> {
                   Column(
                     children: sales.map((tx) {
                       final amount = tx['amount']?.toString() ?? '0';
-                      final username = tx['customer_name'] ?? tx['username'] ?? tx['recipient_name'] ?? tx['customer'] ?? 'Unknown';
+                      final payerUsername = tx['sender_username']?.toString().trim().isNotEmpty == true
+                          ? '@${tx['sender_username']}'
+                          : tx['customer_name']?.toString().trim().isNotEmpty == true
+                              ? tx['customer_name']
+                              : tx['username']?.toString().trim().isNotEmpty == true
+                                  ? '@${tx['username']}'
+                                  : 'Unknown';
+                      final merchantName = tx['merchant_business_name']?.toString().trim();
+                      final title = merchantName != null && merchantName.isNotEmpty
+                          ? '$payerUsername • $merchantName'
+                          : payerUsername;
+                      final status = tx['status']?.toString() ?? 'Unknown';
                       final date = _formatDate(tx['created_at'] ?? tx['createdAt'] ?? tx['timestamp']);
                       return Card(
                         margin: const EdgeInsets.only(bottom: 12),
@@ -113,9 +116,11 @@ class _MerchantSalesWidgetState extends State<MerchantSalesWidget> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(username, style: theme.titleSmall.copyWith(fontWeight: FontWeight.bold)),
+                              Text(title, style: theme.titleSmall.copyWith(fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),
                               Text('Amount: $amount FARM', style: theme.bodyMedium),
+                              const SizedBox(height: 4),
+                              Text('Status: $status', style: theme.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
                               const SizedBox(height: 4),
                               Text(date, style: theme.bodySmall.copyWith(color: theme.secondaryText)),
                             ],

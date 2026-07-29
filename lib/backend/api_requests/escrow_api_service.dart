@@ -40,7 +40,9 @@ class EscrowApiService {
     required String sellerIdentifier,
     required double amount,
     required String title,
-    required String pin,
+    String? pin,
+    bool? biometricAuth,
+    String? deviceFingerprint,
     String? description,
     int autoReleaseDays = 7,
   }) async {
@@ -53,7 +55,9 @@ class EscrowApiService {
         'seller_identifier': sellerIdentifier,
         'amount': amount,
         'title': title,
-        'pin': pin,
+        if (pin != null) 'pin': pin,
+        if (biometricAuth == true) 'biometric_auth': true,
+        if (deviceFingerprint != null) 'device_fingerprint': deviceFingerprint,
         if (description != null) 'description': description,
         'auto_release_days': autoReleaseDays,
       }),
@@ -69,10 +73,18 @@ class EscrowApiService {
   static Future<void> releaseEscrow({
     required String token,
     required String escrowId,
+    String? pin,
+    bool? biometricAuth,
+    String? deviceFingerprint,
   }) async {
     final res = await http.post(
       Uri.parse('$baseUrl/$escrowId/release'),
       headers: _headers(token),
+      body: jsonEncode({
+        if (pin != null) 'pin': pin,
+        if (biometricAuth == true) 'biometric_auth': true,
+        if (deviceFingerprint != null) 'device_fingerprint': deviceFingerprint,
+      }),
     );
     if (res.statusCode != 200 && res.statusCode != 201) {
       final body = jsonDecode(res.body);

@@ -8,6 +8,9 @@ import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/components/kyc_required_widget.dart';
+import '/services/app_session_manager.dart';
+import '/services/transaction_authentication_service.dart';
+import '/services/transaction_authorization_service.dart';
 
 class WithdrawpageWidget extends StatefulWidget {
   const WithdrawpageWidget({super.key});
@@ -26,6 +29,10 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   final _walletCtrl = TextEditingController();
   final _mobileCtrl = TextEditingController();
   final _pinCtrl = TextEditingController();
+  final FocusNode _pinFocusNode = FocusNode();
+  bool _pinEntryEnabled = false;
+  bool _isBiometricChecking = false;
+  TransactionAuthenticationResult? _lastPinAuthResult;
 
   String selectedMethod = 'BANK';
   String selectedCurrency = 'KES';
@@ -107,7 +114,39 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
     _walletCtrl.dispose();
     _mobileCtrl.dispose();
     _pinCtrl.dispose();
+    _pinFocusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _promptBiometricForPinField() async {
+    if (_lastPinAuthResult?.biometricUsed == true) {
+      return;
+    }
+
+    try {
+      setState(() => _isBiometricChecking = true);
+      final authResult = await TransactionAuthorizationService()
+          .authorizeTransaction(
+            localizedReason: 'Confirm withdrawal',
+          )
+          .then((r) => r.toTransactionAuthenticationResult());
+
+      if (authResult.biometricUsed) {
+        if (!mounted) return;
+        await _createWithdraw(skipConfirm: true, preAuthResult: authResult);
+        return;
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _lastPinAuthResult = authResult;
+        _pinEntryEnabled = true;
+      });
+      _pinFocusNode.requestFocus();
+    } finally {
+      if (!mounted) return;
+      setState(() => _isBiometricChecking = false);
+    }
   }
 
   bool get isKycApproved {
@@ -194,7 +233,9 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   }
 
   // ── Submit withdrawal ─────────────────────────────────────────────────────
-  Future<void> _createWithdraw() async {
+  Future<void> _createWithdraw(
+      {bool skipConfirm = false,
+      TransactionAuthenticationResult? preAuthResult}) async {
     if (isLoading) return;
 
     if (amount < 10) {
@@ -213,33 +254,97 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
       _snack('Please fill in your withdrawal destination');
       return;
     }
-    if (_pinCtrl.text.trim().isEmpty) {
-      _snack('PIN is required to authorize withdrawal');
-      return;
+
+    if (!skipConfirm) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (c) => AlertDialog(
+          title: const Text('Confirm Withdrawal'),
+          content: Text(
+              'Withdraw ${amount.toStringAsFixed(4)} FARM via ${selectedMethod.replaceAll('_', ' ')}?'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.of(c).pop(false),
+                child: const Text('Cancel')),
+            ElevatedButton(
+                onPressed: () => Navigator.of(c).pop(true),
+                child: const Text('Confirm')),
+          ],
+        ),
+      );
+      if (confirm != true) return;
     }
 
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('Confirm Withdrawal'),
-        content: Text(
-            'Withdraw ${amount.toStringAsFixed(4)} FARM via ${selectedMethod.replaceAll('_', ' ')}?'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.of(c).pop(false),
-              child: const Text('Cancel')),
-          ElevatedButton(
-              onPressed: () => Navigator.of(c).pop(true),
-              child: const Text('Confirm')),
-        ],
-      ),
-    );
-    if (confirm != true) return;
     setState(() => isLoading = true);
 
     try {
-      // Debug: Log submission
       print('[WITHDRAW] Submitting withdrawal request...');
+
+      final authResult = preAuthResult ??
+          _lastPinAuthResult ??
+          await TransactionAuthorizationService()
+              .authorizeTransaction(
+                localizedReason: 'Confirm withdrawal',
+              )
+              .then((r) => r.toTransactionAuthenticationResult());
+
+      final usedBiometric = authResult?.biometricUsed == true;
+      if (usedBiometric) {
+        final requestBody = {
+          'amount': amount,
+          'method': _methodToBackend(selectedMethod),
+          'pin': null,
+          'biometric_auth': true,
+          'device_fingerprint': authResult?.deviceFingerprint,
+        };
+
+        switch (selectedMethod) {
+          case 'BANK':
+            requestBody['accountName'] = _selectedBank ?? '';
+            requestBody['accountNumber'] = _accountCtrl.text.trim();
+            requestBody['bankName'] = _selectedBank ?? '';
+            break;
+          case 'MOBILE_MONEY':
+            requestBody['phoneNumber'] = _mobileCtrl.text.trim();
+            break;
+          case 'CRYPTO':
+            requestBody['cryptoAddress'] = selectedCryptoAsset;
+            requestBody['network'] = selectedCryptoNetwork ?? '';
+            requestBody['walletAddress'] = _walletCtrl.text.trim();
+            break;
+        }
+
+        final res = await http.post(
+          Uri.parse('${AppConfig.api}/withdraw/create'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${FFAppState().accessToken}',
+          },
+          body: jsonEncode(requestBody),
+        );
+
+        if (mounted) {
+          final decoded = jsonDecode(res.body);
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            await AppSessionManager().syncNow(
+              profileTimeoutSeconds: 5,
+              walletTimeoutSeconds: 5,
+              transactionsTimeoutSeconds: 5,
+            );
+            _snack('Withdrawal request submitted successfully');
+          } else {
+            _snack(decoded is Map && decoded['message'] != null
+                ? decoded['message'].toString()
+                : 'Withdrawal failed');
+          }
+        }
+        return;
+      }
+
+      if (_pinCtrl.text.trim().isEmpty) {
+        _snack('PIN is required to authorize withdrawal');
+        return;
+      }
 
       // Build request body with backend-expected field names
       final requestBody = {
@@ -266,7 +371,6 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
       }
 
       final res = await http.post(
-        // Correct backend endpoint for withdrawal
         Uri.parse('${AppConfig.api}/withdraw/create'),
         headers: {
           'Content-Type': 'application/json',
@@ -282,9 +386,12 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
       print('[WITHDRAW] Response: ${res.body}');
 
       if (res.statusCode == 200 || res.statusCode == 201) {
-        _snack(
-          'Withdrawal submitted successfully.',
+        await AppSessionManager().syncNow(
+          profileTimeoutSeconds: 5,
+          walletTimeoutSeconds: 5,
+          transactionsTimeoutSeconds: 5,
         );
+        _snack('Withdrawal submitted successfully.');
         _clearFields();
         await _fetchWallet();
         await _fetchHistory();
@@ -716,24 +823,58 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
 
                   const SizedBox(height: 16),
 
-                  TextField(
-                    controller: _pinCtrl,
-                    keyboardType: TextInputType.number,
-                    obscureText: true,
-                    maxLength: 6,
-                    decoration: InputDecoration(
-                      hintText: 'Transaction PIN',
-                      hintStyle: TextStyle(color: theme.secondaryText),
-                      filled: true,
-                      fillColor: theme.secondaryBackground,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(
-                            color: theme.secondaryText.withAlpha(90)),
+                  if (_pinEntryEnabled)
+                    TextField(
+                      controller: _pinCtrl,
+                      focusNode: _pinFocusNode,
+                      readOnly: !_pinEntryEnabled || _isBiometricChecking,
+                      keyboardType: TextInputType.number,
+                      obscureText: true,
+                      maxLength: 6,
+                      onTap: () async {
+                        if (!_pinEntryEnabled && !_isBiometricChecking) {
+                          await _promptBiometricForPinField();
+                        }
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Transaction PIN',
+                        hintStyle: TextStyle(color: theme.secondaryText),
+                        filled: true,
+                        fillColor: theme.secondaryBackground,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(
+                              color: theme.secondaryText.withAlpha(90)),
+                        ),
+                        suffixIcon: _isBiometricChecking
+                            ? const SizedBox(
+                                height: 24,
+                                width: 24,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : null,
+                        counterText: '',
                       ),
-                      counterText: '',
+                    )
+                  else if (!_isBiometricChecking)
+                    SizedBox(
+                      width: double.infinity,
+                      height: 58,
+                      child: ElevatedButton(
+                        onPressed: _promptBiometricForPinField,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              isDark ? const Color(0xFF1F1F1F) : Colors.black,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                        ),
+                        child: Text('Continue',
+                            style: GoogleFonts.plusJakartaSans(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16)),
+                      ),
                     ),
-                  ),
 
                   const SizedBox(height: 24),
 
@@ -763,27 +904,28 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
 
                   const SizedBox(height: 28),
                   // Submit button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 58,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            isDark ? const Color(0xFF1F1F1F) : Colors.black,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
+                  if (_pinEntryEnabled)
+                    SizedBox(
+                      width: double.infinity,
+                      height: 58,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              isDark ? const Color(0xFF1F1F1F) : Colors.black,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                        ),
+                        onPressed:
+                            (isLoading || amount <= 0) ? null : _createWithdraw,
+                        child: isLoading
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : Text('Withdraw Funds',
+                                style: GoogleFonts.plusJakartaSans(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16)),
                       ),
-                      onPressed:
-                          (isLoading || amount <= 0) ? null : _createWithdraw,
-                      child: isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : Text('Withdraw Funds',
-                              style: GoogleFonts.plusJakartaSans(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16)),
                     ),
-                  ),
                 ],
               ),
 
