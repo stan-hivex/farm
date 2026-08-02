@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '/app_state.dart';
 import '/core/config/supabase_config.dart';
+import 'session_store_service.dart';
 
 /// Service to check and enforce route protection based on authentication status.
 ///
@@ -28,7 +29,7 @@ class RouteGuardService {
   Future<bool> hasValidSupabaseSession() async {
     try {
       final session = _supabase.auth.currentSession;
-      
+
       if (session == null) {
         return false;
       }
@@ -40,6 +41,12 @@ class RouteGuardService {
 
       return true;
     } catch (e) {
+      final message = e.toString();
+      if (message.contains('LateInitializationError') ||
+          message.contains('must initialize the supabase instance') ||
+          message.contains('Not initialized')) {
+        return false;
+      }
       debugPrint('Error checking Supabase session: $e');
       return false;
     }
@@ -49,26 +56,71 @@ class RouteGuardService {
   ///
   /// Returns true if FFAppState has a non-empty accessToken and the user is
   /// marked as logged in, or if there is a persisted backend token available.
-  bool hasValidBackendJwt() {
-    final token = FFAppState().accessToken;
-    return token.isNotEmpty && (FFAppState().isLoggedIn || token.isNotEmpty);
+  Future<bool> hasValidBackendJwt() async {
+    final state = FFAppState();
+    final token = state.accessToken;
+    final role = state.role.toLowerCase();
+    debugPrint('[RouteGuardService] hasValidBackendJwt role=$role accessTokenPresent=${token.isNotEmpty} accessTokenLength=${token.length}');
+
+    if (token.isNotEmpty) {
+      return true;
+    }
+
+    final persistedSession = await AuthSessionStore.readRoleSession(role);
+    final persistedToken = persistedSession?.accessToken ?? '';
+    debugPrint('[RouteGuardService] persistedSession role=$role tokenPresent=${persistedToken.isNotEmpty}');
+    if (persistedToken.isNotEmpty) {
+      return true;
+    }
+
+    final adminSession = await AuthSessionStore.readAdminSession();
+    final superAdminSession = await AuthSessionStore.readSuperAdminSession();
+    final userSession = await AuthSessionStore.readUserSession();
+    debugPrint('[RouteGuardService] fallbackSessions admin=${(adminSession?.accessToken ?? '').isNotEmpty} superAdmin=${(superAdminSession?.accessToken ?? '').isNotEmpty} user=${(userSession?.accessToken ?? '').isNotEmpty}');
+
+    return (adminSession?.accessToken ?? '').isNotEmpty ||
+        (superAdminSession?.accessToken ?? '').isNotEmpty ||
+        (userSession?.accessToken ?? '').isNotEmpty;
   }
 
-  /// Check if user is fully authenticated (both Supabase + Backend).
+  /// Check if the current session is authenticated for the active role.
   ///
-  /// This is the primary check for route protection.
-  /// 
-  /// Returns true only if:
-  /// 1. Valid Supabase session exists
-  /// 2. Valid Backend JWT exists in FFAppState
-  /// 3. User marked as logged in (isLoggedIn flag)
+  /// This is the primary check for route protection and startup auth checks.
+  ///
+  /// Returns true when:
+  /// 1. A backend JWT exists in state
+  /// 2. The active role is a user and the user is marked logged-in or has a
+  ///    valid Supabase session
+  /// 3. The active role is admin/super_admin and the backend JWT is present
   Future<bool> isUserAuthenticated() async {
     try {
-      final hasBackendJwt = hasValidBackendJwt();
-      final isLoggedInFlag = FFAppState().isLoggedIn;
+      final state = FFAppState();
+      final hasBackendJwt = await hasValidBackendJwt();
+      final isLoggedInFlag = state.isLoggedIn;
       final hasSupabaseSession = await hasValidSupabaseSession();
+      final role = state.role.toLowerCase();
+      final isAdminRole = role == 'admin' || role == 'super_admin';
 
-      return hasBackendJwt && (isLoggedInFlag || hasSupabaseSession);
+      if (!hasBackendJwt) {
+        return false;
+      }
+
+      if (isAdminRole) {
+        return true;
+      }
+
+      if (role.isEmpty) {
+        final adminSession = await AuthSessionStore.readAdminSession();
+        final superAdminSession = await AuthSessionStore.readSuperAdminSession();
+        final hasPrivilegedPersistedSession =
+            (adminSession?.accessToken ?? '').isNotEmpty ||
+            (superAdminSession?.accessToken ?? '').isNotEmpty;
+        if (hasPrivilegedPersistedSession) {
+          return true;
+        }
+      }
+
+      return isLoggedInFlag || hasSupabaseSession;
     } catch (e) {
       debugPrint('Error checking authentication: $e');
       return false;
@@ -112,20 +164,48 @@ class RouteGuardService {
     BuildContext context,
     String currentPath,
   ) async {
+    final role = FFAppState().role.toLowerCase();
+    final loggedIn = FFAppState().isLoggedIn;
+    final accessTokenLength = FFAppState().accessToken.length;
+    final refreshTokenLength = FFAppState().refreshToken.length;
+    final persistedSession = await AuthSessionStore.readRoleSession(role);
+    final sessionExists = persistedSession?.accessToken.isNotEmpty ?? false;
+
+    print('AUTH GUARD CHECK');
+    print('Current route: $currentPath');
+    print('Current role: $role');
+    print('Access token length: $accessTokenLength');
+    print('Refresh token length: $refreshTokenLength');
+    print('Session exists: $sessionExists');
+
     // Public routes don't need protection
     if (isPublicRoute(currentPath)) {
+      print('Reason for redirect: none (public route)');
       return null;
     }
 
     // Check if user is authenticated
     final isAuthenticated = await isUserAuthenticated();
     if (!isAuthenticated) {
+      final reason = accessTokenLength == 0
+          ? 'accessToken.isEmpty'
+          : role.isEmpty
+              ? 'role.isEmpty'
+              : 'no valid auth session';
+      debugPrint('[RouteGuardService] verifyAndRedirect NOT authenticated');
+      debugPrint('[RouteGuardService] role=$role loggedIn=$loggedIn currentPath=$currentPath');
+      debugPrint('[RouteGuardService] redirect reason=$reason');
+      if (role == 'super_admin') {
+        debugPrint('SUPER_ADMIN REDIRECTED TO LOGIN');
+        debugPrint(StackTrace.current.toString());
+      }
       // Clear stale auth data before redirecting to login
       await FFAppState().clearAuthCredentials();
       return '/login';
     }
 
-    // User is authenticated, proceed normally
+    debugPrint('[RouteGuardService] verifyAndRedirect authenticated role=$role currentPath=$currentPath');
+    debugPrint('[RouteGuardService] verifyAndRedirect state accessTokenLength=$accessTokenLength refreshTokenLength=$refreshTokenLength sessionExists=$sessionExists');
     return null;
   }
 

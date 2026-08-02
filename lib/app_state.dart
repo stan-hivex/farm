@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'flutter_flow/flutter_flow_theme.dart';
+import 'services/auth/session_store_service.dart';
 import 'services/secure_storage_service.dart';
 
 class FFAppState extends ChangeNotifier {
@@ -18,22 +19,73 @@ class FFAppState extends ChangeNotifier {
 
   Future<void> initializePersistedState() async {
     final prefs = await SharedPreferences.getInstance();
+    final storedRole = prefs.getString('role') ?? '';
+    final normalizedStoredRole = storedRole.toLowerCase();
 
-    _accessToken = prefs.getString('accessToken') ?? '';
-    if (_accessToken.isEmpty) {
-      _accessToken = await SecureStorageService.readAccessToken() ?? '';
+    final adminSession = await AuthSessionStore.readAdminSession();
+    final superAdminSession = await AuthSessionStore.readSuperAdminSession();
+    final userSession = await AuthSessionStore.readUserSession();
+
+    if (normalizedStoredRole == 'admin' && adminSession != null) {
+      _accessToken = adminSession.accessToken;
+      _refreshToken = adminSession.refreshToken;
+      _userId = adminSession.userId;
+      _role = adminSession.role;
+      _isLoggedIn = false;
+    } else if (normalizedStoredRole == 'super_admin' && superAdminSession != null) {
+      _accessToken = superAdminSession.accessToken;
+      _refreshToken = superAdminSession.refreshToken;
+      _userId = superAdminSession.userId;
+      _role = superAdminSession.role;
+      _isLoggedIn = false;
+    } else if (normalizedStoredRole == 'user' && userSession != null) {
+      _accessToken = userSession.accessToken;
+      _refreshToken = userSession.refreshToken;
+      _userId = userSession.userId;
+      _role = userSession.role;
+      _isLoggedIn = userSession.accessToken.isNotEmpty;
+    } else if (adminSession != null && adminSession.accessToken.isNotEmpty) {
+      _accessToken = adminSession.accessToken;
+      _refreshToken = adminSession.refreshToken;
+      _userId = adminSession.userId;
+      _role = adminSession.role;
+      _isLoggedIn = false;
+    } else if (superAdminSession != null && superAdminSession.accessToken.isNotEmpty) {
+      _accessToken = superAdminSession.accessToken;
+      _refreshToken = superAdminSession.refreshToken;
+      _userId = superAdminSession.userId;
+      _role = superAdminSession.role;
+      _isLoggedIn = false;
+    } else if (userSession != null && userSession.accessToken.isNotEmpty) {
+      _accessToken = userSession.accessToken;
+      _refreshToken = userSession.refreshToken;
+      _userId = userSession.userId;
+      _role = userSession.role;
+      _isLoggedIn = userSession.accessToken.isNotEmpty;
+    } else {
+      _accessToken = prefs.getString('accessToken') ?? '';
+      if (_accessToken.isEmpty) {
+        _accessToken = await SecureStorageService.readAccessToken() ?? '';
+      }
+      _refreshToken = prefs.getString('refreshToken') ?? '';
+      if (_refreshToken.isEmpty) {
+        _refreshToken = await SecureStorageService.readRefreshToken() ?? '';
+      }
+      _userId = prefs.getString('userId') ?? '';
+      _role = normalizedStoredRole;
+      _isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
     }
-    _refreshToken = prefs.getString('refreshToken') ?? '';
-    if (_refreshToken.isEmpty) {
-      _refreshToken = await SecureStorageService.readRefreshToken() ?? '';
-    }
-    _userId = prefs.getString('userId') ?? '';
+
     _firstName = prefs.getString('firstName') ?? '';
     _userName = prefs.getString('userName') ?? '';
     _phone = prefs.getString('phone') ?? '';
     _email = prefs.getString('email') ?? '';
     _kycStatus = prefs.getString('kycStatus') ?? '';
-    _isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+    if (_role.toLowerCase() == 'admin' || _role.toLowerCase() == 'super_admin') {
+      _isLoggedIn = false;
+    } else {
+      _isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+    }
     _biometricsEnabled = prefs.getBool('biometricsEnabled') ?? false;
     _hasPin = prefs.getBool('hasPin') ?? false;
     _pushNotifications = prefs.getBool('pushNotifications') ?? true;
@@ -44,7 +96,9 @@ class FFAppState extends ChangeNotifier {
         prefs.getBool('notificationSoundEnabled') ?? true;
     _notificationVibrationEnabled =
         prefs.getBool('notificationVibrationEnabled') ?? true;
-    _role = prefs.getString('role') ?? '';
+    if (_role.isEmpty) {
+      _role = prefs.getString('role') ?? '';
+    }
     _walletBalance = prefs.getDouble('walletBalance') ?? 0.0;
     _kesEquivalent = prefs.getDouble('kesEquivalent') ?? 0.0;
     _profileImageUrl = prefs.getString('profileImageUrl') ?? '';
@@ -110,6 +164,23 @@ class FFAppState extends ChangeNotifier {
   }
 
   String get authToken => _accessToken;
+
+  Future<String> getActiveAccessToken() async {
+    if (_accessToken.isNotEmpty) {
+      debugPrint('[FFAppState] getActiveAccessToken using in-memory token length=${_accessToken.length}');
+      return _accessToken;
+    }
+
+    final normalizedRole = _role.toLowerCase();
+    final persistedSession = await AuthSessionStore.readRoleSession(normalizedRole);
+    final persistedToken = persistedSession?.accessToken ?? '';
+    debugPrint('[FFAppState] getActiveAccessToken role=$normalizedRole persistedTokenPresent=${persistedToken.isNotEmpty}');
+    if (persistedToken.isNotEmpty) {
+      _accessToken = persistedToken;
+      notifyListeners();
+    }
+    return _accessToken;
+  }
 
   String _refreshToken = '';
   String get refreshToken => _refreshToken;
@@ -340,6 +411,11 @@ class FFAppState extends ChangeNotifier {
     );
   }
 
+  bool get isUser => _role.toLowerCase() == 'user';
+  bool get isAdmin =>
+      _role.toLowerCase() == 'admin' || _role.toLowerCase() == 'super_admin';
+  bool get isBiometricAllowed => isUser && _biometricsEnabled;
+
   double _walletBalance = 0.0;
   double get walletBalance => _walletBalance;
   set walletBalance(double value) {
@@ -409,6 +485,14 @@ class FFAppState extends ChangeNotifier {
   }
 
   Future<void> clearAuthCredentials() async {
+    final currentRole = _role.toLowerCase();
+    debugPrint('[FFAppState] clearAuthCredentials called role=$_role currentRole=$currentRole accessTokenLength=${_accessToken.length} refreshTokenLength=${_refreshToken.length}');
+    debugPrint(StackTrace.current.toString());
+
+    await AuthSessionStore.clearAdminSession();
+    await AuthSessionStore.clearSuperAdminSession();
+    await AuthSessionStore.clearUserSession();
+
     accessToken = '';
     refreshToken = '';
     userId = '';
@@ -431,8 +515,25 @@ class FFAppState extends ChangeNotifier {
     await prefs.remove('isLoggedIn');
     await prefs.remove('biometricsEnabled');
     await prefs.remove('role');
+    await prefs.remove('adminToken');
+    await prefs.remove('adminRefreshToken');
+    await prefs.remove('adminRole');
+    await prefs.remove('adminName');
     await prefs.remove('biometric_last_verified');
     await SecureStorageService.clearAuthData();
     await SecureStorageService.deleteBiometricLastVerified();
+  }
+
+  Future<void> clearRoleSession(String role) async {
+    debugPrint('[FFAppState] clearRoleSession called role=$role');
+    debugPrint(StackTrace.current.toString());
+    final normalizedRole = role.toLowerCase();
+    if (normalizedRole == 'admin') {
+      await AuthSessionStore.clearAdminSession();
+    } else if (normalizedRole == 'super_admin') {
+      await AuthSessionStore.clearSuperAdminSession();
+    } else {
+      await AuthSessionStore.clearUserSession();
+    }
   }
 }

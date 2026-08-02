@@ -5,6 +5,9 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/biometric_unlock_page/biometric_unlock_page_widget.dart';
 import '/services/auth/route_guard_service.dart';
 import '/services/biometric_lock_service.dart';
+import '/admin/core/admin_guard.dart';
+import '/admin/pages/admin_shell.dart';
+import '/pages/superadmin/superadmin_dashboard_page.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
@@ -47,6 +50,10 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
   Future<void> _runStartupAuthCheck() async {
     if (!mounted) return;
 
+    print('AUTH GUARD');
+    print('role=${FFAppState().role}');
+    print('route=${OnboardingWidget.routePath}');
+
     setState(() {
       _isCheckingAuth = true;
       _showAuthActions = false;
@@ -60,14 +67,37 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
 
     if (!mounted) return;
 
+    final isAdminAuthenticated = await AdminGuard.isAuthenticated();
+    if (isAdminAuthenticated) {
+      await Future.delayed(const Duration(milliseconds: 250));
+      if (!mounted) return;
+      final adminRole = await AdminGuard.getAdminRole();
+      if (adminRole.toLowerCase() == 'super_admin') {
+        print('Navigating to ${SuperadminDashboardPage.routePath}');
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const SuperadminDashboardPage()),
+        );
+      } else {
+        print('Navigating to /admin-shell');
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminShell()),
+        );
+      }
+      return;
+    }
+
     if (isAuthenticated) {
       final lockService = BiometricLockService();
       final shouldLock = await lockService.shouldRequireUnlock();
       await Future.delayed(const Duration(milliseconds: 250));
       if (!mounted) return;
       if (shouldLock) {
+        print('Navigating to ${BiometricUnlockPageWidget.routeName}');
         context.goNamed(BiometricUnlockPageWidget.routeName);
       } else {
+        print('Navigating to Dashboard');
         context.goNamed('Dashboard');
       }
       return;

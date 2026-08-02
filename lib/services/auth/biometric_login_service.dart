@@ -53,7 +53,7 @@ class BiometricLoginService {
   /// This checks if biometrics are enabled and local backend tokens are stored.
   Future<bool> hasBiometricSession() async {
     try {
-      if (!FFAppState().biometricsEnabled) {
+      if (!FFAppState().isBiometricAllowed) {
         return false;
       }
       if (FFAppState().refreshToken.isEmpty) {
@@ -92,6 +92,10 @@ class BiometricLoginService {
       }
 
       debugPrint('[Biometric] Local auth succeeded');
+
+      if (!FFAppState().isBiometricAllowed) {
+        throw Exception('Biometric login is only available for user accounts.');
+      }
 
       if (FFAppState().refreshToken.isEmpty) {
         throw Exception(

@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 import 'firebase_options.dart';
 import 'flutter_flow/flutter_flow_theme.dart';
@@ -14,6 +14,7 @@ import 'web_url_strategy.dart';
 import 'services/app_session_manager.dart';
 import 'services/biometric_lock_service.dart';
 import 'services/notification_service.dart';
+import 'services/auth/session_store_service.dart';
 import 'pages/biometric_unlock_page/biometric_unlock_page_widget.dart';
 
 Widget buildSafeErrorWidget(FlutterErrorDetails details) {
@@ -21,12 +22,8 @@ Widget buildSafeErrorWidget(FlutterErrorDetails details) {
   return const SizedBox.shrink();
 }
 
-@pragma('vm:entry-point')
-Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
-}
-
 void main() async {
+  print('APP START');
   WidgetsFlutterBinding.ensureInitialized();
 
   // Load dotenv early to avoid NotInitializedError when Env is referenced.
@@ -48,12 +45,22 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  print('Reading stored session...');
+  final storedRole = await SharedPreferences.getInstance().then((prefs) => prefs.getString('role') ?? '');
+  print('Stored role = $storedRole');
+  final storedAccessToken = await SharedPreferences.getInstance().then((prefs) => prefs.getString('accessToken'));
+  final storedRefreshToken = await SharedPreferences.getInstance().then((prefs) => prefs.getString('refreshToken'));
+  print('Stored access token exists = ${storedAccessToken != null}');
+  print('Stored refresh token exists = ${storedRefreshToken != null}');
+  final storedAdminSession = await AuthSessionStore.readAdminSession();
+  final storedSuperAdminSession = await AuthSessionStore.readSuperAdminSession();
+  print('Stored admin session exists = ${storedAdminSession != null}');
+  print('Stored super admin session exists = ${storedSuperAdminSession != null}');
   await FFAppState().initializePersistedState();
   await NotificationService.initialize();
   await FlutterFlowTheme.initialize();
 
-  if (FFAppState().isLoggedIn && FFAppState().refreshToken.isNotEmpty) {
+  if (FFAppState().isLoggedIn && FFAppState().refreshToken.isNotEmpty && FFAppState().isUser) {
     Future.microtask(() {
       AppSessionManager().refreshAppData().catchError((e) {
         debugPrint('[Main] Initial app refresh failed: $e');
@@ -158,6 +165,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     _appStateNotifier = AppStateNotifier.instance;
 
     _router = createRouter(_appStateNotifier);
+    final currentLocation = getRoute();
+    print('Current route before redirect = $currentLocation');
     _startPeriodicRefresh();
   }
 
@@ -182,7 +191,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   Future<void> _handleResumeLock() async {
     if (!mounted) return;
-    if (!FFAppState().isLoggedIn || !FFAppState().biometricsEnabled) {
+    if (!FFAppState().isLoggedIn || !FFAppState().isBiometricAllowed) {
       return;
     }
 
@@ -194,13 +203,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
     final shouldLock = await lockService.shouldRequireUnlock();
     if (shouldLock && getRoute() != BiometricUnlockPageWidget.routePath) {
+      print('Navigating to ${BiometricUnlockPageWidget.routePath}');
+      print('Navigating to ${BiometricUnlockPageWidget.routePath}');
       _router.go(BiometricUnlockPageWidget.routePath);
     }
   }
 
   void _startPeriodicRefresh() {
     _refreshTimer?.cancel();
-    if (!FFAppState().isLoggedIn || FFAppState().accessToken.isEmpty) {
+    if (!mounted || !FFAppState().isLoggedIn || FFAppState().accessToken.isEmpty || !FFAppState().isUser) {
       return;
     }
 

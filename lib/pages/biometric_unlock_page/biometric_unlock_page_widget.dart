@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '/app_state.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/services/biometric_lock_service.dart';
 import '/services/auth/route_guard_service.dart';
+import '/admin/pages/admin_shell.dart';
 import '/pages/dashboard/dashboard_widget.dart';
 import '/pages/loginpage/loginpage_widget.dart';
 
@@ -73,6 +75,13 @@ class _BiometricUnlockPageWidgetState extends State<BiometricUnlockPageWidget> {
 
   void _navigateToDestination() {
     if (!mounted) return;
+    if (FFAppState().isAdmin) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const AdminShell()),
+      );
+      return;
+    }
     final destination = widget.returnPath ?? DashboardWidget.routePath;
     GoRouter.of(context).go(destination == BiometricUnlockPageWidget.routePath
         ? DashboardWidget.routePath

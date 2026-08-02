@@ -145,55 +145,80 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
   }
 
   Future<void> _finalizeSuccessfulLogin(Map<String, dynamic> response) async {
-    final payload = response['data'] is Map<String, dynamic>
+    final rawPayload = response['data'] is Map<String, dynamic>
         ? response['data'] as Map<String, dynamic>
         : response['data'] is Map
             ? Map<String, dynamic>.from(response['data'] as Map)
-            : <String, dynamic>{};
+            : response;
 
-    final accessToken = (payload['access_token'] as String? ?? '')
+    final accessToken = (rawPayload['access_token'] as String? ??
+            rawPayload['farmJwt'] as String? ??
+            '')
         .trim();
-    final refreshToken = (payload['refresh_token'] as String? ?? '')
+    final refreshToken = (rawPayload['refresh_token'] as String? ??
+            rawPayload['refreshToken'] as String? ??
+            '')
         .trim();
-    final data = payload['user'] is Map<String, dynamic>
-        ? payload['user'] as Map<String, dynamic>
-        : payload['user'] is Map
-            ? Map<String, dynamic>.from(payload['user'] as Map)
+    final data = rawPayload['user'] is Map<String, dynamic>
+        ? rawPayload['user'] as Map<String, dynamic>
+        : rawPayload['user'] is Map
+            ? Map<String, dynamic>.from(rawPayload['user'] as Map)
             : null;
 
     if (accessToken.isNotEmpty && data != null) {
-      FFAppState().accessToken = accessToken;
-      FFAppState().refreshToken = refreshToken;
-      FFAppState().userId = data['id'] ?? '';
-      FFAppState().firstName = data['first_name'] ?? '';
-      FFAppState().userName = data['username'] ?? '';
-      FFAppState().phone = data['phone'] ?? '';
-      FFAppState().kycStatus = data['kyc_status'] ?? '';
-      FFAppState().emailVerified = data['email_verified'] == true;
-      final role = (data['role'] ?? 'user').toString();
-      FFAppState().role = role;
-      FFAppState().isLoggedIn = true;
-
-      await SecureStorageService.writeAccessToken(accessToken);
-      await SecureStorageService.writeRefreshToken(refreshToken);
+      final role = (data['role'] ?? '').toString().toLowerCase();
+      final normalizedRole = role.isEmpty ? 'user' : role;
+      FFAppState().role = normalizedRole;
 
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('accessToken', accessToken);
-      await prefs.setString('refreshToken', refreshToken);
-      await prefs.setString('userId', data['id'] ?? '');
-      await prefs.setString('role', role);
-      await prefs.setBool('isLoggedIn', true);
+      await prefs.setString('role', normalizedRole);
 
-      if (role == 'admin' || role == 'super_admin') {
-        await prefs.setString('adminToken', accessToken);
-        await prefs.setString('adminRefreshToken', refreshToken);
-        await prefs.setString('adminRole', role);
-        await prefs.setString('adminName', data['first_name'] ?? 'Admin');
-      } else {
+      if (normalizedRole == 'user') {
+        FFAppState().accessToken = accessToken;
+        FFAppState().refreshToken = refreshToken;
+        FFAppState().userId = data['id'] ?? '';
+        FFAppState().firstName = data['first_name'] ?? '';
+        FFAppState().userName = data['username'] ?? '';
+        FFAppState().phone = data['phone'] ?? '';
+        FFAppState().kycStatus = data['kyc_status'] ?? '';
+        FFAppState().emailVerified = data['email_verified'] == true;
+        FFAppState().isLoggedIn = true;
+
+        await SecureStorageService.writeAccessToken(accessToken);
+        await SecureStorageService.writeRefreshToken(refreshToken);
+        await prefs.setString('accessToken', accessToken);
+        await prefs.setString('refreshToken', refreshToken);
+        await prefs.setString('userId', data['id'] ?? '');
+        await prefs.setBool('isLoggedIn', true);
+
         await prefs.remove('adminToken');
         await prefs.remove('adminRefreshToken');
         await prefs.remove('adminRole');
         await prefs.remove('adminName');
+      } else {
+        FFAppState().accessToken = accessToken;
+        FFAppState().refreshToken = refreshToken;
+        FFAppState().isLoggedIn = false;
+        FFAppState().userId = data['id'] ?? '';
+        FFAppState().firstName = '';
+        FFAppState().userName = '';
+        FFAppState().phone = '';
+        FFAppState().email = '';
+        FFAppState().kycStatus = '';
+        FFAppState().emailVerified = false;
+
+        await prefs.remove('accessToken');
+        await prefs.remove('refreshToken');
+        await prefs.remove('userId');
+        await prefs.remove('firstName');
+        await prefs.remove('userName');
+        await prefs.remove('phone');
+        await prefs.remove('isLoggedIn');
+
+        await prefs.setString('adminToken', accessToken);
+        await prefs.setString('adminRefreshToken', refreshToken);
+        await prefs.setString('adminRole', role);
+        await prefs.setString('adminName', data['first_name'] ?? 'Admin');
       }
     }
 
@@ -204,11 +229,14 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
       ),
     );
 
+    debugPrint('[LoginpageWidget] _finalizeSuccessfulLogin role=${FFAppState().role} accessTokenLength=${FFAppState().accessToken.length}');
     Future.delayed(
       const Duration(seconds: 1),
       () {
         final role = FFAppState().role;
+        debugPrint('[LoginpageWidget] navigating for role=$role');
         if (role == 'super_admin') {
+          debugPrint('Navigating to ${SuperadminDashboardPage.routePath}');
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -216,11 +244,13 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
             ),
           );
         } else if (role == 'admin') {
+          debugPrint('Navigating to /admin-shell');
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (_) => const AdminShell()),
           );
         } else {
+          debugPrint('Navigating to Dashboard');
           context.goNamed('Dashboard');
         }
       },
@@ -320,6 +350,7 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
           if (!mounted) return;
 
           if (role == 'super_admin') {
+            print('Navigating to ${SuperadminDashboardPage.routePath}');
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
@@ -327,11 +358,13 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
               ),
             );
           } else if (role == 'admin') {
+            print('Navigating to /admin-shell');
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => const AdminShell()),
             );
           } else {
+            print('Navigating to Dashboard');
             context.goNamed('Dashboard');
           }
         },

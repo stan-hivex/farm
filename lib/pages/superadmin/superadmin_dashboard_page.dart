@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '/app_state.dart';
 import '/core/app_config.dart';
 import '/backend/api_requests/api_manager.dart';
 import '/pages/loginpage/loginpage_widget.dart';
 import '/pages/superadmin/superadmin_wallet_page.dart';
+import '/services/auth/session_store_service.dart';
 import 'dart:convert';
 
 class SuperadminDashboardPage extends StatefulWidget {
@@ -47,23 +49,27 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
   @override
   void initState() {
     super.initState();
+    debugPrint('[SuperadminDashboardPage] initState: starting dashboard initialization');
     _loadDashboardData();
     _loadExchangeRates();
     _loadUsers();
   }
 
   Future<void> _loadDashboardData() async {
+    debugPrint('[SuperadminDashboardPage] _loadDashboardData started');
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final token = FFAppState().accessToken;
+      final token = await FFAppState().getActiveAccessToken();
+      debugPrint('[SuperadminDashboardPage] _loadDashboardData token length=${token.length}');
       if (token.isEmpty) {
         throw Exception('Not authenticated');
       }
 
       // Fetch dashboard data from backend
+      debugPrint('[SuperadminDashboardPage] _loadDashboardData calling ${AppConfig.api}/superadmin/dashboard');
       final response = await ApiManager.instance.makeApiCall(
         callName: 'superadminDashboard',
         apiUrl: '${AppConfig.api}/superadmin/dashboard',
@@ -75,6 +81,7 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
         params: {},
         returnBody: true,
       );
+      debugPrint('[SuperadminDashboardPage] _loadDashboardData response status=${response.statusCode} body=${response.bodyText}');
 
       final decoded = response.jsonBody as Map<String, dynamic>?;
       if (decoded == null) {
@@ -86,7 +93,9 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
       } else {
         throw Exception(decoded['message'] ?? 'Failed to load dashboard');
       }
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[SuperadminDashboardPage] _loadDashboardData failed: $e');
+      debugPrint(st.toString());
       setState(() => _error = e.toString().replaceAll('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -109,8 +118,18 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
   }
 
   Future<void> _logout() async {
+    debugPrint('[SuperadminDashboardPage] _logout called');
+    debugPrint('[SuperadminDashboardPage] current role=${FFAppState().role} accessTokenLength=${FFAppState().accessToken.length}');
+    debugPrint(StackTrace.current.toString());
+    await AuthSessionStore.clearSuperAdminSession();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('adminToken');
+    await prefs.remove('adminRefreshToken');
+    await prefs.remove('adminRole');
+    await prefs.remove('adminName');
     await FFAppState().clearAuthCredentials();
     if (mounted) {
+      debugPrint('[SuperadminDashboardPage] navigating to ${LoginpageWidget.routePath}');
       context.go(LoginpageWidget.routePath);
     }
   }
@@ -130,9 +149,11 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
   Future<void> _loadExchangeRates() async {
     setState(() { _loadingExchangeRates = true; });
     try {
-      final token = FFAppState().accessToken;
+      final token = await FFAppState().getActiveAccessToken();
+      debugPrint('[SuperadminDashboardPage] _loadExchangeRates token length=${token.length}');
       if (token.isEmpty) throw Exception('Not authenticated');
 
+      debugPrint('[SuperadminDashboardPage] _loadExchangeRates calling ${AppConfig.api}/admin/exchange-rates');
       final response = await ApiManager.instance.makeApiCall(
         callName: 'superadminExchangeRates',
         apiUrl: '${AppConfig.api}/admin/exchange-rates',
@@ -167,7 +188,9 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
         _kesToFarmCtrl.text = kesFarm;
         _farmToKesCtrl.text = farmKes;
       }
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[SuperadminDashboardPage] _loadExchangeRates failed: $e');
+      debugPrint(st.toString());
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to load exchange rates: ${e.toString().replaceAll('Exception: ', '')}')),
@@ -188,7 +211,7 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
 
     setState(() { _savingExchangeRates = true; });
     try {
-      final token = FFAppState().accessToken;
+      final token = await FFAppState().getActiveAccessToken();
       if (token.isEmpty) throw Exception('Not authenticated');
 
       final response = await ApiManager.instance.makeApiCall(
@@ -245,9 +268,11 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
       _usersError = null;
     });
     try {
-      final token = FFAppState().accessToken;
+      final token = await FFAppState().getActiveAccessToken();
+      debugPrint('[SuperadminDashboardPage] _loadUsers token length=${token.length}');
       if (token.isEmpty) throw Exception('Not authenticated');
 
+      debugPrint('[SuperadminDashboardPage] _loadUsers calling ${AppConfig.api}/admin/users?page=1');
       final response = await ApiManager.instance.makeApiCall(
         callName: 'superadminGetUsers',
         apiUrl: '${AppConfig.api}/admin/users?page=1',
@@ -264,7 +289,9 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
       setState(() {
         _systemUsers = decoded?['data'] as List<dynamic>? ?? [];
       });
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[SuperadminDashboardPage] _loadUsers failed: $e');
+      debugPrint(st.toString());
       setState(() => _usersError = e.toString().replaceAll('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _loadingUsers = false);
@@ -274,7 +301,7 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
   Future<void> _updateUser(String userId, Map<String, dynamic> payload) async {
     setState(() => _processingUserAction = true);
     try {
-      final token = FFAppState().accessToken;
+      final token = await FFAppState().getActiveAccessToken();
       if (token.isEmpty) throw Exception('Not authenticated');
 
       final response = await ApiManager.instance.makeApiCall(
@@ -310,7 +337,7 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
   Future<void> _deleteUser(String userId) async {
     setState(() => _processingUserAction = true);
     try {
-      final token = FFAppState().accessToken;
+      final token = await FFAppState().getActiveAccessToken();
       if (token.isEmpty) throw Exception('Not authenticated');
 
       final response = await ApiManager.instance.makeApiCall(
@@ -511,7 +538,7 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
   Future<void> _createAdmin() async {
     setState(() => _isCreatingAdmin = true);
     try {
-      final token = FFAppState().accessToken;
+      final token = await FFAppState().getActiveAccessToken();
       if (token.isEmpty) {
         throw Exception('Not authenticated');
       }

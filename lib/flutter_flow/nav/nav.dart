@@ -41,6 +41,7 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
       debugLogDiagnostics: true,
       refreshListenable: appStateNotifier,
       navigatorKey: appNavigatorKey,
+      observers: [RouteLogger()],
       errorBuilder: (context, state) => const LoginpageWidget(),
       routes: [
         FFRoute(
@@ -266,6 +267,36 @@ extension _GoRouterStateExtensions on GoRouterState {
   TransitionInfo get transitionInfo => extraMap.containsKey(kTransitionInfoKey)
       ? extraMap[kTransitionInfoKey] as TransitionInfo
       : TransitionInfo.appDefault();
+}
+
+class RouteLogger extends NavigatorObserver {
+  void _logRouteChange(String event, Route<dynamic>? route, Route<dynamic>? previousRoute) {
+    final routeName = route?.settings.name ?? route?.runtimeType.toString() ?? 'unknown';
+    final previousName = previousRoute?.settings.name ?? previousRoute?.runtimeType.toString() ?? 'none';
+    final role = FFAppState().role;
+    final accessTokenLength = FFAppState().accessToken.length;
+    final refreshTokenLength = FFAppState().refreshToken.length;
+    final sessionExists = FFAppState().accessToken.isNotEmpty || FFAppState().refreshToken.isNotEmpty;
+    print('ROUTE CHANGE: event=$event route=$routeName previous=$previousName role=$role accessTokenLength=$accessTokenLength refreshTokenLength=$refreshTokenLength sessionExists=$sessionExists');
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPush(route, previousRoute);
+    _logRouteChange('didPush', route, previousRoute);
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
+    _logRouteChange('didReplace', newRoute, oldRoute);
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPop(route, previousRoute);
+    _logRouteChange('didPop', previousRoute, route);
+  }
 }
 
 class FFParameters {

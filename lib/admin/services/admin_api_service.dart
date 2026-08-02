@@ -2,13 +2,18 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
+import '/services/auth/session_store_service.dart';
 import '../core/admin_config.dart';
 
 class AdminApiService {
   static Future<String> _getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('adminToken') ?? '';
-    debugPrint('AdminApiService._getToken: token length=${token.length}');
+    debugPrint('Reading admin/super admin session...');
+    final adminSession = await AuthSessionStore.readAdminSession();
+    final superAdminSession = await AuthSessionStore.readSuperAdminSession();
+    final session = superAdminSession ?? adminSession;
+    final token = session?.accessToken ?? '';
+    final role = session?.role ?? '';
+    debugPrint('Resolved session role=$role tokenPresent=${token.isNotEmpty} tokenLength=${token.length}');
     return token;
   }
 
@@ -81,33 +86,49 @@ class AdminApiService {
     );
     final decoded = jsonDecode(res.body) as Map<String, dynamic>;
     if (res.statusCode == 200) {
-      final role = decoded['data']?['user']?['role'];
-      if (role != 'admin' && role != 'super_admin') {
+      final roleValue = decoded['data']?['user']?['role'];
+      if (roleValue != 'admin' && roleValue != 'super_admin') {
         throw Exception('Access denied. Admin account required.');
       }
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-          'adminToken', decoded['data']['access_token'] ?? '');
-      await prefs.setString(
-          'adminRefreshToken', decoded['data']['refresh_token'] ?? '');
-      await prefs.setString(
-          'adminRole', decoded['data']['user']['role'] ?? '');
-      await prefs.setString(
-          'adminName', decoded['data']['user']['first_name'] ?? 'Admin');
+      final accessToken = decoded['data']['access_token']?.toString() ?? '';
+      final refreshToken = decoded['data']['refresh_token']?.toString() ?? '';
+      final role = roleValue?.toString() ?? '';
+      final userId = decoded['data']['user']['id']?.toString() ?? '';
+      await prefs.setString('adminToken', accessToken);
+      await prefs.setString('adminRefreshToken', refreshToken);
+      await prefs.setString('adminRole', role);
+      await prefs.setString('adminName', decoded['data']['user']['first_name']?.toString() ?? 'Admin');
+      await AuthSessionStore.saveRoleSession(
+        role: role,
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        userId: userId,
+      );
+      debugPrint('Admin session saved.');
+      debugPrint('Access token length: ${accessToken.length}');
+      debugPrint('Refresh token length: ${refreshToken.length}');
+      debugPrint('Role: ${role.toUpperCase()}');
       return decoded;
     }
     throw Exception(decoded['message'] ?? 'Login failed');
   }
 
   static Future<void> logout() async {
+    print('LOGOUT CALLED');
+    print(StackTrace.current);
     try {
       await _req(method: 'POST', path: '/auth/logout');
     } finally {
+      print('CLEAR SESSION CALLED');
+      print(StackTrace.current);
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('adminToken');
       await prefs.remove('adminRefreshToken');
       await prefs.remove('adminRole');
       await prefs.remove('adminName');
+      await AuthSessionStore.clearAdminSession();
+      await AuthSessionStore.clearSuperAdminSession();
     }
   }
 

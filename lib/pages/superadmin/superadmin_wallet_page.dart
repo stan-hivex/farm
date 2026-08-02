@@ -115,7 +115,7 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
       _error = null;
     });
     try {
-      final token = FFAppState().accessToken;
+      final token = await FFAppState().getActiveAccessToken();
 
       if (token.isEmpty) {
         throw Exception('Not authenticated');
@@ -161,7 +161,7 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
 
       final usedBiometric = authResult?.biometricUsed == true;
       if (usedBiometric) {
-        final token = FFAppState().accessToken;
+        final token = await FFAppState().getActiveAccessToken();
         final Map<String, dynamic> body = {
           'amount': double.parse(_amountController.text),
           'method': _selectedWithdrawalMethod,
@@ -225,7 +225,7 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
         return;
       }
 
-      final token = FFAppState().accessToken;
+      final token = await FFAppState().getActiveAccessToken();
 
       final Map<String, dynamic> body = {
         'amount': double.parse(_amountController.text),
@@ -302,7 +302,7 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
     });
 
     try {
-      final token = FFAppState().accessToken;
+      final token = await FFAppState().getActiveAccessToken();
       if (token.isEmpty) throw Exception('Not authenticated');
 
       final response = await ApiManager.instance.makeApiCall(

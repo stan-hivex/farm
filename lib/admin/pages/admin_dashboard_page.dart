@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/core/theme_extensions.dart';
+import '../core/admin_guard.dart';
 import '../services/admin_api_service.dart';
 import 'add_superadmin_page.dart';
 import 'deposits_management_page.dart';
@@ -19,9 +20,11 @@ class AdminDashboardPage extends StatefulWidget {
 }
 
 class _AdminDashboardPageState extends State<AdminDashboardPage> {
-  Map<String, dynamic>? _stats;
+  Map<String, dynamic> _stats = <String, dynamic>{};
   bool _loading = true;
   String? _error;
+  String _adminName = 'Admin';
+  String _adminRole = 'admin';
 
   @override
   void initState() {
@@ -30,18 +33,70 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   Future<void> _load() async {
+    if (!mounted) return;
+
     setState(() {
       _loading = true;
       _error = null;
+      _stats = <String, dynamic>{};
     });
+
+    debugPrint('Loading admin profile...');
+    try {
+      _adminName = await AdminGuard.getAdminName();
+      _adminRole = await AdminGuard.getAdminRole();
+      debugPrint('Current admin = $_adminName');
+      debugPrint('Permissions = $_adminRole');
+    } catch (e) {
+      debugPrint('Admin profile load failed: $e');
+      _adminName = 'Admin';
+      _adminRole = 'admin';
+    }
+
+    debugPrint('Loading dashboard statistics...');
     try {
       final res = await AdminApiService.getDashboardStats();
-      setState(() => _stats = res['data']);
+      final normalized = _normalizeDashboardPayload(res);
+      if (normalized.isEmpty) {
+        throw Exception('Dashboard payload was empty or malformed.');
+      }
+      if (!mounted) return;
+      setState(() {
+        _stats = normalized;
+      });
+      debugPrint('Dashboard statistics loaded.');
+      debugPrint('Stats payload = $_stats');
     } catch (e) {
-      setState(() => _error = e.toString().replaceAll('Exception: ', ''));
+      debugPrint('Dashboard statistics load failed: $e');
+      if (mounted) {
+        setState(() => _error = e.toString().replaceAll('Exception: ', ''));
+      }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
+  }
+
+  Map<String, dynamic> _normalizeDashboardPayload(dynamic payload) {
+    if (payload is! Map<String, dynamic> && payload is! Map) {
+      debugPrint('Dashboard payload was not a map: ${payload.runtimeType}');
+      return <String, dynamic>{};
+    }
+
+    final root = payload is Map<String, dynamic>
+        ? payload
+        : Map<String, dynamic>.from(payload as Map<dynamic, dynamic>);
+    final maybeData = root['data'];
+    if (maybeData is Map<String, dynamic>) {
+      return maybeData;
+    }
+    if (maybeData is Map) {
+      return Map<String, dynamic>.from(maybeData);
+    }
+
+    debugPrint('Dashboard payload did not contain a usable data map.');
+    return <String, dynamic>{};
   }
 
   void _navigateTo(Widget page) {
@@ -50,10 +105,33 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return Center(child: CircularProgressIndicator());
-    if (_error != null) return _errorView(_error!);
+    if (_loading) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(
+                'Loading dashboard data...',
+                style: GoogleFonts.plusJakartaSans(
+                  color: context.onSurface.withOpacity(0.7),
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
-    final s = _stats ?? {};
+    if (_error != null) {
+      return _errorView(_error ?? 'Unable to load dashboard data.');
+    }
+
+    final s = _stats;
     final bgColor = Colors.white;
     final cardColor = Colors.white;
     final accent = const Color(0xFFEAF2FF);
@@ -116,6 +194,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                       color: context.onSurface,
                       fontSize: 28,
                       fontWeight: FontWeight.w800)),
+              const SizedBox(height: 6),
+              Text(
+                'Signed in as $_adminName ($_adminRole)',
+                style: GoogleFonts.plusJakartaSans(
+                  color: muted,
+                  fontSize: 12,
+                ),
+              ),
               const SizedBox(height: 8),
               Text(
                 'A unified admin control panel for users, deposits, withdrawals, and compliance.',
@@ -489,16 +575,27 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         },
       );
 
-  Widget _errorView(String msg) => Center(
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(Icons.error_outline, size: 48, color: context.errorColor),
-          const SizedBox(height: 12),
-          Text(msg,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.plusJakartaSans(color: context.onSurface)),
-          const SizedBox(height: 16),
-          ElevatedButton(onPressed: _load, child: Text('Retry')),
-        ]),
+  Widget _errorView(String msg) => Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, size: 48, color: context.errorColor),
+                const SizedBox(height: 12),
+                Text(
+                  msg,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.plusJakartaSans(color: context.onSurface),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(onPressed: _load, child: const Text('Retry')),
+              ],
+            ),
+          ),
+        ),
       );
 
   String _fmt(dynamic v) {

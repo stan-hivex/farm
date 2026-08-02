@@ -10,6 +10,7 @@ import '/services/auth/refresh_manager.dart';
 import '/services/secure_storage_service.dart';
 import '/services/app_session_manager.dart';
 import '/services/notification_service.dart';
+import '/services/auth/session_store_service.dart';
 
 /// Centralized authentication service for the FARM app.
 ///
@@ -113,14 +114,16 @@ class AuthService {
       final backendUser = responseData['user'] as Map<String, dynamic>?;
 
       // Backend handles all authentication directly - no intermediate verification needed
-      // Save tokens regardless of platform
       if (farmJwt.isNotEmpty) {
-        _persistSessionTokens(
+        await _persistSessionTokens(
           farmJwt: farmJwt,
           refreshToken: refreshToken,
           backendUser: backendUser,
         );
-        await NotificationService.registerForCurrentUser();
+        final role = backendUser?['role']?.toString().toLowerCase() ?? '';
+        if (role == 'user') {
+          await NotificationService.registerForCurrentUser();
+        }
       }
 
       return {
@@ -157,7 +160,7 @@ class AuthService {
       final backendUser = responseData['user'] as Map<String, dynamic>?;
 
       if (farmJwt.isNotEmpty) {
-        _persistSessionTokens(
+        await _persistSessionTokens(
           farmJwt: farmJwt,
           refreshToken: refreshToken,
           backendUser: backendUser,
@@ -194,7 +197,7 @@ class AuthService {
       final backendUser = responseData['user'] as Map<String, dynamic>?;
 
       if (farmJwt.isNotEmpty) {
-        _persistSessionTokens(
+        await _persistSessionTokens(
           farmJwt: farmJwt,
           refreshToken: refreshToken,
           backendUser: backendUser,
@@ -217,25 +220,62 @@ class AuthService {
     await NotificationService.registerForCurrentUser();
   }
 
-  void _persistSessionTokens({
+  Future<void> _persistSessionTokens({
     required String farmJwt,
     required String refreshToken,
     required Map<String, dynamic>? backendUser,
-  }) {
+  }) async {
+    final role = backendUser is Map<String, dynamic>
+        ? backendUser['role']?.toString().toLowerCase() ?? ''
+        : '';
+    final normalizedRole = role.isEmpty ? 'user' : role;
+
+    if (normalizedRole == 'admin' || normalizedRole == 'super_admin') {
+      FFAppState().accessToken = farmJwt;
+      FFAppState().refreshToken = refreshToken;
+      FFAppState().isLoggedIn = false;
+      FFAppState().userId = backendUser?['id']?.toString() ?? '';
+      FFAppState().firstName = '';
+      FFAppState().userName = '';
+      FFAppState().phone = '';
+      FFAppState().kycStatus = '';
+      FFAppState().emailVerified = false;
+      FFAppState().role = normalizedRole;
+
+      debugPrint('${normalizedRole.toUpperCase()} login detected.');
+      debugPrint('Saving ${normalizedRole == 'admin' ? 'AdminSession' : 'SuperAdminSession'}...');
+      debugPrint('Access token length: ${farmJwt.length}');
+      debugPrint('Refresh token length: ${refreshToken.length}');
+      debugPrint('Role: ${normalizedRole.toUpperCase()}');
+      await AuthSessionStore.saveRoleSession(
+        role: normalizedRole,
+        accessToken: farmJwt,
+        refreshToken: refreshToken,
+        userId: backendUser?['id']?.toString() ?? '',
+      );
+      debugPrint('Skipping biometric setup.');
+      return;
+    }
+
+    final backendData = backendUser!;
     FFAppState().accessToken = farmJwt;
     FFAppState().refreshToken = refreshToken;
     FFAppState().isLoggedIn = farmJwt.isNotEmpty;
-    if (backendUser is Map<String, dynamic>) {
-      FFAppState().userId = backendUser['id']?.toString() ?? '';
-      FFAppState().firstName = backendUser['first_name']?.toString() ?? '';
-      FFAppState().userName = backendUser['username']?.toString() ?? '';
-      FFAppState().phone = backendUser['phone']?.toString() ?? '';
-      FFAppState().kycStatus = backendUser['kyc_status']?.toString() ?? '';
-      FFAppState().emailVerified = backendUser['email_verified'] == true;
-      FFAppState().role = backendUser['role']?.toString() ?? 'user';
-    }
+    FFAppState().userId = backendData['id']?.toString() ?? '';
+    FFAppState().firstName = backendData['first_name']?.toString() ?? '';
+    FFAppState().userName = backendData['username']?.toString() ?? '';
+    FFAppState().phone = backendData['phone']?.toString() ?? '';
+    FFAppState().kycStatus = backendData['kyc_status']?.toString() ?? '';
+    FFAppState().emailVerified = backendData['email_verified'] == true;
+    FFAppState().role = normalizedRole;
+    await AuthSessionStore.saveUserSession(
+      accessToken: farmJwt,
+      refreshToken: refreshToken,
+      role: normalizedRole,
+      userId: backendData['id']?.toString() ?? '',
+    );
 
-    debugPrint('[AuthService] Login completed, starting background syncNow.');
+    debugPrint('[AuthService] Login completed. Starting background user syncNow.');
     Future.microtask(() {
       return AppSessionManager().syncNow().catchError((e) {
         debugPrint('[AuthService] syncNow background refresh failed: $e');
@@ -290,6 +330,8 @@ class AuthService {
 
   /// Log out the user from Supabase and FARM backend, and clear all local auth data.
   Future<void> logout() async {
+    print('LOGOUT CALLED');
+    print(StackTrace.current);
     Exception? logoutError;
 
     try {
@@ -312,8 +354,10 @@ class AuthService {
     }
 
     try {
+      final activeRole = FFAppState().role;
       await SecureStorageService.clearAuthData();
       await FFAppState().clearAuthCredentials();
+      await FFAppState().clearRoleSession(activeRole);
     } catch (e) {
       debugPrint('Local clear auth data error: $e');
       logoutError = Exception('Local logout cleanup failed: $e');
@@ -325,6 +369,8 @@ class AuthService {
   }
 
   Future<void> deleteAccount() async {
+    print('LOGOUT CALLED');
+    print(StackTrace.current);
     try {
       await ApiService.deleteAccount();
     } catch (e) {

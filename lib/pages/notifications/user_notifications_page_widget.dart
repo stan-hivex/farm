@@ -113,10 +113,21 @@ class _UserNotificationsPageWidgetState extends State<UserNotificationsPageWidge
     }
   }
 
+  String _notificationType(Map<String, dynamic> item) {
+    final metadata = item['metadata'];
+    if (metadata is Map<String, dynamic>) {
+      final event = metadata['event']?.toString().toLowerCase();
+      if (event != null && event.isNotEmpty) {
+        return event;
+      }
+    }
+    return item['type']?.toString().toLowerCase() ?? item['source']?.toString().toLowerCase() ?? '';
+  }
+
   String _notificationGroupKey(Map<String, dynamic> item) {
     final title = item['title']?.toString().toLowerCase() ?? '';
     final body = item['body']?.toString().toLowerCase() ?? item['message']?.toString().toLowerCase() ?? '';
-    final type = item['type']?.toString().toLowerCase() ?? item['source']?.toString().toLowerCase() ?? '';
+    final type = _notificationType(item);
 
     if (title.contains('login') || body.contains('login') || type.contains('login')) {
       return 'login';

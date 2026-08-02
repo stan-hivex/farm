@@ -44,6 +44,16 @@ class ApiService {
       if (requiresAuth && token.isNotEmpty) 'Authorization': 'Bearer $token',
     };
 
+    debugPrint('[ApiService] REQUEST $method $path requiresAuth=$requiresAuth tokenPresent=${token.isNotEmpty} tokenLength=${token.length}');
+    debugPrint('[ApiService] REQUEST HEADERS ${headers.toString()}');
+    if (body != null) {
+      try {
+        debugPrint('[ApiService] REQUEST BODY ${jsonEncode(body)}');
+      } catch (_) {
+        debugPrint('[ApiService] REQUEST BODY (non-json) $body');
+      }
+    }
+
     http.Response response;
     final start = DateTime.now();
     debugPrint('[ApiService] START $method $path @ $start');
@@ -372,9 +382,9 @@ class ApiService {
   }) =>
       _request(
         method: 'POST',
-        path: '/notifications/register-device',
+        path: '/auth/device-token',
         body: {
-          'deviceToken': token,
+          'token': token,
           if (platform != null) 'platform': platform,
         },
       );

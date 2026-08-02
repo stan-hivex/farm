@@ -16,11 +16,13 @@ class NormalizedNotification {
   });
 
   factory NormalizedNotification.fromMap(Map<String, dynamic> map) {
+    final metadata = map['metadata'];
+    final metadataEvent = metadata is Map<String, dynamic> ? metadata['event']?.toString() : null;
     return NormalizedNotification(
       id: map['id']?.toString() ?? '',
       title: map['title']?.toString() ?? '',
       body: map['body']?.toString() ?? '',
-      source: map['source']?.toString() ?? map['type']?.toString() ?? 'Notification',
+      source: metadataEvent ?? map['source']?.toString() ?? map['type']?.toString() ?? 'Notification',
       isRead: map['is_read'] == true || map['isRead'] == true,
       timestamp: map['timestamp']?.toString() ?? map['created_at']?.toString() ?? '',
     );

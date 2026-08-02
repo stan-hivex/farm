@@ -532,9 +532,19 @@ class ApiManager {
       apiUrl = 'https://$apiUrl';
     }
 
+    debugPrint('[ApiManager] makeApiCall callName=$callName apiUrl=$apiUrl callType=$callType cache=$cache isStreamingApi=$isStreamingApi');
+    debugPrint('[ApiManager] makeApiCall headers=${toStringMap(headers)}');
+    if (params.isNotEmpty) {
+      debugPrint('[ApiManager] makeApiCall params=$params');
+    }
+    if (body != null) {
+      debugPrint('[ApiManager] makeApiCall body=$body');
+    }
+
     // If we've already made this exact call before and caching is on,
     // return the cached result.
     if (cache && _apiCache.containsKey(callOptions)) {
+      debugPrint('[ApiManager] makeApiCall returning cached result for $callName');
       return _apiCache[callOptions]!;
     }
 

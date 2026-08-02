@@ -130,11 +130,17 @@ class NotificationService {
     final body = notification?.body ?? payload['body']?.toString() ?? '';
     if (title.isEmpty && body.isEmpty) return;
 
+    final displayTitle = title.isNotEmpty ? title : 'FARM';
+    final displayBody = body.isNotEmpty ? body : 'You have a new notification';
+    final summary = payload['type']?.toString().contains('transfer') == true
+        ? 'Transfer update'
+        : 'New update';
+
     await _localNotifications.show(
       id: message.hashCode,
-      title: title,
-      body: body,
-      notificationDetails: const NotificationDetails(
+      title: displayTitle,
+      body: displayBody,
+      notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           'farm_notifications',
           'FARM notifications',
@@ -142,8 +148,19 @@ class NotificationService {
           importance: Importance.high,
           priority: Priority.high,
           icon: '@mipmap/ic_launcher',
+          styleInformation: BigTextStyleInformation(
+            displayBody,
+            contentTitle: displayTitle,
+            summaryText: summary,
+          ),
+          category: AndroidNotificationCategory.message,
+          ticker: displayTitle,
         ),
-        iOS: DarwinNotificationDetails(),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
       ),
       payload: jsonEncode(payload),
     );
@@ -173,7 +190,10 @@ class NotificationService {
     final context = appNavigatorKey.currentContext;
     if (payload == null || context == null) return;
 
-    final type = (payload['type'] ?? 'general').toString().toLowerCase();
+    final metadata = payload['metadata'];
+    final type = metadata is Map<String, dynamic>
+        ? metadata['event']?.toString().toLowerCase() ?? payload['type']?.toString().toLowerCase() ?? 'general'
+        : payload['type']?.toString().toLowerCase() ?? 'general';
     String route;
     if (type.contains('transfer')) {
       route = '/allTransactions';
