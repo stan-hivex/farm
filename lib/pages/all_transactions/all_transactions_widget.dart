@@ -191,20 +191,28 @@ class _AllTransactionsWidgetState extends State<AllTransactionsWidget> {
   Widget build(BuildContext context) {
     final theme = FlutterFlowTheme.of(context);
 
-    return Scaffold(
-      backgroundColor: theme.primaryBackground,
-      appBar: AppBar(
-        title: const Text('Transactions'),
+    return WillPopScope(
+      onWillPop: () async {
+        if (Navigator.of(context).canPop()) {
+          return true;
+        }
+        context.goNamed('Dashboard');
+        return false;
+      },
+      child: Scaffold(
         backgroundColor: theme.primaryBackground,
-        elevation: 0,
-      ),
-      body: RefreshIndicator(
-        onRefresh: _loadTransactions,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: context.responsiveBody(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        appBar: AppBar(
+          title: const Text('Transactions'),
+          backgroundColor: theme.primaryBackground,
+          elevation: 0,
+        ),
+        body: RefreshIndicator(
+          onRefresh: _loadTransactions,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: context.responsiveBody(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Your transaction history',
@@ -398,6 +406,7 @@ class _AllTransactionsWidgetState extends State<AllTransactionsWidget> {
           ),
         ),
       ),
+    ),
     );
   }
 

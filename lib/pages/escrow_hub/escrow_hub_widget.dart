@@ -862,30 +862,38 @@ class _EscrowHubWidgetState extends State<EscrowHubWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
+    return WillPopScope(
+      onWillPop: () async {
+        if (Navigator.of(context).canPop()) {
+          return true;
+        }
+        context.goNamed('Dashboard');
+        return false;
       },
-      child: Scaffold(
-        key: scaffoldKey,
-        backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: showCreateEscrowDialog,
-          backgroundColor: FlutterFlowTheme.of(context).primaryText,
-          label: Text(
-            'Create Escrow',
-            style: TextStyle(
+      child: GestureDetector(
+        onTap: () {
+          FocusScope.of(context).unfocus();
+        },
+        child: Scaffold(
+          key: scaffoldKey,
+          backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: showCreateEscrowDialog,
+            backgroundColor: FlutterFlowTheme.of(context).primaryText,
+            label: Text(
+              'Create Escrow',
+              style: TextStyle(
+                color: FlutterFlowTheme.of(context).primaryBackground,
+              ),
+            ),
+            icon: Icon(
+              Icons.add,
               color: FlutterFlowTheme.of(context).primaryBackground,
             ),
           ),
-          icon: Icon(
-            Icons.add,
-            color: FlutterFlowTheme.of(context).primaryBackground,
-          ),
-        ),
-        body: SafeArea(
-          child: Column(
-            children: [
+          body: SafeArea(
+            child: Column(
+              children: [ 
               Padding(
                 padding: const EdgeInsets.all(24),
                 child: Row(
@@ -899,7 +907,11 @@ class _EscrowHubWidgetState extends State<EscrowHubWidget> {
                         color: FlutterFlowTheme.of(context).primaryText,
                       ),
                       onPressed: () {
-                        context.goNamed('Dashboard');
+                        if (Navigator.of(context).canPop()) {
+                          Navigator.of(context).pop();
+                        } else {
+                          context.goNamed('Dashboard');
+                        }
                       },
                     ),
                     Text(
@@ -1077,6 +1089,7 @@ class _EscrowHubWidgetState extends State<EscrowHubWidget> {
           ),
         ),
       ),
+    ),
     );
   }
 }

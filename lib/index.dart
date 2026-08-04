@@ -33,13 +33,18 @@ export '/pages/biometric_unlock_page/biometric_unlock_page_widget.dart'
     show BiometricUnlockPageWidget;
 export '/pages/settings/notification_settings_page.dart'
     show NotificationSettingsPageWidget;
+export '/pages/payment_requests/money_request_approval_page.dart'
+    show MoneyRequestApprovalPage;
 export '/pages/settings/language_settings_page.dart'
     show LanguageSettingsPageWidget;
 export '/pages/settings/support_help_center_page.dart'
     show SupportHelpCenterPageWidget;
+export '/pages/settings/delete_account_page.dart'
+    show DeleteAccountPageWidget;
 export '/pages/all_transactions/all_transactions_widget.dart'
     show AllTransactionsWidget;
 export '/pages/superadmin/superadmin_dashboard_page.dart'
     show SuperadminDashboardPage;
+export '/pages/superadmin/add_admin_page.dart' show AddAdminPage;
 export '/pages/superadmin/superadmin_wallet_page.dart'
     show SuperadminWalletPage;

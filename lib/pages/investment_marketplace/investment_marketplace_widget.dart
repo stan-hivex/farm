@@ -114,16 +114,24 @@ class _InvestmentMarketplaceWidgetState
   Widget build(BuildContext context) {
     final totalRaised = _totalRaised();
 
-    return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
-        FocusManager.instance.primaryFocus?.unfocus();
+    return WillPopScope(
+      onWillPop: () async {
+        if (Navigator.of(context).canPop()) {
+          return true;
+        }
+        context.goNamed('Dashboard');
+        return false;
       },
-      child: Scaffold(
-        backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
-        body: Column(
-          mainAxisSize: MainAxisSize.max,
-          children: [
+      child: GestureDetector(
+        onTap: () {
+          FocusScope.of(context).unfocus();
+          FocusManager.instance.primaryFocus?.unfocus();
+        },
+        child: Scaffold(
+          backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
+          body: Column(
+            mainAxisSize: MainAxisSize.max,
+            children: [ 
             Container(
               decoration: BoxDecoration(
                 color: FlutterFlowTheme.of(context).primaryBackground,
@@ -314,6 +322,7 @@ class _InvestmentMarketplaceWidgetState
           ],
         ),
       ),
+    ),
     );
   }
 }

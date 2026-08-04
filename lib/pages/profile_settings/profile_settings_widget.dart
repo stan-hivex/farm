@@ -1012,29 +1012,52 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                   child: Container(
                     child: Padding(
                       padding: const EdgeInsets.all(24.0),
-                      child: Container(
-                        child: wrapWithModel(
-                          model: _model.buttonModel,
-                          updateCallback: () => safeSetState(() {}),
-                          child: ButtonWidget(
-                            content: 'Sign Out',
-                            icon: Icon(
-                              Icons.logout_rounded,
-                              color: FlutterFlowTheme.of(context).primaryText,
-                              size: 16.0,
+                      child: Column(
+                        children: [
+                          Container(
+                            child: wrapWithModel(
+                              model: _model.buttonModel,
+                              updateCallback: () => safeSetState(() {}),
+                              child: ButtonWidget(
+                                content: 'Sign Out',
+                                icon: Icon(
+                                  Icons.logout_rounded,
+                                  color: FlutterFlowTheme.of(context).primaryText,
+                                  size: 16.0,
+                                ),
+                                icon_present: true,
+                                icon_end_present: false,
+                                on_tap: '',
+                                onTapCallback: logoutUser,
+                                color: FlutterFlowTheme.of(context).primaryText,
+                                variant: 'outline',
+                                size: 'medium',
+                                full_width: true,
+                                loading: false,
+                                disabled: false,
+                              ),
                             ),
-                            icon_present: true,
-                            icon_end_present: false,
-                            on_tap: '',
-                            onTapCallback: logoutUser,
-                            color: FlutterFlowTheme.of(context).primaryText,
-                            variant: 'outline',
-                            size: 'medium',
-                            full_width: true,
-                            loading: false,
-                            disabled: false,
                           ),
-                        ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                context.pushNamed('delete_account_page');
+                              },
+                              icon: const Icon(Icons.delete_forever_rounded),
+                              label: const Text('Delete Account'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.redAccent,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),

@@ -32,7 +32,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
   double walletBalance = 0;
   List<dynamic> recentDeposits = [];
 
-  // Fee percentages per method — keep in sync with backend fee_configurations
+  // Deposit fees are disabled. The amount entered by the user is the amount credited.
   final Map<String, double> _feeRates = {
     'CARD': 0.0,
     'BANK_TRANSFER': 0.0,
@@ -40,10 +40,43 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
     'CRYPTO': 0.0,
   };
 
+  final Map<String, Map<String, double?>> _depositLimits = {
+    'CARD': {'min': 10, 'max': 19999},
+    'BANK_TRANSFER': {'min': 10, 'max': 999999},
+    'MOBILE_MONEY': {'min': 10, 'max': 249000},
+    'CRYPTO': {'min': 100, 'max': null},
+  };
+
   double get amount => double.tryParse(amountController.text.trim()) ?? 0;
   double get feeRate => _feeRates[selectedMethod] ?? 0.02;
   double get fee => amount * feeRate;
   double get total => amount + fee;
+
+  Map<String, double?> get _activeDepositLimits =>
+      _depositLimits[selectedMethod] ?? _depositLimits['CARD']!;
+  double get _activeDepositMin => _activeDepositLimits['min'] ?? 10;
+  double? get _activeDepositMax => _activeDepositLimits['max'];
+  bool get _hasValidDepositAmount =>
+      amount > 0 &&
+      amount >= _activeDepositMin &&
+      (_activeDepositMax == null || amount <= _activeDepositMax!);
+  String _formatAmount(double value) {
+    final formatter = NumberFormat('#,##0', 'en_US');
+    return formatter.format(value);
+  }
+
+  String get _depositValidationMessage {
+    if (amount <= 0) {
+      return 'Range: KES ${_formatAmount(_activeDepositMin)}${_activeDepositMax == null ? '+' : ' - KES ${_formatAmount(_activeDepositMax!)}'}';
+    }
+    if (_hasValidDepositAmount) {
+      return 'Range: KES ${_formatAmount(_activeDepositMin)}${_activeDepositMax == null ? '+' : ' - KES ${_formatAmount(_activeDepositMax!)}'}';
+    }
+    final maxText = _activeDepositMax == null
+        ? ' and above'
+        : ' and KES ${_formatAmount(_activeDepositMax!)}';
+    return 'Amount must be between KES ${_formatAmount(_activeDepositMin)}$maxText';
+  }
 
   @override
   void initState() {
@@ -110,8 +143,8 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
   Future<void> _createDeposit() async {
     if (isLoading) return;
 
-    if (amount < 10) {
-      _snack('Minimum deposit is KES 10');
+    if (!_hasValidDepositAmount) {
+      _snack(_depositValidationMessage);
       return;
     }
 
@@ -433,6 +466,17 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                 ),
               ),
 
+              const SizedBox(height: 8),
+              Text(
+                _depositValidationMessage,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  color: amount > 0 && !_hasValidDepositAmount
+                      ? Colors.redAccent
+                      : theme.secondaryText,
+                ),
+              ),
+
               const SizedBox(height: 24),
 
               // Payment method
@@ -508,7 +552,8 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),
                   ),
-                  onPressed: (isLoading || amount <= 0) ? null : _createDeposit,
+                  onPressed:
+                      (isLoading || !_hasValidDepositAmount) ? null : _createDeposit,
                   child: isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
                       : Text('Deposit Funds',

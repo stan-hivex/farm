@@ -64,11 +64,11 @@ class _BiometricPinFieldState extends State<BiometricPinField> {
     });
 
     try {
-      final authResult = await TransactionAuthorizationService().authorizeTransaction(
+      final authResult = await TransactionAuthenticationService().authenticateTransaction(
         localizedReason: widget.localizedReason,
-      ).then((r) => r.toTransactionAuthenticationResult());
+      );
 
-      if (authResult == null) {
+      if (authResult.outcome == TransactionAuthenticationOutcome.pinRequired) {
         setState(() => _pinEntryEnabled = true);
         widget.focusNode.requestFocus();
         return const TransactionAuthenticationResult(outcome: TransactionAuthenticationOutcome.pinRequired);

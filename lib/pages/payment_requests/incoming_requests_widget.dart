@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '/app_state.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/backend/api_requests/payment_request_api_service.dart';
 import '/services/app_session_manager.dart';
@@ -111,6 +110,7 @@ class _IncomingRequestsWidgetState extends State<IncomingRequestsWidget> {
                 final r = list[i] as Map<String, dynamic>;
                 final requester = r['users_requester'] ?? {};
                 return ListTile(
+                  onTap: () => context.push('/money-request-approval/${r['id']}'),
                   title: Text(requester['username'] ?? 'User'),
                   subtitle: Text('${(r['amount'] as num).toString()} FARM'),
                   trailing: Row(mainAxisSize: MainAxisSize.min, children: [

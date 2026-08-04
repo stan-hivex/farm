@@ -50,7 +50,7 @@ class _QuickActionWidgetState extends State<QuickActionWidget> {
       onTap: () {
         if (widget.action.startsWith('navigate:')) {
           final routeName = widget.action.replaceFirst('navigate:', '');
-          context.goNamed(routeName);
+          context.pushNamed(routeName);
         }
       },
       child: Column(

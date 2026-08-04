@@ -6,9 +6,9 @@ import '/app_state.dart';
 import '/core/app_config.dart';
 import '/backend/api_requests/api_manager.dart';
 import '/pages/loginpage/loginpage_widget.dart';
+import '/pages/superadmin/add_admin_page.dart';
 import '/pages/superadmin/superadmin_wallet_page.dart';
 import '/services/auth/session_store_service.dart';
-import 'dart:convert';
 
 class SuperadminDashboardPage extends StatefulWidget {
   const SuperadminDashboardPage({super.key});
@@ -35,15 +35,6 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
   String? _usersError;
   bool _processingUserAction = false;
 
-  final _createAdminFormKey = GlobalKey<FormState>();
-  final TextEditingController _adminFirstNameCtrl = TextEditingController();
-  final TextEditingController _adminLastNameCtrl = TextEditingController();
-  final TextEditingController _adminUsernameCtrl = TextEditingController();
-  final TextEditingController _adminPhoneCtrl = TextEditingController();
-  final TextEditingController _adminEmailCtrl = TextEditingController();
-  final TextEditingController _adminCountryCtrl = TextEditingController();
-  final TextEditingController _adminPasswordCtrl = TextEditingController();
-  final TextEditingController _adminConfirmPasswordCtrl = TextEditingController();
   bool _isCreatingAdmin = false;
 
   @override
@@ -104,14 +95,6 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
 
   @override
   void dispose() {
-    _adminFirstNameCtrl.dispose();
-    _adminLastNameCtrl.dispose();
-    _adminUsernameCtrl.dispose();
-    _adminPhoneCtrl.dispose();
-    _adminEmailCtrl.dispose();
-    _adminCountryCtrl.dispose();
-    _adminPasswordCtrl.dispose();
-    _adminConfirmPasswordCtrl.dispose();
     _kesToFarmCtrl.dispose();
     _farmToKesCtrl.dispose();
     super.dispose();
@@ -132,18 +115,6 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
       debugPrint('[SuperadminDashboardPage] navigating to ${LoginpageWidget.routePath}');
       context.go(LoginpageWidget.routePath);
     }
-  }
-
-  void _resetAdminForm() {
-    _createAdminFormKey.currentState?.reset();
-    _adminFirstNameCtrl.clear();
-    _adminLastNameCtrl.clear();
-    _adminUsernameCtrl.clear();
-    _adminPhoneCtrl.clear();
-    _adminEmailCtrl.clear();
-    _adminCountryCtrl.clear();
-    _adminPasswordCtrl.clear();
-    _adminConfirmPasswordCtrl.clear();
   }
 
   Future<void> _loadExchangeRates() async {
@@ -535,68 +506,12 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
     );
   }
 
-  Future<void> _createAdmin() async {
-    setState(() => _isCreatingAdmin = true);
-    try {
-      final token = await FFAppState().getActiveAccessToken();
-      if (token.isEmpty) {
-        throw Exception('Not authenticated');
-      }
-
-      final body = jsonEncode({
-        'first_name': _adminFirstNameCtrl.text.trim(),
-        'last_name': _adminLastNameCtrl.text.trim(),
-        'username': _adminUsernameCtrl.text.trim(),
-        'phone': _adminPhoneCtrl.text.trim(),
-        'email': _adminEmailCtrl.text.trim(),
-        'country': _adminCountryCtrl.text.trim(),
-        'password': _adminPasswordCtrl.text,
-      });
-
-      final response = await ApiManager.instance.makeApiCall(
-        callName: 'superadminCreateAdmin',
-        apiUrl: '${AppConfig.api}/admin/superadmin/create',
-        callType: ApiCallType.POST,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        params: {},
-        body: body,
-        bodyType: BodyType.JSON,
-        returnBody: true,
-      );
-
-      final decoded = response.jsonBody as Map<String, dynamic>?;
-      final message = decoded?['message'] ?? 'Admin created successfully';
-
-      if (response.succeeded) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(message),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-        _resetAdminForm();
-        await _loadDashboardData();
-        await _loadUsers();
-      } else {
-        throw Exception(message);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString().replaceAll('Exception: ', '')}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isCreatingAdmin = false);
-    }
+  Future<void> _openAddAdminPage() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const AddAdminPage()),
+    );
+    await _loadDashboardData();
+    await _loadUsers();
   }
 
   @override
@@ -951,197 +866,17 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
             ],
           ),
           const SizedBox(height: 22),
-          Form(
-            key: _createAdminFormKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Admin details',
-                  style: GoogleFonts.plusJakartaSans(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildLabel('First Name'),
-                          const SizedBox(height: 8),
-                          TextFormField(
-                            controller: _adminFirstNameCtrl,
-                            style: const TextStyle(color: Colors.white),
-                            decoration: _inputDecoration('First name'),
-                            validator: (value) => value?.isEmpty ?? true ? 'First name is required' : null,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildLabel('Last Name'),
-                          const SizedBox(height: 8),
-                          TextFormField(
-                            controller: _adminLastNameCtrl,
-                            style: const TextStyle(color: Colors.white),
-                            decoration: _inputDecoration('Last name'),
-                            validator: (value) => value?.isEmpty ?? true ? 'Last name is required' : null,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _buildLabel('Username'),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _adminUsernameCtrl,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: _inputDecoration('Username'),
-                  validator: (value) {
-                    if (value?.isEmpty ?? true) return 'Username is required';
-                    if (value!.length < 3) return 'Username must be at least 3 characters';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildLabel('Email'),
-                          const SizedBox(height: 8),
-                          TextFormField(
-                            controller: _adminEmailCtrl,
-                            style: const TextStyle(color: Colors.white),
-                            decoration: _inputDecoration('Email'),
-                            keyboardType: TextInputType.emailAddress,
-                            validator: (value) {
-                              if (value?.isEmpty ?? true) return 'Email is required';
-                              if (!value!.contains('@')) return 'Enter a valid email';
-                              return null;
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildLabel('Phone'),
-                          const SizedBox(height: 8),
-                          TextFormField(
-                            controller: _adminPhoneCtrl,
-                            style: const TextStyle(color: Colors.white),
-                            decoration: _inputDecoration('Phone'),
-                            keyboardType: TextInputType.phone,
-                            validator: (value) => value?.isEmpty ?? true ? 'Phone is required' : null,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _buildLabel('Country'),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _adminCountryCtrl,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: _inputDecoration('Country'),
-                  validator: (value) => value?.isEmpty ?? true ? 'Country is required' : null,
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildLabel('Password'),
-                          const SizedBox(height: 8),
-                          TextFormField(
-                            controller: _adminPasswordCtrl,
-                            style: const TextStyle(color: Colors.white),
-                            decoration: _inputDecoration('Password'),
-                            obscureText: true,
-                            validator: (value) {
-                              if (value?.isEmpty ?? true) return 'Password is required';
-                              if (value!.length < 8) return 'Password must be at least 8 characters';
-                              return null;
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildLabel('Confirm Password'),
-                          const SizedBox(height: 8),
-                          TextFormField(
-                            controller: _adminConfirmPasswordCtrl,
-                            style: const TextStyle(color: Colors.white),
-                            decoration: _inputDecoration('Confirm Password'),
-                            obscureText: true,
-                            validator: (value) {
-                              if (value?.isEmpty ?? true) return 'Confirm password is required';
-                              if (value != _adminPasswordCtrl.text) return 'Passwords do not match';
-                              return null;
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _isCreatingAdmin ? null : _createAdmin,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: accent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: _isCreatingAdmin
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
-                            ),
-                          )
-                        : Text(
-                            'Create Admin',
-                            style: GoogleFonts.plusJakartaSans(
-                              color: Colors.black,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 15,
-                            ),
-                          ),
-                  ),
-                ),
-              ],
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton.icon(
+              onPressed: _isCreatingAdmin ? null : _openAddAdminPage,
+              icon: const Icon(Icons.person_add_alt_1_rounded, color: Colors.black),
+              label: Text('Create Admin', style: GoogleFonts.plusJakartaSans(color: Colors.black, fontWeight: FontWeight.w700, fontSize: 15)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: accent,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
             ),
           ),
         ],

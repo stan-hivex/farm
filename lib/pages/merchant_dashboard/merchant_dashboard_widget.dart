@@ -440,13 +440,6 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                _openQrKit();
-              },
-              child: const Text('OPEN'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
                 _shareQrKit();
               },
               child: const Text('SHARE'),

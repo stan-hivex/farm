@@ -2385,6 +2385,7 @@ file:///C:/farm/lib/pages/notifications/user_notifications_page_widget.dart
 file:///C:/farm/lib/pages/onboarding/onboarding_model.dart
 file:///C:/farm/lib/pages/onboarding/onboarding_widget.dart
 file:///C:/farm/lib/pages/payment_requests/incoming_requests_widget.dart
+file:///C:/farm/lib/pages/payment_requests/money_request_approval_page.dart
 file:///C:/farm/lib/pages/payment_requests/request_money_widget.dart
 file:///C:/farm/lib/pages/pin_setup_page/pin_setup_page_model.dart
 file:///C:/farm/lib/pages/pin_setup_page/pin_setup_page_widget.dart
@@ -2396,7 +2397,9 @@ file:///C:/farm/lib/pages/q_r_scanner/q_r_scanner_widget.dart
 file:///C:/farm/lib/pages/registerpage/registerpage_model.dart
 file:///C:/farm/lib/pages/registerpage/registerpage_widget.dart
 file:///C:/farm/lib/pages/reset_password_page/reset_password_page_widget.dart
+file:///C:/farm/lib/pages/send_receive/all_requests_widget.dart
 file:///C:/farm/lib/pages/send_receive/send_receive_widget.dart
+file:///C:/farm/lib/pages/settings/delete_account_page.dart
 file:///C:/farm/lib/pages/settings/language_settings_page.dart
 file:///C:/farm/lib/pages/settings/notification_settings_page.dart
 file:///C:/farm/lib/pages/settings/support_help_center_page.dart
@@ -2410,6 +2413,7 @@ file:///C:/farm/lib/pages/withdrawpage/withdrawpage_widget.dart
 file:///C:/farm/lib/services/app_session_manager.dart
 file:///C:/farm/lib/services/auth/auth_service.dart
 file:///C:/farm/lib/services/auth/biometric_login_service.dart
+file:///C:/farm/lib/services/auth/delete_account_validator.dart
 file:///C:/farm/lib/services/auth/refresh_manager.dart
 file:///C:/farm/lib/services/auth/route_guard_service.dart
 file:///C:/farm/lib/services/auth/session_store_service.dart

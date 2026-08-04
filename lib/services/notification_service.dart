@@ -3,10 +3,11 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
 import '/backend/services/api_service.dart';
 import '/flutter_flow/flutter_flow_util.dart';
+import '/pages/payment_requests/money_request_approval_page.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -136,6 +137,25 @@ class NotificationService {
         ? 'Transfer update'
         : 'New update';
 
+    final requestId = payload['request_id']?.toString();
+    final isMoneyRequest = payload['type']?.toString().toLowerCase().contains('request') == true || payload['type']?.toString().toLowerCase().contains('payment') == true;
+    final context = appNavigatorKey.currentContext;
+    if (context != null && requestId != null && requestId.isNotEmpty && isMoneyRequest) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        showDialog(
+          context: context,
+          builder: (dialogContext) => Dialog(
+            insetPadding: const EdgeInsets.all(16),
+            child: SizedBox(
+              width: 500,
+              child: MoneyRequestApprovalPage(requestId: requestId, compact: true),
+            ),
+          ),
+        );
+      });
+    }
+
     await _localNotifications.show(
       id: message.hashCode,
       title: displayTitle,
@@ -195,10 +215,11 @@ class NotificationService {
         ? metadata['event']?.toString().toLowerCase() ?? payload['type']?.toString().toLowerCase() ?? 'general'
         : payload['type']?.toString().toLowerCase() ?? 'general';
     String route;
+    final requestId = payload['request_id']?.toString() ?? payload['entityId']?.toString() ?? '';
     if (type.contains('transfer')) {
       route = '/allTransactions';
     } else if (type.contains('request')) {
-      route = '/incoming-requests';
+      route = requestId.isNotEmpty ? '/money-request-approval/$requestId' : '/incoming-requests';
     } else if (type.contains('deposit')) {
       route = '/depositpage';
     } else if (type.contains('withdraw')) {

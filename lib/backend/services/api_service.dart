@@ -88,7 +88,11 @@ class ApiService {
           break;
         case 'DELETE':
           response = await _client
-              .delete(uri, headers: headers)
+              .delete(
+                uri,
+                headers: headers,
+                body: body != null ? jsonEncode(body) : null,
+              )
               .timeout(Duration(seconds: timeoutSeconds));
           break;
         default:
@@ -411,8 +415,20 @@ class ApiService {
         requiresAuth: false,
       );
 
-  static Future<Map<String, dynamic>> deleteAccount() =>
-      _request(method: 'DELETE', path: '/auth/delete-account');
+  static Future<Map<String, dynamic>> deleteAccount({
+    required String password,
+    required bool acknowledged,
+    required bool confirmDelete,
+  }) =>
+      _request(
+        method: 'DELETE',
+        path: '/auth/delete-account',
+        body: {
+          'password': password,
+          'acknowledged': acknowledged,
+          'confirm_delete': confirmDelete,
+        },
+      );
 
   // ── Wallet ────────────────────────────────────────────────────────────────
     static Future<Map<String, dynamic>> getWallet({int timeoutSeconds = 20}) =>

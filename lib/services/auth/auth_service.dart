@@ -37,6 +37,21 @@ class AuthService {
 
   AuthService._internal();
 
+  static Map<String, dynamic> normalizeLoginResponse(Map<String, dynamic> response) {
+    final responseData = response['data'] as Map<String, dynamic>? ?? {};
+    final farmJwt = responseData['access_token'] as String? ?? '';
+    final refreshToken = responseData['refresh_token'] as String? ?? '';
+    final backendUser = responseData['user'] as Map<String, dynamic>? ?? {};
+
+    return {
+      'farmJwt': farmJwt,
+      'refreshToken': refreshToken,
+      'data': responseData,
+      'user': backendUser,
+      'loginMethod': 'backend',
+    };
+  }
+
   SupabaseClient get _supabase => SupabaseConfig.client;
 
   /// Sign up a new user with email and password.
@@ -368,11 +383,17 @@ class AuthService {
     }
   }
 
-  Future<void> deleteAccount() async {
-    print('LOGOUT CALLED');
-    print(StackTrace.current);
+  Future<void> deleteAccount({
+    required String password,
+    required bool acknowledged,
+    required bool confirmDelete,
+  }) async {
     try {
-      await ApiService.deleteAccount();
+      await ApiService.deleteAccount(
+        password: password,
+        acknowledged: acknowledged,
+        confirmDelete: confirmDelete,
+      );
     } catch (e) {
       throw Exception('Account deletion failed: $e');
     }

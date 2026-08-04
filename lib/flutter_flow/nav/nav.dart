@@ -150,6 +150,13 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           builder: (context, params) => const IncomingRequestsWidget(),
         ),
         FFRoute(
+          name: MoneyRequestApprovalPage.routeName,
+          path: MoneyRequestApprovalPage.routePath,
+          builder: (context, params) => MoneyRequestApprovalPage(
+            requestId: params.getParam('requestId', ParamType.String) ?? '',
+          ),
+        ),
+        FFRoute(
           name: AllTransactionsWidget.routeName,
           path: AllTransactionsWidget.routePath,
           builder: (context, params) => const AllTransactionsWidget(),
@@ -225,9 +232,19 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           builder: (context, params) => const SupportHelpCenterPageWidget(),
         ),
         FFRoute(
+          name: DeleteAccountPageWidget.routeName,
+          path: DeleteAccountPageWidget.routePath,
+          builder: (context, params) => const DeleteAccountPageWidget(),
+        ),
+        FFRoute(
           name: SuperadminDashboardPage.routeName,
           path: SuperadminDashboardPage.routePath,
           builder: (context, params) => const SuperadminDashboardPage(),
+        ),
+        FFRoute(
+          name: AddAdminPage.routeName,
+          path: AddAdminPage.routePath,
+          builder: (context, params) => const AddAdminPage(),
         ),
         FFRoute(
           name: SuperadminWalletPage.routeName,

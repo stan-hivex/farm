@@ -1,7 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import '/backend/services/api_service.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
-import '/core/theme_extensions.dart';
 import '/services/notification_feedback_service.dart';
 
 class UserNotificationsPageWidget extends StatefulWidget {
@@ -190,19 +189,6 @@ class _UserNotificationsPageWidgetState extends State<UserNotificationsPageWidge
       return 'KYC status updated. Tap to view the latest verification result.';
     }
     return body.isNotEmpty ? body : latest['title']?.toString() ?? 'Notification';
-  }
-
-  bool _groupHasUnread(List<Map<String, dynamic>> items) {
-    return items.any((item) {
-      final read = item['read'] is bool
-          ? item['read'] as bool
-          : item['is_read'] is bool
-              ? item['is_read'] as bool
-              : item['isRead'] is bool
-                  ? item['isRead'] as bool
-                  : false;
-      return !read;
-    });
   }
 
   String _notificationId(Map<String, dynamic> item) => item['id']?.toString() ?? '';
@@ -651,7 +637,6 @@ class _UserNotificationsPageWidgetState extends State<UserNotificationsPageWidge
                             final groupKey = group['key'] as String;
                             final groupLabel = group['label'] as String;
                             final groupCount = items.length;
-                            final groupUnread = _groupHasUnread(items);
                             final preview = _groupPreview(items, groupKey);
                             final latestTimestamp = _displayDateTime(items.first);
                             return Card(
@@ -683,22 +668,6 @@ class _UserNotificationsPageWidgetState extends State<UserNotificationsPageWidge
                                                   ),
                                             ),
                                           ),
-                                          if (groupUnread)
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                              decoration: BoxDecoration(
-                                                color: FlutterFlowTheme.of(context).primary,
-                                                borderRadius: BorderRadius.circular(12),
-                                              ),
-                                              child: Text(
-                                                'New',
-                                                style: FlutterFlowTheme.of(context)
-                                                    .bodySmall
-                                                    .override(
-                                                      color: context.onSurface,
-                                                    ),
-                                              ),
-                                            ),
                                         ],
                                       ),
                                       const SizedBox(height: 8),
@@ -732,29 +701,6 @@ class _UserNotificationsPageWidgetState extends State<UserNotificationsPageWidge
                                             groupLabel,
                                             style: FlutterFlowTheme.of(context).bodySmall,
                                           ),
-                                          if (groupUnread)
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: 10.0,
-                                                vertical: 6.0,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                color: Theme.of(context).brightness == Brightness.dark
-                                                    ? Colors.white
-                                                    : Colors.black,
-                                                borderRadius: BorderRadius.circular(12.0),
-                                              ),
-                                              child: Text(
-                                                '1',
-                                                style: TextStyle(
-                                                  color: Theme.of(context).brightness == Brightness.dark
-                                                      ? Colors.black
-                                                      : Colors.white,
-                                                  fontSize: 12.0,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
                                         ],
                                       ),
                                     ],

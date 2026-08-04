@@ -8,6 +8,8 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/components/kyc_required_widget.dart';
 import '/services/app_session_manager.dart';
 import '/utils/transaction_peer_resolver.dart';
+import '/pages/all_transactions/all_transactions_widget.dart';
+import '/pages/send_receive/all_requests_widget.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -833,6 +835,12 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
     final reference =
         _parseStringValue(tx['transaction_reference'], fallback: 'Transaction');
     final peer = _resolveTransactionPeer(tx, outgoing: outgoing);
+    final txPeerUsername = outgoing
+      ? (tx['recipient_username'] ?? tx['recipient'] ?? null)
+      : (tx['sender_username'] ?? tx['sender'] ?? null);
+    final peerLabelText = txPeerUsername != null && txPeerUsername.toString().trim().isNotEmpty
+      ? '@${txPeerUsername.toString().trim()}'
+      : peer;
     final dateText = _formatTransactionDate(
       tx['created_at'] ?? tx['createdAt'] ?? tx['timestamp'] ?? tx['date'],
     );
@@ -874,7 +882,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  outgoing ? 'To $peer' : 'From $peer',
+                  outgoing ? 'To $peerLabelText' : 'From $peerLabelText',
                   style: TextStyle(
                     color: FlutterFlowTheme.of(context).secondaryText,
                     fontWeight: FontWeight.w600,
@@ -945,19 +953,13 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '$requesterName requested',
+                        '@$requesterUsername requested',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: theme.primaryText,
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        '@$requesterUsername',
-                        style: TextStyle(
-                          color: FlutterFlowTheme.of(context).secondaryText,
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -970,7 +972,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+                      const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
@@ -1085,14 +1087,6 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                           color: FlutterFlowTheme.of(context).secondaryText,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        recipientName,
-                        style: TextStyle(
-                          color: FlutterFlowTheme.of(context).secondaryText,
-                          fontSize: 12,
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -1109,8 +1103,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
             Row(
               children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(999),
@@ -1125,50 +1118,20 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                   ),
                 ),
                 const SizedBox(width: 12),
-                Expanded(
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        if (isActionable)
-                          ElevatedButton(
-                            onPressed: () => _prepareSendFlowFromRequest(
-                              req,
-                              incoming: false,
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: statusColor,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(18),
-                              ),
-                            ),
-                            child: const Text('Accept'),
-                          ),
-                        if (isPending || isActionable)
-                          OutlinedButton(
-                            onPressed: () async {
-                              if (isActionable) {
-                                await cancelTransferRequest(req['id']);
-                              } else {
-                                await cancelTransferRequest(req['id']);
-                              }
-                            },
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: statusColor,
-                              side: BorderSide(color: statusColor),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(18),
-                              ),
-                            ),
-                            child: Text(isActionable ? 'Cancel' : 'Cancel'),
-                          ),
-                      ],
+                if (isPending)
+                  OutlinedButton(
+                    onPressed: () async {
+                      await cancelTransferRequest(req['id']);
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: statusColor,
+                      side: BorderSide(color: statusColor),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
                     ),
+                    child: const Text('Cancel'),
                   ),
-                ),
               ],
             ),
           ],
@@ -1241,7 +1204,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          incoming ? '$personName requested' : 'You requested',
+                          incoming ? '@$personUsername requested' : 'You requested',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -1273,13 +1236,20 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.black
+                          : Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
                       status.toUpperCase(),
-                      style: const TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : Colors.black,
+                      ),
                     ),
                   ),
                 ],
@@ -1428,22 +1398,30 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
     final unselectedTabBackground = theme.primaryBackground;
     final unselectedTabTextColor = theme.primaryText;
 
-    return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
+    return WillPopScope(
+      onWillPop: () async {
+        if (Navigator.of(context).canPop()) {
+          return true;
+        }
+        context.goNamed('Dashboard');
+        return false;
       },
-      child: Scaffold(
-        key: scaffoldKey,
-        backgroundColor: theme.primaryBackground,
-        body: SafeArea(
-          child: !isKycApproved
-              ? const KycRequiredWidget(feature: 'send & receive')
-              : isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(),
-                    )
-                  : Column(
-                      children: [
+      child: GestureDetector(
+        onTap: () {
+          FocusScope.of(context).unfocus();
+        },
+        child: Scaffold(
+          key: scaffoldKey,
+          backgroundColor: theme.primaryBackground,
+          body: SafeArea(
+            child: !isKycApproved
+                ? const KycRequiredWidget(feature: 'send & receive')
+                : isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(),
+                      )
+                    : Column(
+                        children: [
                         Padding(
                           padding: const EdgeInsets.all(
                             24,
@@ -1460,7 +1438,11 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                                       FlutterFlowTheme.of(context).primaryText,
                                 ),
                                 onPressed: () {
-                                  context.goNamed('Dashboard');
+                                  if (Navigator.of(context).canPop()) {
+                                    Navigator.of(context).pop();
+                                  } else {
+                                    context.goNamed('Dashboard');
+                                  }
                                 },
                               ),
                               Text(
@@ -2122,27 +2104,44 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        'Pending Requests',
-                                        style: FlutterFlowTheme.of(context)
-                                            .titleLarge
-                                            .override(
-                                              font: GoogleFonts.plusJakartaSans(
-                                                fontWeight: FontWeight.bold,
-                                              ),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            'Pending Requests',
+                                            style: FlutterFlowTheme.of(context)
+                                                .titleLarge
+                                                .override(
+                                                  font:
+                                                      GoogleFonts.plusJakartaSans(
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                          ),
+                                          if (pendingRequests.length > 5)
+                                            TextButton(
+                                              onPressed: () {
+                                                Navigator.of(context).push(
+                                                  MaterialPageRoute(
+                                                    builder: (_) => AllRequestsWidget(
+                                                      pendingRequests:
+                                                          pendingRequests,
+                                                      myTransferRequests:
+                                                          myTransferRequests,
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                              child: const Text('See all'),
                                             ),
+                                        ],
                                       ),
                                       const SizedBox(height: 16),
                                       Column(
                                         children: pendingRequests
-                                            .map(
-                                              (
-                                                req,
-                                              ) =>
-                                                  buildRequestCard(
-                                                req,
-                                              ),
-                                            )
+                                            .take(5)
+                                            .map((req) => buildRequestCard(req))
                                             .toList(),
                                       ),
                                       const SizedBox(height: 36),
@@ -2153,37 +2152,73 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        'Your Requests',
-                                        style: FlutterFlowTheme.of(context)
-                                            .titleLarge
-                                            .override(
-                                              font: GoogleFonts.plusJakartaSans(
-                                                fontWeight: FontWeight.bold,
-                                              ),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            'Your Requests',
+                                            style: FlutterFlowTheme.of(context)
+                                                .titleLarge
+                                                .override(
+                                                  font:
+                                                      GoogleFonts.plusJakartaSans(
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                          ),
+                                          if (myTransferRequests.length > 5)
+                                            TextButton(
+                                              onPressed: () {
+                                                Navigator.of(context).push(
+                                                  MaterialPageRoute(
+                                                    builder: (_) => AllRequestsWidget(
+                                                      pendingRequests:
+                                                          pendingRequests,
+                                                      myTransferRequests:
+                                                          myTransferRequests,
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                              child: const Text('See all'),
                                             ),
+                                        ],
                                       ),
                                       const SizedBox(height: 16),
                                       Column(
                                         children: myTransferRequests
-                                            .map(
-                                              (req) =>
-                                                  buildOutgoingRequestCard(req),
-                                            )
+                                            .take(5)
+                                            .map((req) => buildOutgoingRequestCard(req))
                                             .toList(),
                                       ),
                                       const SizedBox(height: 36),
                                     ],
                                   ),
-                                Text(
-                                  'Recent Transactions',
-                                  style: FlutterFlowTheme.of(context)
-                                      .titleLarge
-                                      .override(
-                                        font: GoogleFonts.plusJakartaSans(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Recent Transactions',
+                                      style: FlutterFlowTheme.of(context)
+                                          .titleLarge
+                                          .override(
+                                            font: GoogleFonts.plusJakartaSans(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                    ),
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) => const AllTransactionsWidget(),
+                                          ),
+                                        );
+                                      },
+                                      child: const Text('See all'),
+                                    ),
+                                  ],
                                 ),
                                 const SizedBox(
                                   height: 20,
@@ -2202,14 +2237,8 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                                 else
                                   Column(
                                     children: transactions
-                                        .map(
-                                          (
-                                            tx,
-                                          ) =>
-                                              buildTransactionCard(
-                                            tx,
-                                          ),
-                                        )
+                                        .take(5)
+                                        .map((tx) => buildTransactionCard(tx))
                                         .toList(),
                                   ),
                               ],
@@ -2220,6 +2249,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                     ),
         ),
       ),
+    ),
     );
   }
 }

@@ -719,21 +719,29 @@ class _QRScannerWidgetState extends State<QRScannerWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
-        FocusManager.instance.primaryFocus?.unfocus();
+    return WillPopScope(
+      onWillPop: () async {
+        if (Navigator.of(context).canPop()) {
+          return true;
+        }
+        context.goNamed('Dashboard');
+        return false;
       },
-      child: Scaffold(
-        key: scaffoldKey,
-        backgroundColor: FlutterFlowTheme.of(context).primary,
-        body: SafeArea(
-          child: Container(
-            width: double.infinity,
-            height: double.infinity,
-            color: FlutterFlowTheme.of(context).primary,
-            child: Column(
-              children: [
+      child: GestureDetector(
+        onTap: () {
+          FocusScope.of(context).unfocus();
+          FocusManager.instance.primaryFocus?.unfocus();
+        },
+        child: Scaffold(
+          key: scaffoldKey,
+          backgroundColor: FlutterFlowTheme.of(context).primary,
+          body: SafeArea(
+            child: Container(
+              width: double.infinity,
+              height: double.infinity,
+              color: FlutterFlowTheme.of(context).primary,
+              child: Column(
+                children: [  
                 /// TOP BAR
                 Padding(
                   padding: const EdgeInsets.all(24),
@@ -750,7 +758,11 @@ class _QRScannerWidgetState extends State<QRScannerWidget> {
                           size: 24,
                         ),
                         onPressed: () {
-                          context.goNamed('Dashboard');
+                          if (Navigator.of(context).canPop()) {
+                            Navigator.of(context).pop();
+                          } else {
+                            context.goNamed('Dashboard');
+                          }
                         },
                       ),
                       Text(
@@ -1009,6 +1021,7 @@ class _QRScannerWidgetState extends State<QRScannerWidget> {
           ),
         ),
       ),
+    ),
     );
   }
 }
