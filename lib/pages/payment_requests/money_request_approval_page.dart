@@ -396,21 +396,33 @@ class _MoneyRequestApprovalPageState extends State<MoneyRequestApprovalPage> {
                 ),
               const SizedBox(height: 20),
               if (canAct)
-                Row(
+                Column(
                   children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _processing ? null : _decline,
-                        icon: const Icon(Icons.close_rounded),
-                        label: const Text('Decline'),
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _processing ? null : _decline,
+                            icon: const Icon(Icons.close_rounded),
+                            label: const Text('Decline'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: _processing || _isExpired ? null : _approve,
+                            icon: _processing ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.payment_rounded),
+                            label: Text(_processing ? 'Working...' : 'Pay'),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: _processing || _isExpired ? null : _approve,
-                        icon: _processing ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.payment_rounded),
-                        label: Text(_processing ? 'Working...' : 'Pay'),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: _processing ? null : () => Navigator.of(context).maybePop(),
+                        child: const Text('Cancel'),
                       ),
                     ),
                   ],
@@ -433,13 +445,26 @@ class _MoneyRequestApprovalPageState extends State<MoneyRequestApprovalPage> {
     if (widget.compact) {
       return Material(
         color: Colors.transparent,
-        child: SingleChildScrollView(child: content),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 760),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+              child: content,
+            ),
+          ),
+        ),
       );
     }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Money Request Approval')),
-      body: content,
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: content,
+        ),
+      ),
     );
   }
 }

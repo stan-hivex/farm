@@ -246,9 +246,10 @@ class AuthService {
     final normalizedRole = role.isEmpty ? 'user' : role;
 
     if (normalizedRole == 'admin' || normalizedRole == 'super_admin') {
+      await FFAppState().markAuthInstall();
       FFAppState().accessToken = farmJwt;
       FFAppState().refreshToken = refreshToken;
-      FFAppState().isLoggedIn = false;
+      FFAppState().isLoggedIn = true;
       FFAppState().userId = backendUser?['id']?.toString() ?? '';
       FFAppState().firstName = '';
       FFAppState().userName = '';
@@ -273,6 +274,7 @@ class AuthService {
     }
 
     final backendData = backendUser!;
+    await FFAppState().markAuthInstall();
     FFAppState().accessToken = farmJwt;
     FFAppState().refreshToken = refreshToken;
     FFAppState().isLoggedIn = farmJwt.isNotEmpty;

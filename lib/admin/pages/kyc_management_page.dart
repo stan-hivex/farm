@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/services.dart';
 import '/core/theme_extensions.dart';
 import '../services/admin_api_service.dart';
 
@@ -284,93 +285,197 @@ class _KycManagementPageState extends State<KycManagementPage> {
   }
 
   void _showKycDetails(Map<String, dynamic> doc) {
-    final user = doc['users_kyc_documents_user_idTousers'] as Map? ?? {};
-    final username = user['username']?.toString();
+    // Fetch full doc from API to ensure we display all available fields and images
     showDialog(
       context: context,
-      builder: (_) {
-        return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-          contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-          title: Text('KYC Application',
-              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
-          content: SingleChildScrollView(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              _detailRow('Username', username != null ? '@$username' : null),
-              _detailRow(
-                  'Name',
-                  '${doc['first_name'] ?? user['first_name'] ?? ''} ${doc['last_name'] ?? user['last_name'] ?? ''}'
-                      .trim()),
-              _detailRow('Email',
-                  doc['email']?.toString() ?? user['email']?.toString()),
-              _detailRow('Phone',
-                  doc['phone']?.toString() ?? user['phone']?.toString()),
-              const Divider(height: 24),
-              _detailRow('Document type', doc['document_type']?.toString()),
-              _detailRow('Document number', doc['document_number']?.toString()),
-              _detailRow('Date of birth', doc['date_of_birth']?.toString()),
-              _detailRow('Gender', doc['gender']?.toString()),
-              _detailRow('Nationality', doc['nationality']?.toString()),
-              const Divider(height: 24),
-              _detailRow('Country', doc['country']?.toString()),
-              _detailRow('State / County', doc['county']?.toString()),
-              _detailRow('City', doc['city']?.toString()),
-              _detailRow('Address', doc['physical_address']?.toString()),
-              _detailRow('Postal code', doc['postal_code']?.toString()),
-              if (doc['front_image'] != null ||
-                  doc['back_image'] != null ||
-                  doc['selfie_image'] != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 16),
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Document images',
-                            style: GoogleFonts.plusJakartaSans(
-                                fontWeight: FontWeight.w600, fontSize: 13)),
-                        const SizedBox(height: 12),
-                        Row(children: [
-                          if (doc['front_image'] != null)
-                            Expanded(
-                                child: _docImg('Front', doc['front_image'])),
-                          if (doc['back_image'] != null) ...[
-                            const SizedBox(width: 8),
-                            Expanded(child: _docImg('Back', doc['back_image'])),
-                          ],
-                          if (doc['selfie_image'] != null) ...[
-                            const SizedBox(width: 8),
-                            Expanded(
-                                child: _docImg('Selfie', doc['selfie_image'])),
-                          ],
-                        ]),
+      builder: (_) => FutureBuilder<Map<String, dynamic>>(
+        future: AdminApiService.getKycDoc(doc['id']?.toString() ?? ''),
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) return const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()));
+          if (snap.hasError) return AlertDialog(title: const Text('Error'), content: Text(snap.error.toString()), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))]);
+          final d = (snap.data?['data'] ?? {}) as Map<String, dynamic>;
+          final user = d['users_kyc_documents_user_idTousers'] as Map? ?? {};
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+            title: Text('KYC Application', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
+            content: SingleChildScrollView(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  // Prominent uploader info
+                  Row(children: [
+                    CircleAvatar(radius: 22, backgroundColor: const Color(0xFFEAF2FF), child: Icon(Icons.person, color: context.primaryColor)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        if (user['username'] != null) Text('@${user['username']}', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
+                        if (user['email'] != null) Text(user['email'], style: GoogleFonts.plusJakartaSans(color: context.textSecondary, fontSize: 12)),
+                        if (user['phone'] != null) Text(user['phone'], style: GoogleFonts.plusJakartaSans(color: context.textSecondary, fontSize: 12)),
                       ]),
+                    )
+                  ]),
+                  const SizedBox(height: 12),
+                  _detailRow('Name', '${d['first_name'] ?? user['first_name'] ?? ''} ${d['last_name'] ?? user['last_name'] ?? ''}'.trim()),
+                  _detailRow('Email', d['email']?.toString() ?? user['email']?.toString()),
+                  _detailRow('Phone', d['phone']?.toString() ?? user['phone']?.toString()),
+                const Divider(height: 24),
+                _detailRow('Document type', d['document_type']?.toString()),
+                _detailRow('Document number', d['document_number']?.toString()),
+                _detailRow('Date of birth', d['date_of_birth']?.toString()),
+                _detailRow('Gender', d['gender']?.toString()),
+                _detailRow('Nationality', d['nationality']?.toString()),
+                const Divider(height: 24),
+                _detailRow('Country', d['country']?.toString()),
+                _detailRow('State / County', d['county']?.toString()),
+                _detailRow('City', d['city']?.toString()),
+                _detailRow('Address', d['physical_address']?.toString()),
+                _detailRow('Postal code', d['postal_code']?.toString()),
+                finalImgsSection(d),
+                if (d['additional_documents'] != null && d['additional_documents'] is List)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('Additional documents', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, fontSize: 13)),
+                      const SizedBox(height: 10),
+                      Wrap(spacing: 8, runSpacing: 8, children: [
+                        ...List<Widget>.from((d['additional_documents'] as List).map((doc) {
+                          final url = doc is Map ? (doc['url'] ?? doc['src'])?.toString() : null;
+                          if (url == null) return const SizedBox();
+                          return GestureDetector(
+                            onTap: () => _openImageGallery([(url)], 0),
+                            child: Container(
+                              width: 120,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                color: context.surface,
+                                borderRadius: BorderRadius.circular(8),
+                                image: DecorationImage(image: NetworkImage(url), fit: BoxFit.cover),
+                              ),
+                            ),
+                          );
+                        }))
+                      ])
+                    ]),
+                  ),
+              ]),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+              TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _showRejectDialog(d['id']);
+                  },
+                  child: Text('Reject', style: TextStyle(color: context.errorColor))),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _review(d['id'], 'verified');
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: context.successColor),
+                child: const Text('Approve'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _largeImg(String? url) => Container(
+        width: double.infinity,
+        height: 200,
+        decoration: BoxDecoration(
+          color: context.surface,
+          borderRadius: BorderRadius.circular(12),
+          image: url != null ? DecorationImage(image: NetworkImage(url), fit: BoxFit.cover) : null,
+        ),
+        child: url == null ? Center(child: Icon(Icons.image_not_supported, color: context.textSecondary)) : null,
+      );
+
+  Widget finalImgsSection(Map<String, dynamic> d) {
+    final List<String> imgs = [];
+    void addIf(dynamic v) {
+      if (v == null) return;
+      if (v is String && v.isNotEmpty) imgs.add(v);
+      if (v is Map && v['url'] != null) imgs.add(v['url'].toString());
+    }
+
+    addIf(d['front_image_url'] ?? d['front_image'] ?? d['front_image_path']);
+    addIf(d['back_image_url'] ?? d['back_image']);
+    addIf(d['selfie_image_url'] ?? d['selfie_image']);
+    if (d['additional_documents'] != null && d['additional_documents'] is List) {
+      for (final doc in d['additional_documents']) {
+        if (doc is String) imgs.add(doc);
+        if (doc is Map && doc['url'] != null) imgs.add(doc['url'].toString());
+      }
+    }
+
+    if (imgs.isEmpty) return const SizedBox();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Document images', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, fontSize: 13)),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 110,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: imgs.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (_, i) {
+              final url = imgs[i];
+              return GestureDetector(
+                onTap: () => _openImageGallery(imgs, i),
+                child: Container(
+                  width: 160,
+                  height: 110,
+                  decoration: BoxDecoration(
+                    color: context.surface,
+                    borderRadius: BorderRadius.circular(10),
+                    image: DecorationImage(image: NetworkImage(url), fit: BoxFit.cover),
+                  ),
                 ),
-            ]),
+              );
+            },
           ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Close')),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _showRejectDialog(doc['id']);
-              },
-              child: Text('Reject', style: TextStyle(color: context.errorColor)),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _review(doc['id'], 'verified');
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: context.successColor),
-              child: Text('Approve'),
-            ),
-          ],
-        );
-      },
+        )
+      ]),
+    );
+  }
+
+  void _openImageGallery(List<String> urls, int initialIndex) {
+    final controller = PageController(initialPage: initialIndex);
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        insetPadding: const EdgeInsets.all(0),
+        child: Stack(children: [
+          PageView.builder(
+            controller: controller,
+            itemCount: urls.length,
+            itemBuilder: (context, i) => InteractiveViewer(child: Image.network(urls[i], fit: BoxFit.contain)),
+          ),
+          Positioned(
+            top: 24,
+            left: 12,
+            child: IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Navigator.pop(context)),
+          ),
+          Positioned(
+            top: 24,
+            right: 12,
+            child: Row(children: [
+              IconButton(
+                  icon: const Icon(Icons.copy, color: Colors.white),
+                  onPressed: () async {
+                    final url = urls[controller.hasClients ? controller.page?.round() ?? initialIndex : initialIndex];
+                    await Clipboard.setData(ClipboardData(text: url));
+                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Image URL copied to clipboard')));
+                  }),
+            ]),
+          )
+        ]),
+      ),
     );
   }
 

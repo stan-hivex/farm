@@ -513,7 +513,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                 method: 'CRYPTO',
                 icon: Icons.currency_bitcoin,
                 title: 'Crypto',
-                subtitle: 'Instant',
+                subtitle: 'takes about 8 minutes',
               ),
 
               const SizedBox(height: 24),

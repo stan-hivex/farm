@@ -2279,6 +2279,7 @@ file:///C:/farm/.dart_tool/flutter_build/aedde6cee9f34f61a6c3e0e8eade73b6/web_pl
 file:///C:/farm/.dart_tool/package_config.json
 file:///C:/farm/lib/admin/core/admin_config.dart
 file:///C:/farm/lib/admin/core/admin_guard.dart
+file:///C:/farm/lib/admin/core/admin_navigation.dart
 file:///C:/farm/lib/admin/pages/add_superadmin_page.dart
 file:///C:/farm/lib/admin/pages/admin_dashboard_page.dart
 file:///C:/farm/lib/admin/pages/admin_shell.dart
@@ -2294,6 +2295,7 @@ file:///C:/farm/lib/admin/pages/transactions_management_page.dart
 file:///C:/farm/lib/admin/pages/user_management_page.dart
 file:///C:/farm/lib/admin/pages/withdrawals_management_page.dart
 file:///C:/farm/lib/admin/services/admin_api_service.dart
+file:///C:/farm/lib/admin/widgets/admin_sidebar.dart
 file:///C:/farm/lib/app_state.dart
 file:///C:/farm/lib/backend/api_requests/api_manager.dart
 file:///C:/farm/lib/backend/api_requests/escrow_api_service.dart
@@ -2404,7 +2406,10 @@ file:///C:/farm/lib/pages/settings/language_settings_page.dart
 file:///C:/farm/lib/pages/settings/notification_settings_page.dart
 file:///C:/farm/lib/pages/settings/support_help_center_page.dart
 file:///C:/farm/lib/pages/splash_page.dart
+file:///C:/farm/lib/pages/superadmin/add_admin_page.dart
+file:///C:/farm/lib/pages/superadmin/superadmin_change_pin_page.dart
 file:///C:/farm/lib/pages/superadmin/superadmin_dashboard_page.dart
+file:///C:/farm/lib/pages/superadmin/superadmin_pin_setup_page.dart
 file:///C:/farm/lib/pages/superadmin/superadmin_wallet_page.dart
 file:///C:/farm/lib/pages/support/email_support_page_widget.dart
 file:///C:/farm/lib/pages/support/faq_page_widget.dart

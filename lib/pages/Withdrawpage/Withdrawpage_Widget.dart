@@ -345,9 +345,9 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
             requestBody['phoneNumber'] = _mobileCtrl.text.trim();
             break;
           case 'CRYPTO':
-            requestBody['cryptoAddress'] = selectedCryptoAsset;
+            requestBody['cryptoAsset'] = selectedCryptoAsset;
+            requestBody['cryptoAddress'] = _walletCtrl.text.trim();
             requestBody['network'] = selectedCryptoNetwork ?? '';
-            requestBody['walletAddress'] = _walletCtrl.text.trim();
             break;
         }
 
@@ -401,9 +401,9 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
           requestBody['phoneNumber'] = _mobileCtrl.text.trim();
           break;
         case 'CRYPTO':
-          requestBody['cryptoAddress'] = selectedCryptoAsset;
+          requestBody['cryptoAsset'] = selectedCryptoAsset;
+          requestBody['cryptoAddress'] = _walletCtrl.text.trim();
           requestBody['network'] = selectedCryptoNetwork ?? '';
-          requestBody['walletAddress'] = _walletCtrl.text.trim();
           break;
       }
 

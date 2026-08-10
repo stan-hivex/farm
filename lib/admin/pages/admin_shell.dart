@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/core/theme_extensions.dart';
@@ -16,6 +17,8 @@ import 'merchant_kyb_management_page.dart';
 import '../services/admin_api_service.dart';
 import '../core/admin_guard.dart';
 import '../../pages/loginpage/loginpage_widget.dart';
+import '../widgets/admin_sidebar.dart';
+import '../core/admin_navigation.dart';
 
 class AdminShell extends StatefulWidget {
   const AdminShell({super.key});
@@ -24,19 +27,75 @@ class AdminShell extends StatefulWidget {
   State<AdminShell> createState() => _AdminShellState();
 }
 
-class _AdminShellState extends State<AdminShell> {
+class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
   int _selectedIndex = 0;
+  int _pageRevision = 0;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final ok = await AdminGuard.isAuthenticated();
       if (!ok && mounted) {
-        Navigator.pushReplacement(context,
-            MaterialPageRoute(builder: (_) => const LoginpageWidget()));
+        AuthNavigation.replaceAllWithBuilder(
+          context,
+          (_) => LoginpageWidget(),
+        );
+        return;
       }
+      unawaited(_refreshAdminSession());
     });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      _startPeriodicRefresh();
+      unawaited(_refreshAdminSession());
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+      _refreshTimer?.cancel();
+    }
+  }
+
+  void _startPeriodicRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+      if (!mounted) return;
+      unawaited(_refreshAdminSession());
+    });
+  }
+
+  Future<void> _refreshAdminSession() async {
+    if (!mounted) return;
+    final ok = await AdminGuard.isAuthenticated();
+    if (!ok) {
+      if (mounted) {
+            AuthNavigation.replaceAllWithBuilder(
+              context,
+              (_) => LoginpageWidget(),
+            );
+      }
+      return;
+    }
+
+    try {
+      final refreshed = await AdminApiService.ensureValidSession();
+      if (refreshed && mounted) {
+        setState(() {
+          _pageRevision += 1;
+        });
+      }
+    } catch (_) {}
   }
 
   final List<_NavItem> _navItems = [
@@ -75,11 +134,21 @@ class _AdminShellState extends State<AdminShell> {
         MerchantKybManagementPage(onGoBack: _goToDashboard),
       ];
 
+  Widget _buildCurrentPage() {
+    final page = _pages[_selectedIndex];
+    return KeyedSubtree(
+      key: ValueKey('admin-page-$_selectedIndex-$_pageRevision'),
+      child: page,
+    );
+  }
+
   Future<void> _logout() async {
     await AdminApiService.logout();
     if (mounted) {
-      Navigator.pushReplacement(
-          context, MaterialPageRoute(builder: (_) => const LoginpageWidget()));
+      AuthNavigation.replaceAllWithBuilder(
+        context,
+        (_) => LoginpageWidget(),
+      );
     }
   }
 
@@ -89,6 +158,7 @@ class _AdminShellState extends State<AdminShell> {
 
     return Scaffold(
       backgroundColor: Colors.white,
+      drawer: const AdminSidebar(),
       body: Row(
         children: [
           // Sidebar — only on wide screens
@@ -99,7 +169,7 @@ class _AdminShellState extends State<AdminShell> {
             child: Column(
               children: [
                 _buildTopBar(isWide),
-                Expanded(child: _pages[_selectedIndex]),
+                Expanded(child: _buildCurrentPage()),
               ],
             ),
           ),
@@ -188,25 +258,25 @@ class _AdminShellState extends State<AdminShell> {
 
           // Logout
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             child: GestureDetector(
               onTap: _logout,
               child: Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  border:
-                      Border.all(color: context.onSurface.withOpacity(0.12)),
+                  color: const Color(0xFF0A0F18),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(children: [
-                  Icon(Icons.logout_rounded,
-                      color: context.onSurface.withOpacity(0.38), size: 20),
-                  const SizedBox(width: 12),
+                  const Icon(Icons.logout_rounded,
+                      color: Colors.white, size: 18),
+                  const SizedBox(width: 10),
                   Text('Logout',
                       style: GoogleFonts.plusJakartaSans(
-                          color: context.onSurface.withOpacity(0.38),
-                          fontSize: 14)),
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600)),
                 ]),
               ),
             ),

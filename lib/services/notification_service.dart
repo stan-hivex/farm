@@ -24,6 +24,7 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
   static Map<String, dynamic>? _pendingTapPayload;
+  static final ValueNotifier<int> notificationReceived = ValueNotifier<int>(0);
 
   static Future<void> initialize() async {
     if (_initialized) return;
@@ -124,6 +125,7 @@ class NotificationService {
     final payload = _payloadFromMessage(message);
     FFAppState().unreadNotificationCount =
         FFAppState().unreadNotificationCount + 1;
+    notificationReceived.value = notificationReceived.value + 1;
 
     if (kIsWeb) return;
     final notification = message.notification;
@@ -137,19 +139,62 @@ class NotificationService {
         ? 'Transfer update'
         : 'New update';
 
-    final requestId = payload['request_id']?.toString();
+    final metadata = payload['metadata'];
+    String? requestId = payload['request_id']?.toString() ?? payload['entityId']?.toString();
+    if ((requestId == null || requestId.isEmpty) && metadata != null) {
+      if (metadata is Map<String, dynamic>) {
+        requestId = metadata['request_id']?.toString() ?? metadata['entityId']?.toString();
+      } else if (metadata is String) {
+        try {
+          final parsed = jsonDecode(metadata);
+          if (parsed is Map<String, dynamic>) {
+            requestId = parsed['request_id']?.toString() ?? parsed['entityId']?.toString();
+          }
+        } catch (_) {
+          // ignore invalid JSON metadata
+        }
+      }
+    }
     final isMoneyRequest = payload['type']?.toString().toLowerCase().contains('request') == true || payload['type']?.toString().toLowerCase().contains('payment') == true;
     final context = appNavigatorKey.currentContext;
-    if (context != null && requestId != null && requestId.isNotEmpty && isMoneyRequest) {
+    final validRequestId = requestId;
+    if (context != null && validRequestId != null && validRequestId.isNotEmpty && isMoneyRequest) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!context.mounted) return;
         showDialog(
           context: context,
-          builder: (dialogContext) => Dialog(
-            insetPadding: const EdgeInsets.all(16),
-            child: SizedBox(
-              width: 500,
-              child: MoneyRequestApprovalPage(requestId: requestId, compact: true),
+          barrierDismissible: true,
+          builder: (dialogContext) => SafeArea(
+            child: Dialog(
+              insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600, maxHeight: 760),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Stack(
+                    children: [
+                      SingleChildScrollView(
+                        child: Material(
+                          color: Theme.of(context).scaffoldBackgroundColor,
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 40),
+                            child: MoneyRequestApprovalPage(requestId: validRequestId, compact: true),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: IconButton(
+                          icon: const Icon(Icons.close_rounded),
+                          tooltip: 'Close',
+                          onPressed: () => Navigator.of(dialogContext).pop(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         );
@@ -215,7 +260,21 @@ class NotificationService {
         ? metadata['event']?.toString().toLowerCase() ?? payload['type']?.toString().toLowerCase() ?? 'general'
         : payload['type']?.toString().toLowerCase() ?? 'general';
     String route;
-    final requestId = payload['request_id']?.toString() ?? payload['entityId']?.toString() ?? '';
+    String requestId = payload['request_id']?.toString() ?? payload['entityId']?.toString() ?? '';
+    if (requestId.isEmpty && metadata != null) {
+      if (metadata is Map<String, dynamic>) {
+        requestId = metadata['request_id']?.toString() ?? metadata['entityId']?.toString() ?? '';
+      } else if (metadata is String) {
+        try {
+          final parsed = jsonDecode(metadata);
+          if (parsed is Map<String, dynamic>) {
+            requestId = parsed['request_id']?.toString() ?? parsed['entityId']?.toString() ?? '';
+          }
+        } catch (_) {
+          // ignore invalid JSON metadata
+        }
+      }
+    }
     if (type.contains('transfer')) {
       route = '/allTransactions';
     } else if (type.contains('request')) {

@@ -65,6 +65,54 @@ class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
     }
   }
 
+  Future<void> _showMerchantDetails(String merchantId) async {
+    setState(() => _loading = true);
+    try {
+      final res = await AdminApiService.getMerchant(merchantId);
+      final m = res['data'] as Map<String, dynamic>? ?? {};
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: Text(m['business_name'] ?? m['name'] ?? 'Merchant'),
+          content: SingleChildScrollView(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              if (m['business_name'] != null) Text('Business: ${m['business_name']}'),
+              if (m['contact_email'] != null) Text('Email: ${m['contact_email']}'),
+              if (m['contact_phone'] != null) Text('Phone: ${m['contact_phone']}'),
+              if (m['business_registration_number'] != null) Text('Reg #: ${m['business_registration_number']}'),
+              if (m['address'] != null) Text('Address: ${m['address']}'),
+              const SizedBox(height: 12),
+              if (m['documents'] != null && m['documents'] is List)
+                ...List<Widget>.from((m['documents'] as List).map((d) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: d['url'] != null ? Image.network(d['url'], height: 120) : const SizedBox(),
+                    ))),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+            TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _showRejectDialog(merchantId);
+                },
+                child: Text('Reject', style: TextStyle(color: context.errorColor))),
+            ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _reviewMerchant(merchantId, 'approved');
+                },
+                child: const Text('Approve')),
+          ],
+        ),
+      );
+    } catch (e) {
+      _snack(e.toString().replaceAll('Exception: ', ''), context.errorColor);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   void _showRejectDialog(String merchantId) {
     final controller = TextEditingController();
     showDialog(
@@ -314,6 +362,14 @@ class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
                                         fontSize: 11)),
                               ],
                               const SizedBox(height: 18),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton.icon(
+                                  onPressed: () => _showMerchantDetails(id),
+                                  icon: const Icon(Icons.info_outline, size: 16),
+                                  label: const Text('View details'),
+                                ),
+                              ),
                               if (status == 'pending')
                                 Row(children: [
                                   Expanded(

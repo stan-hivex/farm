@@ -6,6 +6,7 @@ import '/pages/biometric_unlock_page/biometric_unlock_page_widget.dart';
 import '/services/auth/route_guard_service.dart';
 import '/services/biometric_lock_service.dart';
 import '/admin/core/admin_guard.dart';
+import '/admin/core/admin_navigation.dart';
 import '/admin/pages/admin_shell.dart';
 import '/pages/superadmin/superadmin_dashboard_page.dart';
 import 'package:flutter/material.dart';
@@ -35,7 +36,11 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
   void initState() {
     super.initState();
     _model = createModel(context, () => OnboardingModel());
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    // Always show onboarding for a short duration on cold start so users
+    // briefly see the intro before automatic navigation when already
+    // authenticated (2-4 seconds). Adjust `displayDuration` to change duration.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
       _runStartupAuthCheck();
     });
   }
@@ -59,7 +64,9 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
       _showAuthActions = false;
     });
 
-    await Future.delayed(const Duration(milliseconds: 250));
+    // Always show onboarding for a short duration (2-4s) before proceeding.
+    const onboardingDisplay = Duration(milliseconds: 3000);
+    await Future.delayed(onboardingDisplay);
 
     if (!mounted) return;
 
@@ -69,20 +76,14 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
 
     final isAdminAuthenticated = await AdminGuard.isAuthenticated();
     if (isAdminAuthenticated) {
-      await Future.delayed(const Duration(milliseconds: 250));
       if (!mounted) return;
       final adminRole = await AdminGuard.getAdminRole();
       if (adminRole.toLowerCase() == 'super_admin') {
-        print('Navigating to ${SuperadminDashboardPage.routePath}');
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const SuperadminDashboardPage()),
-        );
+        context.go(SuperadminDashboardPage.routePath);
       } else {
-        print('Navigating to /admin-shell');
-        Navigator.pushReplacement(
+        AuthNavigation.replaceAllWithBuilder(
           context,
-          MaterialPageRoute(builder: (_) => const AdminShell()),
+          (_) => AdminShell(),
         );
       }
       return;
@@ -91,13 +92,10 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
     if (isAuthenticated) {
       final lockService = BiometricLockService();
       final shouldLock = await lockService.shouldRequireUnlock();
-      await Future.delayed(const Duration(milliseconds: 250));
       if (!mounted) return;
       if (shouldLock) {
-        print('Navigating to ${BiometricUnlockPageWidget.routeName}');
         context.goNamed(BiometricUnlockPageWidget.routeName);
       } else {
-        print('Navigating to Dashboard');
         context.goNamed('Dashboard');
       }
       return;

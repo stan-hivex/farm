@@ -166,16 +166,15 @@ class _EscrowManagementPageState extends State<EscrowManagementPage> {
                 label: Text(f.toUpperCase(),
                     style: GoogleFonts.plusJakartaSans(
                         fontSize: 11,
-                        color: _filter == f
-                            ? context.background
-                            : context.onSurface.withOpacity(0.7))),
+                        fontWeight: FontWeight.bold,
+                        color: _filter == f ? Colors.white : Colors.black)),
                 selected: _filter == f,
-                selectedColor: _filter == f ? accent : Colors.transparent,
-                backgroundColor: Colors.white,
+                selectedColor: _filter == f ? Colors.black : Colors.white,
+                backgroundColor: _filter == f ? Colors.black : Colors.white,
                 side: BorderSide(
                     color: _filter == f
-                        ? accent
-                        : context.onSurface.withOpacity(0.1),
+                        ? Colors.black
+                        : Colors.black54,
                     width: 1),
                 onSelected: (_) {
                   setState(() {
@@ -194,6 +193,29 @@ class _EscrowManagementPageState extends State<EscrowManagementPage> {
     final seller = e['users_escrow_contracts_seller_idTousers'] as Map? ?? {};
     final color = _escrowColor(e['status']);
     final isDisputed = e['status'] == 'disputed';
+    final buyerUsername = (buyer['username']?.toString() ?? '').trim();
+    final sellerUsername = (seller['username']?.toString() ?? '').trim();
+    final buyerLabel = buyerUsername.isNotEmpty
+        ? '@$buyerUsername (${buyer['id'] ?? '-'} )'
+        : '${buyer['first_name'] ?? ''} ${buyer['last_name'] ?? ''}'.trim().isNotEmpty
+            ? '${buyer['first_name']} ${buyer['last_name']}'
+            : (buyer['id']?.toString() ?? '-');
+    final sellerLabel = sellerUsername.isNotEmpty
+        ? '@$sellerUsername (${seller['id'] ?? '-'} )'
+        : '${seller['first_name'] ?? ''} ${seller['last_name'] ?? ''}'.trim().isNotEmpty
+            ? '${seller['first_name']} ${seller['last_name']}'
+            : (seller['id']?.toString() ?? '-');
+    final createdAt = e['created_at'] != null
+        ? _dateTimeString(e['created_at'].toString())
+        : '-';
+    final resolvedAt = e['resolved_at'] ?? e['released_at'] ?? e['updated_at'];
+    final resolvedAtLabel = resolvedAt != null
+        ? _dateTimeString(resolvedAt.toString())
+        : null;
+    final description = e['description']?.toString().trim().isNotEmpty == true
+        ? e['description'].toString()
+        : e['title']?.toString() ?? '-';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
@@ -208,7 +230,7 @@ class _EscrowManagementPageState extends State<EscrowManagementPage> {
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text(e['reference_code'] ?? '',
+          Text(e['reference_code'] ?? e['id'] ?? '',
               style: GoogleFonts.plusJakartaSans(
                   fontWeight: FontWeight.bold, fontSize: 13, color: accent)),
           Container(
@@ -222,14 +244,46 @@ class _EscrowManagementPageState extends State<EscrowManagementPage> {
           ),
         ]),
         const SizedBox(height: 12),
-        _escrowDetail('Title', e['title'] ?? '-'),
+        _escrowDetail('Escrow ID', e['id']?.toString() ?? '-'),
+        _escrowDetail('Description', description),
         _escrowDetail('Amount',
             '${double.tryParse(e['amount']?.toString() ?? '0')?.toStringAsFixed(2)} FARM'),
-        _escrowDetail('Buyer',
-            '${buyer['first_name'] ?? ''} ${buyer['last_name'] ?? ''}'),
-        _escrowDetail('Seller',
-            '${seller['first_name'] ?? ''} ${seller['last_name'] ?? ''}'),
+        _escrowDetail('Buyer', buyerLabel),
+        _escrowDetail('Seller', sellerLabel),
+        _escrowDetail('Created', createdAt),
+        if (resolvedAtLabel != null)
+          _escrowDetail(
+              e['status'] == 'completed'
+                  ? 'Released'
+                  : e['status'] == 'refunded'
+                      ? 'Refunded'
+                      : 'Updated',
+              resolvedAtLabel),
         if (isDisputed) ...[
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: context.errorColor.withAlpha((0.08 * 255).round()),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Dispute open',
+                  style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.bold,
+                      color: context.errorColor,
+                      fontSize: 12)),
+              const SizedBox(height: 6),
+              Text(
+                  e['resolution_note']?.toString().trim().isNotEmpty == true
+                      ? e['resolution_note'].toString()
+                      : 'This escrow is in dispute and requires admin resolution.',
+                  style: GoogleFonts.plusJakartaSans(
+                      color: context.onSurface.withOpacity(0.8),
+                      fontSize: 12)),
+            ]),
+          ),
           const SizedBox(height: 12),
           Row(children: [
             Expanded(
@@ -260,6 +314,15 @@ class _EscrowManagementPageState extends State<EscrowManagementPage> {
         ],
       ]),
     );
+  }
+
+  String _dateTimeString(String raw) {
+    try {
+      final dt = DateTime.parse(raw).toLocal();
+      return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return raw;
+    }
   }
 
   Widget _escrowDetail(String label, String value) => Padding(

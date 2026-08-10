@@ -45,6 +45,11 @@ export '/pages/all_transactions/all_transactions_widget.dart'
     show AllTransactionsWidget;
 export '/pages/superadmin/superadmin_dashboard_page.dart'
     show SuperadminDashboardPage;
+export '/admin/pages/user_management_page.dart' show UserManagementPage;
 export '/pages/superadmin/add_admin_page.dart' show AddAdminPage;
 export '/pages/superadmin/superadmin_wallet_page.dart'
     show SuperadminWalletPage;
+export '/pages/superadmin/superadmin_pin_setup_page.dart'
+    show SuperadminPinSetupPage;
+export '/pages/superadmin/superadmin_change_pin_page.dart'
+    show SuperadminChangePinPage;

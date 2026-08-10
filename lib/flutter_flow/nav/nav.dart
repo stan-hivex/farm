@@ -12,6 +12,7 @@ import '/pages/support/email_support_page_widget.dart';
 import '/pages/notifications/user_notifications_page_widget.dart';
 import '/pages/growth_tracking_page/growth_tracking_page_widget.dart';
 import '/pages/payment_requests/request_money_widget.dart';
+import '/admin/pages/admin_shell.dart';
 import '/pages/payment_requests/incoming_requests_widget.dart';
 import '/index.dart';
 
@@ -42,7 +43,7 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
       refreshListenable: appStateNotifier,
       navigatorKey: appNavigatorKey,
       observers: [RouteLogger()],
-      errorBuilder: (context, state) => const LoginpageWidget(),
+      errorBuilder: (context, state) => LoginpageWidget(),
       routes: [
         FFRoute(
           name: SplashPage.routeName,
@@ -169,7 +170,12 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
         FFRoute(
           name: LoginpageWidget.routeName,
           path: LoginpageWidget.routePath,
-          builder: (context, params) => const LoginpageWidget(),
+          builder: (context, params) => LoginpageWidget(),
+        ),
+        FFRoute(
+          name: 'AdminShell',
+          path: '/admin',
+          builder: (context, params) => const AdminShell(),
         ),
         FFRoute(
           name: RegisterpageWidget.routeName,
@@ -242,6 +248,11 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           builder: (context, params) => const SuperadminDashboardPage(),
         ),
         FFRoute(
+          name: UserManagementPage.routeName,
+          path: UserManagementPage.routePath,
+          builder: (context, params) => const UserManagementPage(),
+        ),
+        FFRoute(
           name: AddAdminPage.routeName,
           path: AddAdminPage.routePath,
           builder: (context, params) => const AddAdminPage(),
@@ -250,6 +261,16 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           name: SuperadminWalletPage.routeName,
           path: SuperadminWalletPage.routePath,
           builder: (context, params) => const SuperadminWalletPage(),
+        ),
+        FFRoute(
+          name: SuperadminPinSetupPage.routeName,
+          path: SuperadminPinSetupPage.routePath,
+          builder: (context, params) => const SuperadminPinSetupPage(),
+        ),
+        FFRoute(
+          name: SuperadminChangePinPage.routeName,
+          path: SuperadminChangePinPage.routePath,
+          builder: (context, params) => const SuperadminChangePinPage(),
         ),
       ].map((r) => r.toRoute(appStateNotifier)).toList(),
     );

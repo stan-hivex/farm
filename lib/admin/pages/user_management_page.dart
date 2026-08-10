@@ -4,6 +4,9 @@ import '/core/theme_extensions.dart';
 import '../services/admin_api_service.dart';
 
 class UserManagementPage extends StatefulWidget {
+  static const String routeName = 'user_management';
+  static const String routePath = '/admin/users';
+
   final VoidCallback? onGoBack;
 
   const UserManagementPage({super.key, this.onGoBack});
@@ -111,7 +114,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                      color: context.onSurface.withOpacity(0.24),
+                      color: context.onSurface.withValues(alpha: 0.24),
                       borderRadius: BorderRadius.circular(2)),
                 ),
               ),
@@ -138,7 +141,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                   const SizedBox(height: 4),
                   Text('@${user['username']}',
                       style: GoogleFonts.plusJakartaSans(
-                          color: context.onSurface.withOpacity(0.6),
+                          color: context.onSurface.withValues(alpha: 0.6),
                           fontSize: 13)),
                 ]),
               ]),
@@ -210,6 +213,15 @@ class _UserManagementPageState extends State<UserManagementPage> {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
               child: Row(
                 children: [
+                  Material(
+                    color: Colors.transparent,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back_rounded),
+                      color: context.onSurface,
+                      onPressed: widget.onGoBack ?? () => Navigator.of(context).maybePop(),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -223,7 +235,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                         Text(
                             'Browse users, review KYC and manage account status.',
                             style: GoogleFonts.plusJakartaSans(
-                                color: context.onSurface.withOpacity(0.6),
+                                color: context.onSurface.withValues(alpha: 0.6),
                                 fontSize: 13)),
                       ],
                     ),
@@ -233,7 +245,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       color: cardColor,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                          color: context.onSurface.withOpacity(0.12)),
+                          color: context.onSurface.withValues(alpha: 0.12)),
                     ),
                     padding: const EdgeInsets.all(12),
                     child: Icon(Icons.filter_list_rounded,
@@ -281,20 +293,20 @@ class _UserManagementPageState extends State<UserManagementPage> {
         decoration: BoxDecoration(
           color: cardColor,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: context.onSurface.withOpacity(0.1)),
+          border: Border.all(color: context.onSurface.withValues(alpha: 0.1)),
         ),
         child: TextField(
           controller: _searchCtrl,
           style: TextStyle(color: context.onSurface),
           decoration: InputDecoration(
             hintText: 'Search users by name, phone, email...',
-            hintStyle: TextStyle(color: context.onSurface.withOpacity(0.54)),
+            hintStyle: TextStyle(color: context.onSurface.withValues(alpha: 0.54)),
             prefixIcon: Icon(Icons.search_rounded,
-                color: context.onSurface.withOpacity(0.7)),
+                color: context.onSurface.withValues(alpha: 0.7)),
             suffixIcon: _search.isNotEmpty
                 ? IconButton(
                     icon: Icon(Icons.clear_rounded,
-                        color: context.onSurface.withOpacity(0.7)),
+                        color: context.onSurface.withValues(alpha: 0.7)),
                     onPressed: () {
                       _searchCtrl.clear();
                       setState(() {
@@ -336,9 +348,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
                           fontWeight: FontWeight.w600,
                           color: _filter == f
                               ? context.onSurface
-                              : context.onSurface.withOpacity(0.7))),
+                              : context.onSurface.withValues(alpha: 0.7))),
                   selected: _filter == f,
-                  selectedColor: context.onSurface.withOpacity(0.12),
+                  selectedColor: context.onSurface.withValues(alpha: 0.12),
                   backgroundColor: cardColor,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14)),
@@ -420,14 +432,14 @@ class _UserManagementPageState extends State<UserManagementPage> {
           decoration: BoxDecoration(
             color: cardColor,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: context.onSurface.withOpacity(0.1)),
+            border: Border.all(color: context.onSurface.withValues(alpha: 0.1)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(title,
                   style: GoogleFonts.plusJakartaSans(
-                      color: context.onSurface.withOpacity(0.54),
+                      color: context.onSurface.withValues(alpha: 0.54),
                       fontSize: 12,
                       fontWeight: FontWeight.w500)),
               const SizedBox(height: 10),
@@ -439,7 +451,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
               const SizedBox(height: 6),
               Text('Compared to last month',
                   style: GoogleFonts.plusJakartaSans(
-                      color: context.onSurface.withOpacity(0.38),
+                      color: context.onSurface.withValues(alpha: 0.38),
                       fontSize: 11)),
             ],
           ),
@@ -454,7 +466,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
         decoration: BoxDecoration(
           color: cardColor,
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: context.onSurface.withOpacity(0.1)),
+          border: Border.all(color: context.onSurface.withValues(alpha: 0.1)),
         ),
         child: ListTile(
           contentPadding:
@@ -479,7 +491,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
               const SizedBox(height: 6),
               Text(u['email'] ?? '-',
                   style: GoogleFonts.plusJakartaSans(
-                      color: context.onSurface.withOpacity(0.7), fontSize: 12)),
+                      color: context.onSurface.withValues(alpha: 0.7), fontSize: 12)),
               const SizedBox(height: 6),
               Wrap(
                 runSpacing: 6,
@@ -532,7 +544,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: context.onSurface.withOpacity(0.1)),
+        border: Border.all(color: context.onSurface.withValues(alpha: 0.1)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -579,7 +591,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Text(label,
               style: GoogleFonts.plusJakartaSans(
-                  color: context.onSurface.withOpacity(0.54), fontSize: 13)),
+                  color: context.onSurface.withValues(alpha: 0.54), fontSize: 13)),
           Text(value,
               style: GoogleFonts.plusJakartaSans(
                   color: context.onSurface,

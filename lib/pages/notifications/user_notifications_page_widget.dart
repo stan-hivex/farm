@@ -2,6 +2,7 @@
 import '/backend/services/api_service.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/services/notification_feedback_service.dart';
+import '/services/notification_service.dart';
 
 class UserNotificationsPageWidget extends StatefulWidget {
   const UserNotificationsPageWidget({super.key});
@@ -27,6 +28,7 @@ class _UserNotificationsPageWidgetState extends State<UserNotificationsPageWidge
   void initState() {
     super.initState();
     loadNotifications();
+    NotificationService.notificationReceived.addListener(_onNotificationReceived);
   }
 
   Future<void> loadNotifications() async {
@@ -192,6 +194,17 @@ class _UserNotificationsPageWidgetState extends State<UserNotificationsPageWidge
   }
 
   String _notificationId(Map<String, dynamic> item) => item['id']?.toString() ?? '';
+
+  void _onNotificationReceived() {
+    if (!mounted) return;
+    loadNotifications();
+  }
+
+  @override
+  void dispose() {
+    NotificationService.notificationReceived.removeListener(_onNotificationReceived);
+    super.dispose();
+  }
 
   String _displayDateTime(Map<String, dynamic> item) {
     final createdAt = item['created_at'] ?? item['createdAt'];

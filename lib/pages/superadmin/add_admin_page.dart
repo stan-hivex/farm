@@ -1,6 +1,7 @@
-import 'dart:convert';
+import 'dart:convert' as convert;
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/app_state.dart';
 import '/backend/api_requests/api_manager.dart';
@@ -62,7 +63,7 @@ class _AddAdminPageState extends State<AddAdminPage> {
           'Content-Type': 'application/json',
         },
         params: {},
-        body: jsonEncode({
+        body: convert.jsonEncode({
           'first_name': _firstNameCtrl.text.trim(),
           'last_name': _lastNameCtrl.text.trim(),
           'username': _usernameCtrl.text.trim(),
@@ -85,7 +86,7 @@ class _AddAdminPageState extends State<AddAdminPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(message), backgroundColor: Colors.green),
         );
-        context.pop();
+        GoRouter.of(context).pop();
       }
     } catch (e) {
       if (mounted) {

@@ -123,6 +123,16 @@ class _TransactionsManagementPageState
                           }
                           final t = _txns[i];
                           final color = _statusColor(t['status']);
+                          final meta = t['metadata'] as Map? ?? {};
+                          final method = (t['method'] ?? meta['payment_method'] ?? meta['method'] ?? '-').toString().toUpperCase();
+                          final username = (t['username'] ?? '').toString();
+                          final userId = (t['user_id'] ?? '').toString();
+                          final reference = (t['transaction_reference'] ?? t['id'] ?? '-').toString();
+                          final amountLabel = t['amount_display']?.toString() ??
+                              '${double.tryParse(t['amount']?.toString() ?? '0')?.toStringAsFixed(2) ?? '0.00'} FARM';
+                          final statusLabel = (t['status_display'] ?? t['status'] ?? '-').toString().toUpperCase();
+                          final dateLabel = (t['date'] ?? '-').toString();
+                          final timeLabel = (t['time'] ?? '-').toString();
                           return Container(
                             margin: const EdgeInsets.only(bottom: 12),
                             padding: const EdgeInsets.all(16),
@@ -150,26 +160,53 @@ class _TransactionsManagementPageState
                                           CrossAxisAlignment.start,
                                       children: [
                                     Text(
-                                        (t['transaction_type'] ?? '')
-                                            .toString()
-                                            .replaceAll('_', ' ')
-                                            .toUpperCase(),
+                                        'User: ${username.isNotEmpty ? '@$username' : 'Unknown'}',
                                         style: GoogleFonts.plusJakartaSans(
                                             fontWeight: FontWeight.bold,
                                             fontSize: 12,
                                             color: context.onSurface)),
-                                    Text(t['transaction_reference'] ?? '',
+                                    Text('User ID: ${userId.isNotEmpty ? userId : '-'}',
                                         style: GoogleFonts.plusJakartaSans(
                                             color: context.onSurface
                                                 .withOpacity(0.54),
-                                            fontSize: 11),
-                                        overflow: TextOverflow.ellipsis),
+                                            fontSize: 11)),
+                                    Text('ID: $reference',
+                                        style: GoogleFonts.plusJakartaSans(
+                                            color: context.onSurface
+                                                .withOpacity(0.54),
+                                            fontSize: 11)),
+                                    Text('Method: $method',
+                                        style: GoogleFonts.plusJakartaSans(
+                                            color: context.onSurface
+                                                .withOpacity(0.54),
+                                            fontSize: 11)),
+                                    Text('Amount: $amountLabel',
+                                        style: GoogleFonts.plusJakartaSans(
+                                            color: context.onSurface
+                                                .withOpacity(0.54),
+                                            fontSize: 11)),
+                                    Text('Status: $statusLabel',
+                                        style: GoogleFonts.plusJakartaSans(
+                                            color: context.onSurface
+                                                .withOpacity(0.54),
+                                            fontSize: 11)),
+                                    Text('Date: $dateLabel',
+                                        style: GoogleFonts.plusJakartaSans(
+                                            color: context.onSurface
+                                                .withOpacity(0.54),
+                                            fontSize: 11)),
+                                    Text('Time: $timeLabel',
+                                        style: GoogleFonts.plusJakartaSans(
+                                            color: context.onSurface
+                                                .withOpacity(0.54),
+                                            fontSize: 11)),
                                   ])),
+                              const SizedBox(width: 8),
                               Column(
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     Text(
-                                        '${double.tryParse(t['amount']?.toString() ?? '0')?.toStringAsFixed(2)} FARM',
+                                        amountLabel,
                                         style: GoogleFonts.plusJakartaSans(
                                             fontWeight: FontWeight.bold,
                                             fontSize: 13,
@@ -183,7 +220,7 @@ class _TransactionsManagementPageState
                                           borderRadius:
                                               BorderRadius.circular(6)),
                                       child: Text(
-                                          (t['status'] ?? '').toUpperCase(),
+                                          statusLabel,
                                           style: GoogleFonts.plusJakartaSans(
                                               color: color,
                                               fontSize: 9,
@@ -221,17 +258,16 @@ class _TransactionsManagementPageState
                     label: Text(f.replaceAll('_', ' ').toUpperCase(),
                         style: GoogleFonts.plusJakartaSans(
                             fontSize: 11,
-                            color: _typeFilter == f
-                                ? context.background
-                                : context.onSurface.withOpacity(0.7))),
+                            fontWeight: FontWeight.bold,
+                            color: _typeFilter == f ? Colors.white : Colors.black)),
                     selected: _typeFilter == f,
-                    selectedColor:
-                        _typeFilter == f ? accent : Colors.transparent,
-                    backgroundColor: Colors.white,
+                    selectedColor: _typeFilter == f ? Colors.black : Colors.white,
+                    backgroundColor:
+                        _typeFilter == f ? Colors.black : Colors.white,
                     side: BorderSide(
                         color: _typeFilter == f
-                            ? accent
-                            : context.onSurface.withOpacity(0.1),
+                            ? Colors.black
+                            : Colors.black54,
                         width: 1),
                     onSelected: (_) {
                       setState(() {
@@ -261,17 +297,17 @@ class _TransactionsManagementPageState
                     label: Text(s.toUpperCase(),
                         style: GoogleFonts.plusJakartaSans(
                             fontSize: 11,
-                            color: _statusFilter == s
-                                ? context.background
-                                : context.onSurface.withOpacity(0.7))),
+                            fontWeight: FontWeight.bold,
+                            color: _statusFilter == s ? Colors.white : Colors.black)),
                     selected: _statusFilter == s,
                     selectedColor:
-                        _statusFilter == s ? accent : Colors.transparent,
-                    backgroundColor: Colors.white,
+                        _statusFilter == s ? Colors.black : Colors.white,
+                    backgroundColor:
+                        _statusFilter == s ? Colors.black : Colors.white,
                     side: BorderSide(
                         color: _statusFilter == s
-                            ? accent
-                            : context.onSurface.withOpacity(0.1),
+                            ? Colors.black
+                            : Colors.black54,
                         width: 1),
                     onSelected: (_) {
                       setState(() {

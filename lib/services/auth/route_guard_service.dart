@@ -1,7 +1,12 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '/app_state.dart';
+import '/admin/services/admin_api_service.dart';
 import '/core/config/supabase_config.dart';
+import '/services/auth/refresh_manager.dart';
 import 'session_store_service.dart';
 
 /// Service to check and enforce route protection based on authentication status.
@@ -58,29 +63,105 @@ class RouteGuardService {
   /// marked as logged in, or if there is a persisted backend token available.
   Future<bool> hasValidBackendJwt() async {
     final state = FFAppState();
-    final token = state.accessToken;
     final role = state.role.toLowerCase();
-    debugPrint('[RouteGuardService] hasValidBackendJwt role=$role accessTokenPresent=${token.isNotEmpty} accessTokenLength=${token.length}');
+    final token = state.accessToken;
 
-    if (token.isNotEmpty) {
+    if (token.isNotEmpty && _isJwtValid(token)) {
+      debugPrint('[RouteGuardService] hasValidBackendJwt using in-memory token');
       return true;
     }
 
-    final persistedSession = await AuthSessionStore.readRoleSession(role);
-    final persistedToken = persistedSession?.accessToken ?? '';
-    debugPrint('[RouteGuardService] persistedSession role=$role tokenPresent=${persistedToken.isNotEmpty}');
-    if (persistedToken.isNotEmpty) {
-      return true;
+    if (state.refreshToken.isNotEmpty) {
+      final refreshed = await RefreshManager().refreshIfNeeded(force: false);
+      debugPrint('[RouteGuardService] refreshIfNeeded returned=$refreshed');
+      if (refreshed && state.accessToken.isNotEmpty && _isJwtValid(state.accessToken)) {
+        return true;
+      }
     }
 
-    final adminSession = await AuthSessionStore.readAdminSession();
-    final superAdminSession = await AuthSessionStore.readSuperAdminSession();
-    final userSession = await AuthSessionStore.readUserSession();
-    debugPrint('[RouteGuardService] fallbackSessions admin=${(adminSession?.accessToken ?? '').isNotEmpty} superAdmin=${(superAdminSession?.accessToken ?? '').isNotEmpty} user=${(userSession?.accessToken ?? '').isNotEmpty}');
+    final sessionCandidates = <AuthSession?>[];
+    if (role.isNotEmpty) {
+      sessionCandidates.add(await AuthSessionStore.readRoleSession(role));
+    }
+    sessionCandidates.add(await AuthSessionStore.readAdminSession());
+    sessionCandidates.add(await AuthSessionStore.readSuperAdminSession());
+    sessionCandidates.add(await AuthSessionStore.readUserSession());
 
-    return (adminSession?.accessToken ?? '').isNotEmpty ||
-        (superAdminSession?.accessToken ?? '').isNotEmpty ||
-        (userSession?.accessToken ?? '').isNotEmpty;
+    for (final persistedSession in sessionCandidates) {
+      final persistedToken = persistedSession?.accessToken ?? '';
+      final persistedRefreshToken = persistedSession?.refreshToken ?? '';
+      if ((persistedToken.isNotEmpty && _isJwtValid(persistedToken)) || persistedRefreshToken.isNotEmpty) {
+        if (state.accessToken != persistedToken && persistedToken.isNotEmpty) {
+          state.accessToken = persistedToken;
+        }
+        if (persistedRefreshToken.isNotEmpty) {
+          state.refreshToken = persistedRefreshToken;
+        }
+        if (persistedSession?.role.isNotEmpty ?? false) {
+          state.role = persistedSession!.role;
+        }
+        state.isLoggedIn = true;
+        debugPrint('[RouteGuardService] hasValidBackendJwt loaded persisted session for role=${persistedSession?.role ?? role}');
+        return true;
+      }
+    }
+
+    if (role == 'admin' || role == 'super_admin') {
+      final adminRefresh = await AdminApiService.ensureValidSession(force: false);
+      debugPrint('[RouteGuardService] admin session refresh returned=$adminRefresh');
+      if (adminRefresh) {
+        final refreshedSession = role.isNotEmpty ? await AuthSessionStore.readRoleSession(role) : null;
+        final refreshedToken = refreshedSession?.accessToken ?? '';
+        if ((refreshedToken.isNotEmpty && _isJwtValid(refreshedToken)) || (refreshedSession?.refreshToken.isNotEmpty ?? false)) {
+          if (state.accessToken != refreshedToken && refreshedToken.isNotEmpty) {
+            state.accessToken = refreshedToken;
+          }
+          if (refreshedSession?.refreshToken.isNotEmpty ?? false) {
+            state.refreshToken = refreshedSession!.refreshToken;
+          }
+          state.isLoggedIn = true;
+          return true;
+        }
+      }
+    }
+
+    debugPrint('[RouteGuardService] hasValidBackendJwt found no usable persisted token for role=$role');
+    return false;
+  }
+
+  static bool _isJwtValid(String token) {
+    final expiry = _getJwtExpiry(token);
+    if (expiry == null) {
+      return false;
+    }
+    return expiry.isAfter(DateTime.now().toUtc());
+  }
+
+  static DateTime? _getJwtExpiry(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return null;
+      var payload = parts[1];
+      payload = payload.replaceAll('-', '+').replaceAll('_', '/');
+      while (payload.length % 4 != 0) {
+        payload += '=';
+      }
+      final decoded = utf8.decode(base64Url.decode(payload));
+      final payloadMap = jsonDecode(decoded) as Map<String, dynamic>;
+      final exp = payloadMap['exp'];
+      if (exp is int) {
+        return DateTime.fromMillisecondsSinceEpoch(exp * 1000, isUtc: true);
+      }
+      if (exp is String) {
+        final value = int.tryParse(exp);
+        if (value != null) {
+          return DateTime.fromMillisecondsSinceEpoch(value * 1000, isUtc: true);
+        }
+      }
+    } catch (e) {
+      debugPrint('[RouteGuardService] Failed to parse JWT expiry: $e');
+    }
+    return null;
   }
 
   /// Check if the current session is authenticated for the active role.
@@ -95,10 +176,10 @@ class RouteGuardService {
   Future<bool> isUserAuthenticated() async {
     try {
       final state = FFAppState();
+      final role = state.role.toLowerCase();
       final hasBackendJwt = await hasValidBackendJwt();
       final isLoggedInFlag = state.isLoggedIn;
       final hasSupabaseSession = await hasValidSupabaseSession();
-      final role = state.role.toLowerCase();
       final isAdminRole = role == 'admin' || role == 'super_admin';
 
       if (!hasBackendJwt) {
@@ -109,18 +190,7 @@ class RouteGuardService {
         return true;
       }
 
-      if (role.isEmpty) {
-        final adminSession = await AuthSessionStore.readAdminSession();
-        final superAdminSession = await AuthSessionStore.readSuperAdminSession();
-        final hasPrivilegedPersistedSession =
-            (adminSession?.accessToken ?? '').isNotEmpty ||
-            (superAdminSession?.accessToken ?? '').isNotEmpty;
-        if (hasPrivilegedPersistedSession) {
-          return true;
-        }
-      }
-
-      return isLoggedInFlag || hasSupabaseSession;
+      return isLoggedInFlag || hasSupabaseSession || (state.accessToken.isNotEmpty && _isJwtValid(state.accessToken));
     } catch (e) {
       debugPrint('Error checking authentication: $e');
       return false;
@@ -143,7 +213,9 @@ class RouteGuardService {
       '/splash',
       '/onboarding',
       '/login',
+      '/loginpage',
       '/register',
+      '/registerpage',
       '/forgot-password',
       '/forgotPasswordPage',
       '/reset-password',
@@ -164,12 +236,14 @@ class RouteGuardService {
     BuildContext context,
     String currentPath,
   ) async {
-    final role = FFAppState().role.toLowerCase();
-    final loggedIn = FFAppState().isLoggedIn;
-    final accessTokenLength = FFAppState().accessToken.length;
-    final refreshTokenLength = FFAppState().refreshToken.length;
-    final persistedSession = await AuthSessionStore.readRoleSession(role);
-    final sessionExists = persistedSession?.accessToken.isNotEmpty ?? false;
+    final state = FFAppState();
+    final role = state.role.toLowerCase();
+    final loggedIn = state.isLoggedIn;
+    final accessTokenLength = state.accessToken.length;
+    final refreshTokenLength = state.refreshToken.length;
+    final persistedSession = role.isNotEmpty ? await AuthSessionStore.readRoleSession(role) : null;
+    final fallbackSession = persistedSession ?? await AuthSessionStore.readAdminSession() ?? await AuthSessionStore.readSuperAdminSession() ?? await AuthSessionStore.readUserSession();
+    final sessionExists = fallbackSession?.accessToken.isNotEmpty ?? false;
 
     print('AUTH GUARD CHECK');
     print('Current route: $currentPath');
@@ -199,28 +273,19 @@ class RouteGuardService {
         debugPrint('SUPER_ADMIN REDIRECTED TO LOGIN');
         debugPrint(StackTrace.current.toString());
       }
-      // Clear stale auth data before redirecting to login
-      await FFAppState().clearAuthCredentials();
-      return '/login';
+      final prefs = await SharedPreferences.getInstance();
+      final hasInstallMarker = (prefs.getString('authInstallId') ?? '').trim().isNotEmpty;
+      final hasPersistedSession = await AuthSessionStore.readAdminSession() != null ||
+          await AuthSessionStore.readSuperAdminSession() != null ||
+          await AuthSessionStore.readUserSession() != null;
+      if (!hasInstallMarker && !hasPersistedSession) {
+        await FFAppState().clearAuthCredentials();
+      }
+      return '/loginpage';
     }
 
     debugPrint('[RouteGuardService] verifyAndRedirect authenticated role=$role currentPath=$currentPath');
     debugPrint('[RouteGuardService] verifyAndRedirect state accessTokenLength=$accessTokenLength refreshTokenLength=$refreshTokenLength sessionExists=$sessionExists');
     return null;
-  }
-
-  /// Clear all authentication data (logout).
-  ///
-  /// This ensures both Supabase session and Backend JWT are cleared.
-  Future<void> clearAuthentication() async {
-    try {
-      // Sign out from Supabase
-      await _supabase.auth.signOut();
-    } catch (e) {
-      debugPrint('Error signing out from Supabase: $e');
-    }
-
-    // Clear Backend JWT and related data from FFAppState
-    await FFAppState().clearAuthCredentials();
   }
 }

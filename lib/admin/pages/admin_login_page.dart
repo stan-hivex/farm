@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../core/admin_navigation.dart';
 import '../services/admin_api_service.dart';
 import 'admin_shell.dart';
 
@@ -33,9 +34,9 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
         _passwordController.text,
       );
       if (mounted) {
-        Navigator.pushReplacement(
+        AuthNavigation.replaceAllWithBuilder(
           context,
-          MaterialPageRoute(builder: (_) => const AdminShell()),
+          (_) => const AdminShell(),
         );
       }
     } catch (error) {

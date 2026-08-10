@@ -137,6 +137,14 @@ class _WithdrawalsManagementPageState extends State<WithdrawalsManagementPage> {
                                 final method = _paymentMethodLabel(meta, w);
                                 final isPending = w['status'] == 'pending';
                                 final color = _sc(w['status']);
+                                final username = (w['username'] ?? '').toString();
+                                final userId = (w['user_id'] ?? '').toString();
+                                final reference = (w['transaction_reference'] ?? w['id'] ?? '-').toString();
+                                final amountLabel = w['amount_display']?.toString() ??
+                                    '${double.tryParse(w['amount']?.toString() ?? '0')?.toStringAsFixed(2) ?? '0.00'} FARM';
+                                final statusLabel = (w['status_display'] ?? w['status'] ?? '-').toString().toUpperCase();
+                                final dateLabel = (w['date'] ?? '-').toString();
+                                final timeLabel = (w['time'] ?? '-').toString();
                                 return Container(
                                   margin: const EdgeInsets.only(bottom: 14),
                                   padding: const EdgeInsets.all(16),
@@ -173,31 +181,87 @@ class _WithdrawalsManagementPageState extends State<WithdrawalsManagementPage> {
                                                       size: 20),
                                                 ),
                                                 const SizedBox(width: 12),
-                                                Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      Text(
-                                                          '${double.tryParse(w['amount']?.toString() ?? '0')?.toStringAsFixed(2)} FARM',
-                                                          style: GoogleFonts
-                                                              .plusJakartaSans(
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold,
-                                                                  fontSize: 14,
-                                                                  color: Colors
-                                                                      .red)),
-                                                      Text(method,
-                                                          style: GoogleFonts
-                                                              .plusJakartaSans(
-                                                                  color: context
-                                                                      .onSurface
-                                                                      .withOpacity(
-                                                                          0.54),
-                                                                  fontSize:
-                                                                      12)),
-                                                    ]),
+                                                Expanded(
+                                                    child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Text(
+                                                              'User: ${username.isNotEmpty ? '@$username' : 'Unknown'}',
+                                                              style: GoogleFonts
+                                                                  .plusJakartaSans(
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .bold,
+                                                                      fontSize: 13,
+                                                                      color: Colors
+                                                                          .red)),
+                                                          Text('User ID: ${userId.isNotEmpty ? userId : '-'}',
+                                                              style: GoogleFonts
+                                                                  .plusJakartaSans(
+                                                                      color: context
+                                                                          .onSurface
+                                                                          .withOpacity(
+                                                                              0.54),
+                                                                      fontSize:
+                                                                          11)),
+                                                          Text('ID: $reference',
+                                                              style: GoogleFonts
+                                                                  .plusJakartaSans(
+                                                                      color: context
+                                                                          .onSurface
+                                                                          .withOpacity(
+                                                                              0.54),
+                                                                      fontSize:
+                                                                          11)),
+                                                          Text('Method: $method',
+                                                              style: GoogleFonts
+                                                                  .plusJakartaSans(
+                                                                      color: context
+                                                                          .onSurface
+                                                                          .withOpacity(
+                                                                              0.54),
+                                                                      fontSize:
+                                                                          11)),
+                                                          Text('Amount: $amountLabel',
+                                                              style: GoogleFonts
+                                                                  .plusJakartaSans(
+                                                                      color: context
+                                                                          .onSurface
+                                                                          .withOpacity(
+                                                                              0.54),
+                                                                      fontSize:
+                                                                          11)),
+                                                          Text('Status: $statusLabel',
+                                                              style: GoogleFonts
+                                                                  .plusJakartaSans(
+                                                                      color: context
+                                                                          .onSurface
+                                                                          .withOpacity(
+                                                                              0.54),
+                                                                      fontSize:
+                                                                          11)),
+                                                          Text('Date: $dateLabel',
+                                                              style: GoogleFonts
+                                                                  .plusJakartaSans(
+                                                                      color: context
+                                                                          .onSurface
+                                                                          .withOpacity(
+                                                                              0.54),
+                                                                      fontSize:
+                                                                          11)),
+                                                          Text('Time: $timeLabel',
+                                                              style: GoogleFonts
+                                                                  .plusJakartaSans(
+                                                                      color: context
+                                                                          .onSurface
+                                                                          .withOpacity(
+                                                                              0.54),
+                                                                      fontSize:
+                                                                          11)),
+                                                        ]),
+                                                ),
                                               ]),
                                               Container(
                                                 padding:
@@ -211,8 +275,7 @@ class _WithdrawalsManagementPageState extends State<WithdrawalsManagementPage> {
                                                         BorderRadius.circular(
                                                             8)),
                                                 child: Text(
-                                                    (w['status'] ?? '')
-                                                        .toUpperCase(),
+                                                    statusLabel,
                                                     style: GoogleFonts
                                                         .plusJakartaSans(
                                                             color: color,
@@ -229,13 +292,6 @@ class _WithdrawalsManagementPageState extends State<WithdrawalsManagementPage> {
                                                 color: context.onSurface
                                                     .withOpacity(0.7),
                                                 fontSize: 12)),
-                                        Text(
-                                            'Ref: ${w['transaction_reference'] ?? '-'}',
-                                            style: GoogleFonts.plusJakartaSans(
-                                                color: context.onSurface
-                                                    .withOpacity(0.54),
-                                                fontSize: 11),
-                                            overflow: TextOverflow.ellipsis),
                                         if (isPending) ...[
                                           const SizedBox(height: 12),
                                           Row(children: [
@@ -303,16 +359,16 @@ class _WithdrawalsManagementPageState extends State<WithdrawalsManagementPage> {
                 label: Text(s.toUpperCase(),
                     style: GoogleFonts.plusJakartaSans(
                         fontSize: 11,
-                        color: _statusFilter == s
-                            ? context.background
-                            : context.onSurface.withOpacity(0.7))),
+                        fontWeight: FontWeight.bold,
+                        color: _statusFilter == s ? Colors.white : Colors.black)),
                 selected: _statusFilter == s,
-                selectedColor: _statusFilter == s ? accent : Colors.transparent,
-                backgroundColor: Colors.white,
+                selectedColor: _statusFilter == s ? Colors.black : Colors.white,
+                backgroundColor:
+                    _statusFilter == s ? Colors.black : Colors.white,
                 side: BorderSide(
                     color: _statusFilter == s
-                        ? accent
-                        : context.onSurface.withOpacity(0.1),
+                        ? Colors.black
+                        : Colors.black54,
                     width: 1),
                 onSelected: (_) {
                   setState(() {

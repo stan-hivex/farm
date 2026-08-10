@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/core/theme_extensions.dart';
 import '../core/admin_guard.dart';
+import '../core/admin_navigation.dart';
 import '../services/admin_api_service.dart';
+import '/pages/loginpage/loginpage_widget.dart';
 import 'add_superadmin_page.dart';
 import 'deposits_management_page.dart';
 import 'escrow_management_page.dart';
@@ -212,14 +214,52 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           ),
         ),
         Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            IconButton(
-              onPressed: () {},
-              icon: Icon(Icons.notifications_none_rounded),
-              color: context.onSurface,
-              tooltip: 'Notifications',
+            const SizedBox(height: 2),
+            GestureDetector(
+              onTap: () async {
+                try {
+                  await AdminApiService.logout();
+                } catch (_) {}
+                if (!mounted) return;
+                AuthNavigation.replaceAllWithBuilder(
+                  context,
+                  (_) => LoginpageWidget(),
+                );
+              },
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(999),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.12),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.logout_rounded,
+                        size: 16, color: Colors.white),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Logout',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             CircleAvatar(
               radius: 22,
               backgroundColor: context.onSurface,

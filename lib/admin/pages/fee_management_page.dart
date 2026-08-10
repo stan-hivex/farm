@@ -36,7 +36,7 @@ class _FeeManagementPageState extends State<FeeManagementPage> {
     });
     try {
       final res = await AdminApiService.getFees();
-      final list = res['data'] as List? ?? [];
+      final list = _normalizeFees(res['data']);
       for (final c in _controllers.values) {
         c.dispose();
       }
@@ -53,6 +53,23 @@ class _FeeManagementPageState extends State<FeeManagementPage> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  List<dynamic> _normalizeFees(dynamic payload) {
+    if (payload is List) {
+      return payload;
+    }
+
+    if (payload is Map) {
+      final data = payload['data'];
+      if (data is List) return data;
+      if (payload['items'] is List) return payload['items'] as List<dynamic>;
+      if (data is Map && data['items'] is List) {
+        return data['items'] as List<dynamic>;
+      }
+    }
+
+    return [];
   }
 
   String _feeId(dynamic fee) {
@@ -75,7 +92,11 @@ class _FeeManagementPageState extends State<FeeManagementPage> {
   }
 
   String _feeValue(dynamic fee) {
-    return fee['value']?.toString() ?? '';
+    if (fee is! Map) return '';
+    return fee['value']?.toString() ??
+        fee['percentage_fee']?.toString() ??
+        fee['flat_fee']?.toString() ??
+        '';
   }
 
   Future<void> _saveFee(String feeId) async {

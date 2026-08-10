@@ -1,11 +1,20 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
+import '/app_state.dart';
 import '/services/auth/session_store_service.dart';
 import '../core/admin_config.dart';
 
 class AdminApiService {
+  static const int _expiryThresholdSeconds = 60;
+  static Completer<bool>? _refreshCompleter;
+  static int _consecutiveFailures = 0;
+  static DateTime? _nextAllowedRefreshTime;
+  static const int _initialBackoffSeconds = 1;
+  static const int _maxBackoffSeconds = 30;
+
   static Future<String> _getToken() async {
     debugPrint('Reading admin/super admin session...');
     final adminSession = await AuthSessionStore.readAdminSession();
@@ -22,13 +31,185 @@ class AdminApiService {
         'Authorization': 'Bearer $token',
       };
 
+  static Future<String> _getRefreshToken() async {
+    final adminSession = await AuthSessionStore.readAdminSession();
+    final superAdminSession = await AuthSessionStore.readSuperAdminSession();
+    final session = superAdminSession ?? adminSession;
+    return session?.refreshToken ?? '';
+  }
+
+  static Future<String> _getStoredRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    final role = prefs.getString('adminRole') ?? '';
+    if (role.isNotEmpty) return role;
+    final adminSession = await AuthSessionStore.readAdminSession();
+    final superAdminSession = await AuthSessionStore.readSuperAdminSession();
+    return adminSession?.role ?? superAdminSession?.role ?? '';
+  }
+
+  static bool tokenNeedsRefresh(String token) {
+    final expiry = _getJwtExpiry(token);
+    if (expiry == null) {
+      return true;
+    }
+    return expiry.isBefore(DateTime.now().add(const Duration(seconds: _expiryThresholdSeconds)));
+  }
+
+  static Future<bool> ensureValidSession({bool force = false}) async {
+    final token = await _getToken();
+    if (token.isEmpty) {
+      return false;
+    }
+    if (!force && !tokenNeedsRefresh(token)) {
+      return true;
+    }
+    // Serialize refresh attempts to avoid concurrent refreshes which can
+    // trigger server-side refresh-token reuse detection and revoke sessions.
+    if (_refreshCompleter != null) {
+      await _refreshCompleter!.future;
+      final newToken = await _getToken();
+      return newToken.isNotEmpty && !tokenNeedsRefresh(newToken);
+    }
+
+    _refreshCompleter = Completer<bool>();
+    try {
+      // Backoff guard
+      final nextAllowed = _nextAllowedRefreshTime;
+      if (nextAllowed != null && DateTime.now().isBefore(nextAllowed)) {
+        debugPrint('[AdminApiService] Refresh backoff active until $_nextAllowedRefreshTime. Skipping refresh.');
+        _refreshCompleter!.complete(false);
+        return false;
+      }
+
+      final refreshed = await refreshSession();
+      if (refreshed) {
+        _consecutiveFailures = 0;
+        _nextAllowedRefreshTime = null;
+        _refreshCompleter!.complete(true);
+        return true;
+      }
+
+      _consecutiveFailures++;
+      final backoffSeconds = (_initialBackoffSeconds * (1 << (_consecutiveFailures - 1))).clamp(_initialBackoffSeconds, _maxBackoffSeconds);
+      _nextAllowedRefreshTime = DateTime.now().add(Duration(seconds: backoffSeconds));
+      debugPrint('[AdminApiService] Refresh failed. Applying backoff for $backoffSeconds seconds.');
+      _refreshCompleter!.complete(false);
+      return false;
+    } catch (e) {
+      _consecutiveFailures++;
+      final backoffSeconds = (_initialBackoffSeconds * (1 << (_consecutiveFailures - 1))).clamp(_initialBackoffSeconds, _maxBackoffSeconds);
+      _nextAllowedRefreshTime = DateTime.now().add(Duration(seconds: backoffSeconds));
+      debugPrint('[AdminApiService] Exception during refresh: $e. Backoff $backoffSeconds seconds.');
+      if (!_refreshCompleter!.isCompleted) _refreshCompleter!.complete(false);
+      return false;
+    } finally {
+      _refreshCompleter = null;
+    }
+  }
+
+  static Future<bool> refreshSession() async {
+    final refreshToken = await _getRefreshToken();
+    if (refreshToken.isEmpty) {
+      return false;
+    }
+
+    try {
+      final resp = await http
+          .post(
+            Uri.parse('${AdminConfig.api}/auth/refresh'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({'refresh_token': refreshToken}),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (resp.statusCode < 200 || resp.statusCode >= 300) {
+        debugPrint('[AdminApiService] refresh failed with ${resp.statusCode}: ${resp.body}');
+        return false;
+      }
+
+      final body = resp.body.isNotEmpty
+          ? jsonDecode(resp.body) as Map<String, dynamic>
+          : <String, dynamic>{};
+      final payload = body['data'] is Map<String, dynamic>
+          ? body['data'] as Map<String, dynamic>
+          : body;
+      final newAccessToken = payload['access_token']?.toString() ?? '';
+      final newRefreshToken = payload['refresh_token']?.toString() ?? refreshToken;
+      final role = await _getStoredRole();
+      if (newAccessToken.isEmpty) {
+        return false;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('adminToken', newAccessToken);
+      await prefs.setString('adminRefreshToken', newRefreshToken);
+      await prefs.setString('adminRole', role);
+      await AuthSessionStore.saveRoleSession(
+        role: role,
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+        userId: '',
+      );
+      FFAppState().accessToken = newAccessToken;
+      FFAppState().refreshToken = newRefreshToken;
+      FFAppState().role = role;
+      FFAppState().isLoggedIn = false;
+      debugPrint('[AdminApiService] admin session refreshed successfully');
+      return true;
+    } catch (e) {
+      debugPrint('[AdminApiService] admin refresh error: $e');
+      return false;
+    }
+  }
+
+  static DateTime? _getJwtExpiry(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return null;
+      final payload = parts[1];
+      var normalized = payload.replaceAll('-', '+').replaceAll('_', '/');
+      while (normalized.length % 4 != 0) {
+        normalized += '=';
+      }
+      final decoded = utf8.decode(base64Url.decode(normalized));
+      final map = jsonDecode(decoded) as Map<String, dynamic>;
+      final exp = map['exp'];
+      if (exp is int) {
+        return DateTime.fromMillisecondsSinceEpoch(exp * 1000, isUtc: true).toLocal();
+      }
+      if (exp is String) {
+        final expInt = int.tryParse(exp);
+        if (expInt != null) {
+          return DateTime.fromMillisecondsSinceEpoch(expInt * 1000, isUtc: true).toLocal();
+        }
+      }
+    } catch (e) {
+      debugPrint('[AdminApiService] Failed to parse admin JWT expiry: $e');
+    }
+    return null;
+  }
+
   static Future<Map<String, dynamic>> _req({
     required String method,
     required String path,
     Map<String, dynamic>? body,
+    bool isRetry = false,
   }) async {
-    final token = await _getToken();
+    var token = await _getToken();
     if (token.isEmpty) throw Exception('Not authenticated');
+
+    if (!isRetry && tokenNeedsRefresh(token)) {
+      final refreshed = await refreshSession();
+      if (refreshed) {
+        token = await _getToken();
+      }
+    }
+
+    if (token.isEmpty) throw Exception('Not authenticated');
+
     final uri = Uri.parse('${AdminConfig.api}$path');
     late http.Response res;
     switch (method) {
@@ -56,8 +237,13 @@ class AdminApiService {
       default:
         throw Exception('Unknown method');
     }
-    // Handle explicit 401: clear stored admin credentials and surface error
-    if (res.statusCode == 401) {
+
+    if (res.statusCode == 401 && !isRetry) {
+      final refreshed = await refreshSession();
+      if (refreshed) {
+        return _req(method: method, path: path, body: body, isRetry: true);
+      }
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('adminToken');
       await prefs.remove('adminRefreshToken');
@@ -247,6 +433,12 @@ class AdminApiService {
         path: '/admin/merchants/$merchantId/decision',
         body: {'status': status},
       );
+
+  static Future<Map<String, dynamic>> getMerchant(String merchantId) =>
+      _req(method: 'GET', path: '/admin/merchants/$merchantId');
+
+    static Future<Map<String, dynamic>> getKycDoc(String kycDocId) =>
+      _req(method: 'GET', path: '/admin/kyc/$kycDocId');
 
   // ── Notifications ─────────────────────────────────────────────────────────
   static Future<Map<String, dynamic>> sendNotification(

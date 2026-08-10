@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert' as convert;
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
@@ -8,7 +11,12 @@ import '/backend/api_requests/api_manager.dart';
 import '/pages/loginpage/loginpage_widget.dart';
 import '/pages/superadmin/add_admin_page.dart';
 import '/pages/superadmin/superadmin_wallet_page.dart';
+import '/admin/pages/user_management_page.dart';
 import '/services/auth/session_store_service.dart';
+import '/admin/core/admin_navigation.dart';
+import '/admin/services/admin_api_service.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 class SuperadminDashboardPage extends StatefulWidget {
   const SuperadminDashboardPage({super.key});
@@ -20,8 +28,10 @@ class SuperadminDashboardPage extends StatefulWidget {
   State<SuperadminDashboardPage> createState() => _SuperadminDashboardPageState();
 }
 
-class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
+class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
+    with WidgetsBindingObserver {
   Map<String, dynamic>? _dashboardData;
+  Map<String, dynamic>? _superadminWallet;
   bool _loading = true;
   String? _error;
 
@@ -30,20 +40,86 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
   final TextEditingController _kesToFarmCtrl = TextEditingController();
   final TextEditingController _farmToKesCtrl = TextEditingController();
 
-  List<dynamic> _systemUsers = [];
-  bool _loadingUsers = true;
-  String? _usersError;
-  bool _processingUserAction = false;
-
   bool _isCreatingAdmin = false;
+
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     debugPrint('[SuperadminDashboardPage] initState: starting dashboard initialization');
     _loadDashboardData();
+    _loadSuperadminWallet();
     _loadExchangeRates();
-    _loadUsers();
+    _startPeriodicRefresh();
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _kesToFarmCtrl.dispose();
+    _farmToKesCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      _startPeriodicRefresh();
+      unawaited(_refreshSessionAndReload());
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+      _refreshTimer?.cancel();
+    }
+  }
+
+  void _startPeriodicRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+      if (!mounted) return;
+      unawaited(_refreshSessionAndReload());
+    });
+  }
+
+  Future<void> _refreshSessionAndReload() async {
+    if (!mounted) return;
+    try {
+      final refreshed = await AdminApiService.ensureValidSession(force: true);
+      if (refreshed) {
+        await Future.wait([
+          _loadDashboardData(),
+          _loadSuperadminWallet(),
+          _loadExchangeRates(),
+        ]);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _loadSuperadminWallet() async {
+    try {
+      final token = await FFAppState().getActiveAccessToken();
+      if (token.isEmpty) throw Exception('Not authenticated');
+
+      final response = await ApiManager.instance.makeApiCall(
+        callName: 'superadminWallet',
+        apiUrl: '${AppConfig.api}/admin/wallet',
+        callType: ApiCallType.GET,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        params: {},
+        returnBody: true,
+      );
+
+      final decoded = response.jsonBody as Map<String, dynamic>?;
+      if (decoded == null) throw Exception('Invalid wallet response');
+      setState(() => _superadminWallet = decoded['data'] ?? decoded);
+    } catch (e) {
+      debugPrint('[SuperadminDashboardPage] _loadSuperadminWallet failed: $e');
+    }
   }
 
   Future<void> _loadDashboardData() async {
@@ -90,14 +166,28 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
       setState(() => _error = e.toString().replaceAll('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _loading = false);
+      // Refresh superadmin wallet info when dashboard refresh completes
+      _loadSuperadminWallet();
     }
   }
 
-  @override
-  void dispose() {
-    _kesToFarmCtrl.dispose();
-    _farmToKesCtrl.dispose();
-    super.dispose();
+  Widget _wrapWithWillPop(Widget child) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) {
+          return;
+        }
+        if (kIsWeb) {
+          Navigator.of(context).maybePop();
+          return;
+        }
+        try {
+          await SystemNavigator.pop();
+        } catch (_) {}
+      },
+      child: child,
+    );
   }
 
   Future<void> _logout() async {
@@ -113,7 +203,10 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
     await FFAppState().clearAuthCredentials();
     if (mounted) {
       debugPrint('[SuperadminDashboardPage] navigating to ${LoginpageWidget.routePath}');
-      context.go(LoginpageWidget.routePath);
+        AuthNavigation.replaceAllWithBuilder(
+          context,
+          (_) => LoginpageWidget(),
+        );
     }
   }
 
@@ -194,7 +287,7 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
           'Content-Type': 'application/json',
         },
         params: {},
-        body: jsonEncode({
+        body: convert.jsonEncode({
           'rates': [
             {
               'base_currency': 'KES',
@@ -233,274 +326,67 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
     }
   }
 
-  Future<void> _loadUsers() async {
-    setState(() {
-      _loadingUsers = true;
-      _usersError = null;
-    });
-    try {
-      final token = await FFAppState().getActiveAccessToken();
-      debugPrint('[SuperadminDashboardPage] _loadUsers token length=${token.length}');
-      if (token.isEmpty) throw Exception('Not authenticated');
-
-      debugPrint('[SuperadminDashboardPage] _loadUsers calling ${AppConfig.api}/admin/users?page=1');
-      final response = await ApiManager.instance.makeApiCall(
-        callName: 'superadminGetUsers',
-        apiUrl: '${AppConfig.api}/admin/users?page=1',
-        callType: ApiCallType.GET,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        params: {},
-        returnBody: true,
-      );
-
-      final decoded = response.jsonBody as Map<String, dynamic>?;
-      setState(() {
-        _systemUsers = decoded?['data'] as List<dynamic>? ?? [];
-      });
-    } catch (e, st) {
-      debugPrint('[SuperadminDashboardPage] _loadUsers failed: $e');
-      debugPrint(st.toString());
-      setState(() => _usersError = e.toString().replaceAll('Exception: ', ''));
-    } finally {
-      if (mounted) setState(() => _loadingUsers = false);
-    }
+  Future<void> _openSystemUsersPage() async {
+    if (!mounted) return;
+    context.push(UserManagementPage.routePath);
   }
 
-  Future<void> _updateUser(String userId, Map<String, dynamic> payload) async {
-    setState(() => _processingUserAction = true);
-    try {
-      final token = await FFAppState().getActiveAccessToken();
-      if (token.isEmpty) throw Exception('Not authenticated');
-
-      final response = await ApiManager.instance.makeApiCall(
-        callName: 'superadminUpdateUser',
-        apiUrl: '${AppConfig.api}/admin/users/$userId',
-        callType: ApiCallType.PATCH,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        params: {},
-        body: jsonEncode(payload),
-        bodyType: BodyType.JSON,
-        returnBody: true,
-      );
-
-      final decoded = response.jsonBody as Map<String, dynamic>?;
-      final message = decoded?['message'] ?? 'User updated successfully';
-      if (!response.succeeded) throw Exception(message);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: Colors.green),
-      );
-      await _loadUsers();
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error updating user: ${e.toString().replaceAll('Exception: ', '')}'), backgroundColor: Colors.red),
-      );
-    } finally {
-      if (mounted) setState(() => _processingUserAction = false);
-    }
-  }
-
-  Future<void> _deleteUser(String userId) async {
-    setState(() => _processingUserAction = true);
-    try {
-      final token = await FFAppState().getActiveAccessToken();
-      if (token.isEmpty) throw Exception('Not authenticated');
-
-      final response = await ApiManager.instance.makeApiCall(
-        callName: 'superadminDeleteUser',
-        apiUrl: '${AppConfig.api}/admin/users/$userId',
-        callType: ApiCallType.DELETE,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        params: {},
-        returnBody: true,
-      );
-
-      final decoded = response.jsonBody as Map<String, dynamic>?;
-      final message = decoded?['message'] ?? 'User deleted successfully';
-      if (!response.succeeded) throw Exception(message);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: Colors.green),
-      );
-      await _loadUsers();
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error deleting user: ${e.toString().replaceAll('Exception: ', '')}'), backgroundColor: Colors.red),
-      );
-    } finally {
-      if (mounted) setState(() => _processingUserAction = false);
-    }
-  }
-
-  Future<void> _showEditUserDialog(Map<String, dynamic> user) async {
-    final firstName = TextEditingController(text: user['first_name'] ?? '');
-    final lastName = TextEditingController(text: user['last_name'] ?? '');
-    final email = TextEditingController(text: user['email'] ?? '');
-    final phone = TextEditingController(text: user['phone'] ?? '');
-    final country = TextEditingController(text: user['country'] ?? '');
-    final username = TextEditingController(text: user['username'] ?? '');
-    final formKey = GlobalKey<FormState>();
-
-    await showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text('Edit User', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
-        content: SingleChildScrollView(
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: firstName,
-                  decoration: const InputDecoration(labelText: 'First Name'),
-                  validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: lastName,
-                  decoration: const InputDecoration(labelText: 'Last Name'),
-                  validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: username,
-                  decoration: const InputDecoration(labelText: 'Username'),
-                  validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: email,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                  validator: (value) {
-                    if (value?.isEmpty ?? true) return 'Required';
-                    if (!value!.contains('@')) return 'Invalid email';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: phone,
-                  decoration: const InputDecoration(labelText: 'Phone'),
-                  validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: country,
-                  decoration: const InputDecoration(labelText: 'Country'),
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () async {
-              if (formKey.currentState?.validate() != true) return;
-              Navigator.pop(context);
-              await _updateUser(user['id'], {
-                'first_name': firstName.text.trim(),
-                'last_name': lastName.text.trim(),
-                'username': username.text.trim(),
-                'email': email.text.trim(),
-                'phone': phone.text.trim(),
-                'country': country.text.trim(),
-              });
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSystemUsersSection(Color cardColor, Color accent, Color muted) {
+  Widget _buildSystemUsersCard(Color cardColor, Color accent, Color muted) {
     return Container(
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white10),
       ),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'System Users',
-                style: GoogleFonts.plusJakartaSans(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'System Users',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Open the dedicated users page to manage accounts, roles, and KYC statuses.',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: muted,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               ),
               Icon(Icons.people, color: accent),
             ],
           ),
-          const SizedBox(height: 12),
-          if (_loadingUsers) ...[
-            const Center(child: CircularProgressIndicator()),
-          ] else if (_usersError != null) ...[
-            Text(_usersError!, style: GoogleFonts.plusJakartaSans(color: Colors.red)),
-            const SizedBox(height: 8),
-            ElevatedButton(onPressed: _loadUsers, style: ElevatedButton.styleFrom(backgroundColor: accent), child: Text('Retry', style: GoogleFonts.plusJakartaSans(color: Colors.black))),
-          ] else ...[
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _systemUsers.length,
-              separatorBuilder: (_, __) => const Divider(color: Colors.white10),
-              itemBuilder: (_, idx) {
-                final user = _systemUsers[idx] as Map<String, dynamic>;
-                final name = '${user['first_name'] ?? ''} ${user['last_name'] ?? ''}'.trim();
-                return ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  title: Text(name.isEmpty ? (user['username'] ?? 'Unknown') : name, style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.w600)),
-                  subtitle: Text(user['email'] ?? '', style: GoogleFonts.plusJakartaSans(color: Colors.white54)),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.white70),
-                        onPressed: _processingUserAction ? null : () => _showEditUserDialog(user),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                        onPressed: _processingUserAction
-                            ? null
-                            : () async {
-                                final confirmed = await showDialog<bool>(
-                                  context: context,
-                                  builder: (_) => AlertDialog(
-                                    title: const Text('Confirm delete'),
-                                    content: const Text('Are you sure you want to delete this user?'),
-                                    actions: [
-                                      TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                                      TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
-                                    ],
-                                  ),
-                                );
-                                if (confirmed == true) {
-                                  await _deleteUser(user['id']);
-                                }
-                              },
-                      ),
-                    ],
-                  ),
-                );
-              },
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton.icon(
+              onPressed: _openSystemUsersPage,
+              icon: const Icon(Icons.open_in_new_rounded, color: Colors.black),
+              label: Text('Open System Users',
+                  style: GoogleFonts.plusJakartaSans(
+                      color: Colors.black,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: accent,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
             ),
-          ],
+          ),
         ],
       ),
     );
@@ -511,7 +397,6 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
       MaterialPageRoute(builder: (_) => const AddAdminPage()),
     );
     await _loadDashboardData();
-    await _loadUsers();
   }
 
   @override
@@ -522,14 +407,14 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
     final muted = Colors.white70;
 
     if (_loading) {
-      return Scaffold(
+      return _wrapWithWillPop(Scaffold(
         backgroundColor: bgColor,
         body: const Center(child: CircularProgressIndicator()),
-      );
+      ));
     }
 
     if (_error != null) {
-      return Scaffold(
+      return _wrapWithWillPop(Scaffold(
         backgroundColor: bgColor,
         body: Center(
           child: Column(
@@ -569,12 +454,12 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
             ],
           ),
         ),
-      );
+      ));
     }
 
     final data = _dashboardData ?? {};
 
-    return Scaffold(
+    return _wrapWithWillPop(Scaffold(
       backgroundColor: bgColor,
       body: SafeArea(
         child: RefreshIndicator(
@@ -592,6 +477,8 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
                 const SizedBox(height: 28),
                 _buildExchangeRatesSection(data, cardColor, accent, muted),
                 const SizedBox(height: 28),
+                _buildSuperadminFees(_superadminWallet, cardColor, accent, muted),
+                const SizedBox(height: 28),
                 _buildKYCEarnings(data, cardColor, accent, muted),
                 const SizedBox(height: 28),
                 _buildSystemHealth(data, cardColor, accent, muted),
@@ -600,7 +487,7 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
                 const SizedBox(height: 28),
                 _buildAddAdminSection(data, cardColor, accent, muted),
                 const SizedBox(height: 28),
-                _buildSystemUsersSection(cardColor, accent, muted),
+                _buildSystemUsersCard(cardColor, accent, muted),
                 const SizedBox(height: 28),
                 _buildRecentActivities(data, cardColor, muted),
                 const SizedBox(height: 24),
@@ -609,7 +496,7 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
           ),
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildHeader(Color accent, Color muted) {
@@ -679,7 +566,10 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
               child: Tooltip(
                 message: 'Wallet',
                 child: InkWell(
-                  onTap: () => context.push(SuperadminWalletPage.routePath),
+                  onTap: () {
+                    debugPrint('[SuperadminDashboardPage] wallet icon tapped');
+                    context.go(SuperadminWalletPage.routePath);
+                  },
                   borderRadius: BorderRadius.circular(16),
                   child: Container(
                     padding: const EdgeInsets.all(12),
@@ -724,44 +614,6 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
           ],
         ),
       ],
-    );
-  }
-
-  InputDecoration _inputDecoration(String hint) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(color: Colors.white54),
-      filled: true,
-      fillColor: const Color(0xFF111B2A),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 18.0),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14.0),
-        borderSide: const BorderSide(color: Color(0xFF2A3F5F), width: 1.0),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14.0),
-        borderSide: const BorderSide(color: Color(0xFFD4AF37), width: 1.5),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14.0),
-        borderSide: const BorderSide(color: Colors.red, width: 1.0),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14.0),
-        borderSide: const BorderSide(color: Colors.red, width: 1.5),
-      ),
-    );
-  }
-
-  Widget _buildLabel(String text) {
-    return Text(
-      text,
-      style: GoogleFonts.plusJakartaSans(
-        color: Colors.white,
-        fontWeight: FontWeight.w600,
-        fontSize: 14,
-        letterSpacing: 0.5,
-      ),
     );
   }
 
@@ -879,6 +731,20 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
               ),
             ),
           ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton.icon(
+              onPressed: _openSystemUsersPage,
+              icon: const Icon(Icons.people_rounded, color: Colors.black),
+              label: Text('System Users', style: GoogleFonts.plusJakartaSans(color: Colors.black, fontWeight: FontWeight.w700, fontSize: 15)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: accent.withValues(alpha: 0.8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -984,10 +850,12 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
   }
 
   Widget _buildKYCEarnings(Map<String, dynamic> data, Color cardColor, Color accent, Color muted) {
-    final totalEscrowEarnings = data['escrow_total_earnings'] ?? 0.0;
     final creationEarnings = data['escrow_creation_earnings'] ?? 0.0;
     final releaseEarnings = data['escrow_release_earnings'] ?? 0.0;
-    final totalEscrowCount = data['total_escrow_count'] ?? 0;
+    final withdrawEarnings = data['withdraw_fee_earnings'] ?? 0.0;
+    final creationCount = data['escrow_creation_count'] ?? 0;
+    final releaseCount = data['escrow_release_count'] ?? 0;
+    final withdrawCount = data['withdraw_transaction_count'] ?? data['withdraw_count'] ?? 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1018,39 +886,16 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Total KYC Earnings Header
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Total Escrow Earnings',
-                        style: GoogleFonts.plusJakartaSans(
-                          color: Colors.white70,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '${totalEscrowEarnings.toStringAsFixed(2)} FARM',
-                        style: GoogleFonts.plusJakartaSans(
-                          color: Colors.white,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'From $totalEscrowCount escrow fees',
-                        style: GoogleFonts.plusJakartaSans(
-                          color: Colors.white54,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    'Platform fee breakdown',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.white70,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -1059,7 +904,7 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Icon(
-                      Icons.verified_user_rounded,
+                      Icons.analytics_rounded,
                       color: accent,
                       size: 28,
                     ),
@@ -1067,17 +912,13 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
                 ],
               ),
               const SizedBox(height: 24),
-              // Divider
-              Divider(color: Colors.white10, thickness: 1),
-              const SizedBox(height: 16),
-              // Earnings Breakdown
               Row(
                 children: [
                   Expanded(
                     child: _earningsBreakdownCard(
                       'Creation Fee',
                       '${creationEarnings.toStringAsFixed(2)} FARM',
-                      '1.5% per escrow creation',
+                      'From $creationCount escrow creations',
                       Colors.green,
                       cardColor,
                     ),
@@ -1087,14 +928,107 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage> {
                     child: _earningsBreakdownCard(
                       'Release Fee',
                       '${releaseEarnings.toStringAsFixed(2)} FARM',
-                      '1.5% per escrow release',
+                      'From $releaseCount escrow releases',
                       Colors.blue,
                       cardColor,
                     ),
                   ),
                 ],
               ),
+              const SizedBox(height: 12),
+              _earningsBreakdownCard(
+                'Withdraw Fee',
+                '${withdrawEarnings.toStringAsFixed(2)} FARM',
+                'From $withdrawCount withdraws',
+                Colors.purple,
+                cardColor,
+              ),
             ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSuperadminFees(Map<String, dynamic>? wallet, Color cardColor, Color accent, Color muted) {
+    final balance = wallet == null ? 0.0 : (wallet['available_balance'] ?? wallet['balance'] ?? 0.0);
+    final displayBalance = (balance is num) ? (balance).toDouble() : double.tryParse(balance.toString()) ?? 0.0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Total Revenues',
+          style: GoogleFonts.plusJakartaSans(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 14),
+        GestureDetector(
+          onTap: () => context.go(SuperadminWalletPage.routePath),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: cardColor,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white10),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Escrow + Withdrawals',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: Colors.white70,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${displayBalance.toStringAsFixed(2)} FARM',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Operations wallet balance',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: Colors.white54,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(
+                    Icons.account_balance_wallet_rounded,
+                    color: accent,
+                    size: 28,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
