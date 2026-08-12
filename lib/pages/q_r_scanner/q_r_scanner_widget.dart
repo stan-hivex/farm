@@ -1,13 +1,13 @@
-import 'package:http/http.dart' as http;
-import '/core/app_config.dart';
+import '/backend/services/api_service.dart';
+ 
 
 import '/components/action_circle/action_circle_widget.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/backend/api_requests/wallet_api_service.dart';
+// replaced direct wallet API calls with centralized ApiService
 import '/services/app_session_manager.dart';
-import '/backend/api_requests/user_api_service.dart';
+ 
 import '/services/transaction_authentication_service.dart';
 import '/services/transaction_authorization_service.dart';
 import '/utils/merchant_qr_parser.dart';
@@ -92,13 +92,9 @@ class _QRScannerWidgetState extends State<QRScannerWidget> {
     try {
       setState(() => balanceLoading = true);
 
-      final wallet = await WalletApiService.getWallet(
-        token: FFAppState().accessToken,
-      );
-
+      final resp = await ApiService.getWallet();
       setState(() {
-        walletBalance =
-            double.tryParse(wallet['balance']?.toString() ?? '0') ?? 0.0;
+        walletBalance = double.tryParse((resp['data']?['balance'] ?? resp['balance'] ?? 0).toString()) ?? 0.0;
         balanceLoading = false;
       });
     } catch (e) {
@@ -213,20 +209,18 @@ class _QRScannerWidgetState extends State<QRScannerWidget> {
                                   final amount = double.tryParse(
                                           amountController.text.trim()) ??
                                       0;
-                                  await WalletApiService.sendFunds(
-                                    token: FFAppState().accessToken,
-                                    recipient: recipientIdentifier,
-                                    amount: amount,
-                                    pin: null,
-                                    description: descriptionController.text
-                                            .trim()
-                                            .isNotEmpty
-                                        ? descriptionController.text.trim()
-                                        : 'QR payment',
-                                    biometricAuth: true,
-                                    deviceFingerprint:
-                                        authResult?.deviceFingerprint,
-                                  );
+                                      await ApiService.request(
+                                        method: 'POST',
+                                        path: '/wallet/send',
+                                        body: {
+                                          'recipient_identifier': recipientIdentifier,
+                                          'amount': amount,
+                                          'pin': null,
+                                          'description': descriptionController.text.trim().isNotEmpty ? descriptionController.text.trim() : 'QR payment',
+                                          'biometric_auth': true,
+                                          'device_fingerprint': authResult?.deviceFingerprint,
+                                        },
+                                      );
 
                                   if (!mounted) return;
                                   await AppSessionManager().syncNow(
@@ -321,19 +315,17 @@ class _QRScannerWidgetState extends State<QRScannerWidget> {
                                                 .toTransactionAuthenticationResult());
 
                                     if (authResult?.biometricUsed == true) {
-                                      await WalletApiService.sendFunds(
-                                        token: FFAppState().accessToken,
-                                        recipient: recipientIdentifier,
-                                        amount: amount,
-                                        pin: null,
-                                        description: descriptionController.text
-                                                .trim()
-                                                .isNotEmpty
-                                            ? descriptionController.text.trim()
-                                            : 'QR payment',
-                                        biometricAuth: true,
-                                        deviceFingerprint:
-                                            authResult?.deviceFingerprint,
+                                      await ApiService.request(
+                                        method: 'POST',
+                                        path: '/wallet/send',
+                                        body: {
+                                          'recipient_identifier': recipientIdentifier,
+                                          'amount': amount,
+                                          'pin': null,
+                                          'description': descriptionController.text.trim().isNotEmpty ? descriptionController.text.trim() : 'QR payment',
+                                          'biometric_auth': true,
+                                          'device_fingerprint': authResult?.deviceFingerprint,
+                                        },
                                       );
                                     } else {
                                       if (pin.isEmpty) {
@@ -346,21 +338,15 @@ class _QRScannerWidgetState extends State<QRScannerWidget> {
                                         return;
                                       }
 
-                                      await WalletApiService.sendFunds(
-                                        token: FFAppState().accessToken,
-                                        recipient: recipientIdentifier,
-                                        amount: amount,
-                                        pin: pin,
-                                        description: descriptionController.text
-                                                .trim()
-                                                .isNotEmpty
-                                            ? descriptionController.text.trim()
-                                            : 'QR payment',
-                                        biometricAuth: null,
-                                        deviceFingerprint:
-                                            authResult?.biometricUsed == true
-                                                ? authResult?.deviceFingerprint
-                                                : null,
+                                      await ApiService.request(
+                                        method: 'POST',
+                                        path: '/wallet/send',
+                                        body: {
+                                          'recipient_identifier': recipientIdentifier,
+                                          'amount': amount,
+                                          'pin': pin,
+                                          'description': descriptionController.text.trim().isNotEmpty ? descriptionController.text.trim() : 'QR payment',
+                                        },
                                       );
                                     }
 
@@ -440,25 +426,12 @@ class _QRScannerWidgetState extends State<QRScannerWidget> {
         return;
       }
 
-      final response = await http.post(
-        Uri.parse(
-          '${AppConfig.api}/qr/validate',
-        ),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${FFAppState().accessToken}',
-        },
-        body: jsonEncode({
-          'qr_payload': qrPayload,
-        }),
-      );
+      final data = await ApiService.request(method: 'POST', path: '/qr/validate', body: {'qr_payload': qrPayload});
+      final qrData = data['data'] ?? data;
 
-      debugPrint(response.body);
+      debugPrint(qrData.toString());
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
-
-        final qrData = data['data'];
+      if (qrData != null) {
 
         if (qrData['type'] == 'peer') {
           final recipientIdentifier = qrData['wallet_address']?.toString() ??
@@ -560,16 +533,14 @@ class _QRScannerWidgetState extends State<QRScannerWidget> {
               List<dynamic> suggestionUsers = [];
 
               Future<void> searchUsers(String value) async {
-                if (!UserApiService.shouldSearchSuggestions(value)) {
+                if (value.trim().length < 3) {
                   setState(() => suggestionUsers = []);
                   return;
                 }
 
                 try {
-                  final users = await UserApiService.searchUsers(
-                    token: FFAppState().accessToken,
-                    query: value.trim(),
-                  );
+                  final resp = await ApiService.searchUsers(value.trim());
+                  final users = resp['data'] ?? resp;
                   if (!mounted) return;
                   setState(() => suggestionUsers = users);
                 } catch (_) {
@@ -646,10 +617,14 @@ class _QRScannerWidgetState extends State<QRScannerWidget> {
                                   ),
                                 ),
                                 title: Text(
-                                    UserApiService.getSuggestionLabel(user)),
+                                    (user['username'] ?? '').toString().trim().isNotEmpty
+                                        ? '@${(user['username'] ?? '').toString().trim()}${((user['phone'] ?? '').toString().trim().isNotEmpty) ? ' • ${(user['phone'] ?? '').toString().trim()}' : ''}'
+                                        : (user['phone'] ?? '').toString().trim()),
                                 onTap: () {
                                   controller.text =
-                                      UserApiService.getSuggestionValue(user);
+                                      ((user['username'] ?? '').toString().trim().isNotEmpty
+                                          ? (user['username'] ?? '').toString().trim()
+                                          : (user['phone'] ?? '').toString().trim());
                                   setState(() => suggestionUsers = []);
                                 },
                               );
@@ -719,29 +694,21 @@ class _QRScannerWidgetState extends State<QRScannerWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        if (Navigator.of(context).canPop()) {
-          return true;
-        }
-        context.goNamed('Dashboard');
-        return false;
+    return GestureDetector(
+      onTap: () {
+        FocusScope.of(context).unfocus();
+        FocusManager.instance.primaryFocus?.unfocus();
       },
-      child: GestureDetector(
-        onTap: () {
-          FocusScope.of(context).unfocus();
-          FocusManager.instance.primaryFocus?.unfocus();
-        },
-        child: Scaffold(
-          key: scaffoldKey,
-          backgroundColor: FlutterFlowTheme.of(context).primary,
-          body: SafeArea(
-            child: Container(
-              width: double.infinity,
-              height: double.infinity,
-              color: FlutterFlowTheme.of(context).primary,
-              child: Column(
-                children: [  
+      child: Scaffold(
+        key: scaffoldKey,
+        backgroundColor: FlutterFlowTheme.of(context).primary,
+        body: SafeArea(
+          child: Container(
+            width: double.infinity,
+            height: double.infinity,
+            color: FlutterFlowTheme.of(context).primary,
+            child: Column(
+              children: [
                 /// TOP BAR
                 Padding(
                   padding: const EdgeInsets.all(24),
@@ -758,11 +725,7 @@ class _QRScannerWidgetState extends State<QRScannerWidget> {
                           size: 24,
                         ),
                         onPressed: () {
-                          if (Navigator.of(context).canPop()) {
-                            Navigator.of(context).pop();
-                          } else {
-                            context.goNamed('Dashboard');
-                          }
+                          context.goNamed('Dashboard');
                         },
                       ),
                       Text(
@@ -1021,7 +984,6 @@ class _QRScannerWidgetState extends State<QRScannerWidget> {
           ),
         ),
       ),
-    ),
     );
   }
 }

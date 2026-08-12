@@ -3,8 +3,7 @@ import '/components/pin_digit_box_widget.dart';
 import '/components/security_note_widget.dart';
 
 
-import 'package:http/http.dart' as http;
-import '/core/app_config.dart';
+import '/backend/services/api_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -65,27 +64,14 @@ class _PinSetupPageWidgetState
 
   Future<void> fetchSecuritySettings() async {
     try {
-      final response = await http.get(
-        Uri.parse('${AppConfig.api}/security/settings'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${FFAppState().accessToken}',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final remoteHasPin = data['has_pin'] ?? false;
-        FFAppState().hasPin = remoteHasPin;
-        setState(() {
-          hasPin = remoteHasPin;
-          securityLoading = false;
-        });
-      } else {
-        setState(() {
-          securityLoading = false;
-        });
-      }
+      final resp = await ApiService.request(method: 'GET', path: '/security/settings');
+      final data = Map<String, dynamic>.from(resp['data'] ?? resp);
+      final remoteHasPin = data['has_pin'] ?? false;
+      FFAppState().hasPin = remoteHasPin;
+      setState(() {
+        hasPin = remoteHasPin;
+        securityLoading = false;
+      });
     } catch (e) {
       print('SECURITY FETCH ERROR: $e');
       setState(() {
@@ -169,53 +155,20 @@ class _PinSetupPageWidgetState
         "TOKEN: ${FFAppState().accessToken}",
       );
 
-      final response = await http.post(
-        Uri.parse(
-          '${AppConfig.api}/auth/set-pin',
+      await ApiService.setPin(pin: _pin.trim(), confirmPin: _confirmPin.trim());
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('PIN set successfully'),
         ),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization':
-              'Bearer ${FFAppState().accessToken}',
-        },
-        body: jsonEncode({
-  "pin": _pin.trim(),
-  "confirm_pin": _confirmPin.trim(),
-}),
       );
 
-      print(response.body);
+      FFAppState().hasPin = true;
+      setState(() {
+        hasPin = true;
+      });
 
-      if (response.statusCode == 200 ||
-          response.statusCode == 201) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(
-          const SnackBar(
-            content: Text(
-              'PIN set successfully',
-            ),
-          ),
-        );
-
-        FFAppState().hasPin = true;
-        setState(() {
-          hasPin = true;
-        });
-
-        context.pop(true);
-      } else {
-  final data = jsonDecode(response.body);
-
-  String message =
-      data['message'] ?? 'Failed to set PIN';
-
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(message),
-      backgroundColor: context.errorColor,
-    ),
-  );
-}
+      context.pop(true);
     } catch (e) {
       print(e);
 

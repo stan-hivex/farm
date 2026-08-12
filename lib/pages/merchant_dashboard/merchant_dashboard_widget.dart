@@ -12,7 +12,6 @@ import '/utils/merchant_qr_utils.dart';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
 
 import 'merchant_dashboard_model.dart';
 
@@ -102,18 +101,8 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
         merchantNotFound = false;
       });
 
-      final token = await getToken();
-      final response = await http.get(
-        Uri.parse('$baseUrl/merchant/dashboard'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      final body = jsonDecode(response.body);
-      if (response.statusCode == 200) {
-        final data = body['data'];
+      final resp = await ApiService.request(method: 'GET', path: '/merchant/dashboard');
+      final data = resp['data'] ?? resp;
         final transactions = data['recent_transactions'] ?? [];
         setState(() {
           merchant = data['merchant'];
@@ -126,8 +115,17 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
         if (_merchantQrBase64 == null) {
           await _fetchMerchantQr();
         }
-      } else {
-        final message = body['message']?.toString() ?? '';
+      // ApiService throws on non-2xx responses, but just in case handle missing data
+      if (data == null) {
+        setState(() {
+          loading = false;
+        });
+        showError('Failed to load merchant dashboard');
+        return;
+      }
+
+      if (data is Map) {
+        final message = (data['message']?.toString() ?? '');
         if (message.contains('Merchant account not found')) {
           setState(() {
             merchantNotFound = true;
@@ -192,35 +190,26 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
         applyingMerchant = true;
       });
 
-      final token = FFAppState().accessToken;
-      final response = await http.post(
-        Uri.parse('$baseUrl/merchant/apply'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
+      final body = await ApiService.request(
+        method: 'POST',
+        path: '/merchant/apply',
+        body: {
           'business_name': businessNameController.text.trim(),
           'business_type': businessTypeController.text.trim(),
           'business_email': emailController.text.trim(),
           'business_phone': phoneController.text.trim(),
           'country': countryController.text.trim(),
           'city': cityController.text.trim(),
-        }),
+        },
       );
 
-      final body = jsonDecode(response.body);
       setState(() {
         applyingMerchant = false;
       });
 
-      if (response.statusCode == 201 || response.statusCode == 200) {
-        Navigator.pop(context);
-        showSuccess(body['message'] ?? 'Merchant application submitted');
-        fetchDashboard();
-      } else {
-        showError(body['message'] ?? 'Failed to apply');
-      }
+      Navigator.pop(context);
+      showSuccess(body['message'] ?? 'Merchant application submitted');
+      fetchDashboard();
     } catch (e) {
       setState(() {
         applyingMerchant = false;
@@ -235,7 +224,6 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
         regeneratingQr = true;
       });
 
-      await getToken();
       final body = await ApiService.regenerateMerchantQr();
       setState(() {
         regeneratingQr = false;
@@ -287,33 +275,24 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
         payoutLoading = true;
       });
 
-      final token = await getToken();
-      final response = await http.post(
-        Uri.parse('$baseUrl/merchant/payout'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
+      final body = await ApiService.request(
+        method: 'POST',
+        path: '/merchant/payout',
+        body: {
           'amount': double.parse(amountController.text),
           'payout_method': payoutMethod,
           'account_name': accountNameController.text,
           'account_number': accountNumberController.text,
-        }),
+        },
       );
 
-      final body = jsonDecode(response.body);
       setState(() {
         payoutLoading = false;
       });
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        Navigator.pop(context);
-        showSuccess('Payout request submitted');
-        fetchDashboard();
-      } else {
-        showError(body['message']);
-      }
+      Navigator.pop(context);
+      showSuccess('Payout request submitted');
+      fetchDashboard();
     } catch (e) {
       setState(() {
         payoutLoading = false;
@@ -437,6 +416,13 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
           title: const Text('✓ QR Code Saved'),
           content: Text(message),
           actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _openQrKit();
+              },
+              child: const Text('OPEN'),
+            ),
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();

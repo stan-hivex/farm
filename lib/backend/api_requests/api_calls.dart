@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '/core/app_config.dart';
+import '/backend/services/api_service.dart';
 import 'api_manager.dart';
 
 export 'api_manager.dart' show ApiCallResponse;
@@ -15,29 +16,21 @@ class RegisterCall {
     String? password = '',
     String? country = 'Kenya',
   }) async {
-    final body = jsonEncode({
-      "first_name": firstName,
-      "last_name": lastName,
-      "username": username,
-      "phone": phone,
-      "email": email,
-      "password": password,
-      "country": country,
-    });
-
-    return ApiManager.instance.makeApiCall(
-      callName: 'register',
-      apiUrl: '${AppConfig.api}/auth/register',
-      callType: ApiCallType.POST,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      params: {},
-      body: body,
-      bodyType: BodyType.JSON,
-      returnBody: true,
-      cache: false,
+    final resp = await ApiService.register(
+      firstName: firstName ?? '',
+      lastName: lastName ?? '',
+      username: username ?? '',
+      phone: phone ?? '',
+      password: password ?? '',
+      email: email,
+      country: country,
     );
+
+    return ApiCallResponse.fromCloudCallResponse({
+      'body': resp,
+      'headers': {},
+      'statusCode': 200,
+    });
   }
 }
 
@@ -46,24 +39,16 @@ class LoginCall {
     String? identifier = '',
     String? password = '',
   }) async {
-    final body = jsonEncode({
-      "identifier": identifier,
-      "password": password,
-    });
-
-    return ApiManager.instance.makeApiCall(
-      callName: 'login',
-      apiUrl: '${AppConfig.api}/auth/login',
-      callType: ApiCallType.POST,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      params: {},
-      body: body,
-      bodyType: BodyType.JSON,
-      returnBody: true,
-      cache: false,
+    final resp = await ApiService.login(
+      identifier: identifier ?? '',
+      password: password ?? '',
     );
+
+    return ApiCallResponse.fromCloudCallResponse({
+      'body': resp,
+      'headers': {},
+      'statusCode': 200,
+    });
   }
 }
 

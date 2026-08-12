@@ -2304,6 +2304,7 @@ file:///C:/farm/lib/backend/api_requests/payment_request_api_service.dart
 file:///C:/farm/lib/backend/api_requests/user_api_service.dart
 file:///C:/farm/lib/backend/api_requests/wallet_api_service.dart
 file:///C:/farm/lib/backend/models/escrow_model.dart
+file:///C:/farm/lib/backend/services/api_cache.dart
 file:///C:/farm/lib/backend/services/api_service.dart
 file:///C:/farm/lib/backend/services/turnstile_payload.dart
 file:///C:/farm/lib/components/action_circle/action_circle_model.dart
@@ -2366,6 +2367,7 @@ file:///C:/farm/lib/pages/biometric_unlock_page/biometric_unlock_page_widget.dar
 file:///C:/farm/lib/pages/change_pin_page/change_pin_page_widget.dart
 file:///C:/farm/lib/pages/dashboard/dashboard_model.dart
 file:///C:/farm/lib/pages/dashboard/dashboard_widget.dart
+file:///C:/farm/lib/pages/depositpage/deposit_status_utils.dart
 file:///C:/farm/lib/pages/depositpage/depositpage_widget.dart
 file:///C:/farm/lib/pages/escrow_hub/escrow_hub_widget.dart
 file:///C:/farm/lib/pages/forgot_password_page/forgot_password_page_model.dart
@@ -2433,6 +2435,7 @@ file:///C:/farm/lib/services/transaction_authentication_service.dart
 file:///C:/farm/lib/services/transaction_authorization_service.dart
 file:///C:/farm/lib/utils/merchant_qr_parser.dart
 file:///C:/farm/lib/utils/merchant_qr_utils.dart
+file:///C:/farm/lib/utils/refresh_loading_state.dart
 file:///C:/farm/lib/utils/transaction_peer_resolver.dart
 file:///C:/farm/lib/web_url_strategy.dart
 file:///C:/farm/lib/web_url_strategy_web.dart

@@ -1,7 +1,6 @@
 import 'dart:async';
 
-import 'package:http/http.dart' as http;
-import '/core/app_config.dart';
+import '/backend/services/api_service.dart';
 import '/components/button/button_widget.dart';
 import '/components/profile_info_tile/profile_info_tile_widget.dart';
 import '/components/settings_action_tile/settings_action_tile_widget.dart';
@@ -162,40 +161,26 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
 
   Future<void> fetchSecuritySettings() async {
     try {
-      final response = await http.get(
-        Uri.parse('${AppConfig.api}/security/settings'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${FFAppState().accessToken}',
-        },
-      );
+      final resp = await ApiService.request(method: 'GET', path: '/security/settings');
+      final data = Map<String, dynamic>.from(resp['data'] ?? resp as Map<String, dynamic>);
+      final remoteBiometricsEnabled = data['biometrics_enabled'] ?? false;
+      final resolvedBiometricsEnabled = FFAppState().biometricsEnabled || remoteBiometricsEnabled;
+      final remoteHasPin = data['has_pin'] ?? false;
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final remoteBiometricsEnabled = data['biometrics_enabled'] ?? false;
-        final resolvedBiometricsEnabled =
-            FFAppState().biometricsEnabled || remoteBiometricsEnabled;
-        final remoteHasPin = data['has_pin'] ?? false;
-
-        if (FFAppState().biometricsEnabled != resolvedBiometricsEnabled) {
-          FFAppState().biometricsEnabled = resolvedBiometricsEnabled;
-        }
-        if (FFAppState().hasPin != remoteHasPin) {
-          FFAppState().hasPin = remoteHasPin;
-        }
-
-        setState(() {
-          hasPin = remoteHasPin;
-          biometricsEnabled = resolvedBiometricsEnabled;
-          accountLocked = data['pin_locked'] ?? false;
-
-          securityLoading = false;
-        });
-      } else {
-        setState(() {
-          securityLoading = false;
-        });
+      if (FFAppState().biometricsEnabled != resolvedBiometricsEnabled) {
+        FFAppState().biometricsEnabled = resolvedBiometricsEnabled;
       }
+      if (FFAppState().hasPin != remoteHasPin) {
+        FFAppState().hasPin = remoteHasPin;
+      }
+
+      setState(() {
+        hasPin = remoteHasPin;
+        biometricsEnabled = resolvedBiometricsEnabled;
+        accountLocked = data['pin_locked'] ?? false;
+
+        securityLoading = false;
+      });
     } catch (e) {
       print('SECURITY FETCH ERROR: $e');
 
@@ -1012,52 +997,29 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                   child: Container(
                     child: Padding(
                       padding: const EdgeInsets.all(24.0),
-                      child: Column(
-                        children: [
-                          Container(
-                            child: wrapWithModel(
-                              model: _model.buttonModel,
-                              updateCallback: () => safeSetState(() {}),
-                              child: ButtonWidget(
-                                content: 'Sign Out',
-                                icon: Icon(
-                                  Icons.logout_rounded,
-                                  color: FlutterFlowTheme.of(context).primaryText,
-                                  size: 16.0,
-                                ),
-                                icon_present: true,
-                                icon_end_present: false,
-                                on_tap: '',
-                                onTapCallback: logoutUser,
-                                color: FlutterFlowTheme.of(context).primaryText,
-                                variant: 'outline',
-                                size: 'medium',
-                                full_width: true,
-                                loading: false,
-                                disabled: false,
-                              ),
+                      child: Container(
+                        child: wrapWithModel(
+                          model: _model.buttonModel,
+                          updateCallback: () => safeSetState(() {}),
+                          child: ButtonWidget(
+                            content: 'Sign Out',
+                            icon: Icon(
+                              Icons.logout_rounded,
+                              color: FlutterFlowTheme.of(context).primaryText,
+                              size: 16.0,
                             ),
+                            icon_present: true,
+                            icon_end_present: false,
+                            on_tap: '',
+                            onTapCallback: logoutUser,
+                            color: FlutterFlowTheme.of(context).primaryText,
+                            variant: 'outline',
+                            size: 'medium',
+                            full_width: true,
+                            loading: false,
+                            disabled: false,
                           ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                context.pushNamed('delete_account_page');
-                              },
-                              icon: const Icon(Icons.delete_forever_rounded),
-                              label: const Text('Delete Account'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.redAccent,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                   ),

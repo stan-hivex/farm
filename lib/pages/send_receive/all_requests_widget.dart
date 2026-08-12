@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
-import '/backend/api_requests/wallet_api_service.dart';
+import '/backend/services/api_service.dart';
 import '/app_state.dart';
 import 'package:provider/provider.dart';
 
@@ -33,8 +33,7 @@ class _AllRequestsWidgetState extends State<AllRequestsWidget> {
   Future<void> _cancel(String id) async {
     try {
       setState(() => _loading = true);
-      final token = context.read<FFAppState>().accessToken;
-      await WalletApiService.cancelTransferRequest(token: token, requestId: id);
+      await ApiService.request(method: 'POST', path: '/transfer-requests/$id/cancel');
       setState(() {
         outgoing.removeWhere((r) => r['id'] == id);
         pending.removeWhere((r) => r['id'] == id);

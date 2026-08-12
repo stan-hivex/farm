@@ -3,6 +3,7 @@ import '/backend/services/api_service.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/services/notification_feedback_service.dart';
 import '/services/notification_service.dart';
+import '/utils/refresh_loading_state.dart';
 
 class UserNotificationsPageWidget extends StatefulWidget {
   const UserNotificationsPageWidget({super.key});
@@ -16,6 +17,7 @@ class UserNotificationsPageWidget extends StatefulWidget {
 
 class _UserNotificationsPageWidgetState extends State<UserNotificationsPageWidget> {
   bool isLoading = true;
+  bool _hasCompletedFirstLoad = false;
   String? errorMessage;
   List<Map<String, dynamic>> notifications = [];
   List<Map<String, dynamic>> groupedNotifications = [];
@@ -32,10 +34,13 @@ class _UserNotificationsPageWidgetState extends State<UserNotificationsPageWidge
   }
 
   Future<void> loadNotifications() async {
-    setState(() {
-      isLoading = true;
-      errorMessage = null;
-    });
+    final shouldShowInitialLoader = notifications.isEmpty && !_hasLoadedNotificationsBefore;
+    if (shouldShowInitialLoader) {
+      setState(() {
+        isLoading = true;
+        errorMessage = null;
+      });
+    }
 
     try {
       final items = <Map<String, dynamic>>[];
@@ -102,6 +107,7 @@ class _UserNotificationsPageWidgetState extends State<UserNotificationsPageWidge
         groupedNotifications = groupedList;
         unreadCount = unread;
         isLoading = false;
+        _hasCompletedFirstLoad = true;
       });
       if (hasNewNotifications) {
         NotificationFeedbackService.trigger();
@@ -110,6 +116,7 @@ class _UserNotificationsPageWidgetState extends State<UserNotificationsPageWidge
       setState(() {
         errorMessage = 'Unable to fetch notifications.';
         isLoading = false;
+        _hasCompletedFirstLoad = true;
       });
     }
   }
@@ -623,7 +630,11 @@ class _UserNotificationsPageWidgetState extends State<UserNotificationsPageWidge
       ),
       body: Padding(
         padding: const EdgeInsets.all(12.0),
-        child: isLoading
+        child: RefreshLoadingState.shouldShowInitialLoading(
+                isLoading: isLoading,
+                hasCompletedFirstLoad: _hasCompletedFirstLoad,
+                hasContent: notifications.isNotEmpty,
+              )
             ? Center(child: CircularProgressIndicator())
             : errorMessage != null
                 ? Center(

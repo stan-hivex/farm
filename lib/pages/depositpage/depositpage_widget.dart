@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
+import '/backend/services/api_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '/core/app_config.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
@@ -99,17 +99,11 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
   // ── Fetch wallet balance ─────────────────────────────────────────────────────────────────
   Future<void> _fetchWallet() async {
     try {
-      final res = await http.get(
-        Uri.parse('${AppConfig.api}/wallet'),
-        headers: {'Authorization': 'Bearer ${FFAppState().accessToken}'},
-      );
+      final resp = await ApiService.getWallet();
       if (!mounted) return;
-      if (res.statusCode == 200) {
-        final body = jsonDecode(res.body);
-        setState(() {
-          walletBalance = (body['data']?['balance'] ?? 0).toDouble();
-        });
-      }
+      final data = resp['data'] as Map<String, dynamic>? ?? resp;
+      final bal = (data['balance'] ?? data['available_balance'] ?? 0).toString();
+      setState(() => walletBalance = double.tryParse(bal) ?? 0);
     } catch (e) {
       debugPrint('fetchWallet error: $e');
     } finally {
@@ -120,20 +114,10 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
   // ── Fetch deposit history ────────────────────────────────────────────────
   Future<void> _fetchHistory() async {
     try {
-      final res = await http.get(
-        Uri.parse('${AppConfig.api}/deposit/history'),
-        headers: {'Authorization': 'Bearer ${FFAppState().accessToken}'},
-      );
+      final resp = await ApiService.getDepositHistory();
       if (!mounted) return;
-      if (res.statusCode == 200) {
-        final body = jsonDecode(res.body);
-
-        if (body is List) {
-          setState(() => recentDeposits = body);
-        } else if (body is Map<String, dynamic>) {
-          setState(() => recentDeposits = body['data'] ?? []);
-        }
-      }
+      final items = resp['data'] is List ? resp['data'] as List : [];
+      setState(() => recentDeposits = items);
     } catch (e) {
       debugPrint('fetchHistory error: $e');
     }
@@ -179,29 +163,31 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
         body['phone'] = FFAppState().phone;
       }
 
-      final res = await http.post(
-        Uri.parse(endpoint),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${FFAppState().accessToken}',
-        },
-        body: jsonEncode(body),
+      final path = selectedMethod == 'CRYPTO' ? '/crypto/deposit' : '/deposit/create';
+
+      if (!mounted) return;
+
+      final data = await ApiService.request(
+        method: 'POST',
+        path: path,
+        body: body,
+        requiresAuth: true,
       );
 
       if (!mounted) return;
-      final data = jsonDecode(res.body);
 
-      if (res.statusCode == 200 || res.statusCode == 201) {
-        final paymentUrl = (data['authorization_url'] ??
-                data['payment_url'] ??
-                data['data']?['authorization_url'] ??
-                data['data']?['payment_url'])
-            ?.toString();
-        final farmAmount = data['data']?['amount_farm'];
-        final depositRef = data['data']?['reference'] ??
-            data['data']?['transaction_reference'] ??
-            data['reference'] ??
-            data['transaction_reference'];
+      if (data == null) throw Exception('Empty response from server');
+
+      final paymentUrl = (data['authorization_url'] ??
+              data['payment_url'] ??
+              data['data']?['authorization_url'] ??
+              data['data']?['payment_url'])
+          ?.toString();
+      final farmAmount = data['data']?['amount_farm'];
+      final depositRef = data['data']?['reference'] ??
+          data['data']?['transaction_reference'] ??
+          data['reference'] ??
+          data['transaction_reference'];
 
         if (paymentUrl != null) {
           // Launch Paystack / Ivorypay payment page in browser
@@ -513,7 +499,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                 method: 'CRYPTO',
                 icon: Icons.currency_bitcoin,
                 title: 'Crypto',
-                subtitle: 'takes about 8 minutes',
+                subtitle: 'Instant',
               ),
 
               const SizedBox(height: 24),

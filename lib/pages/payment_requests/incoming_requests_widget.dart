@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import '/app_state.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/backend/api_requests/payment_request_api_service.dart';
+import '/backend/services/api_service.dart';
 import '/services/app_session_manager.dart';
 import '/services/transaction_authorization_service.dart';
 
@@ -23,7 +24,7 @@ class _IncomingRequestsWidgetState extends State<IncomingRequestsWidget> {
   }
 
   void _load() {
-    _future = PaymentRequestApiService.getPendingRequests(token: FFAppState().accessToken);
+    _future = ApiService.request(method: 'GET', path: '/payment-requests/pending').then((r) => List<dynamic>.from(r['data'] ?? r));
   }
 
   Future<void> _pay(String requestId) async {
@@ -61,13 +62,16 @@ class _IncomingRequestsWidgetState extends State<IncomingRequestsWidget> {
     }
 
     try {
-        final res = await PaymentRequestApiService.acceptPaymentRequest(
-          token: FFAppState().accessToken,
-          requestId: requestId,
-          pin: authResult.biometricUsed == true ? null : pin!,
-          biometricAuth: authResult.biometricUsed == true ? true : null,
-          deviceFingerprint: authResult.deviceFingerprint,
-      );
+        final res = await ApiService.request(
+          method: 'POST',
+          path: '/payment-requests/accept',
+          body: {
+            'request_id': requestId,
+            if (authResult.biometricUsed != true) 'pin': pin,
+            if (authResult.biometricUsed == true) 'biometric_auth': true,
+            if (authResult.deviceFingerprint != null) 'device_fingerprint': authResult.deviceFingerprint,
+          },
+        );
       await AppSessionManager().syncNow(
         profileTimeoutSeconds: 5,
         walletTimeoutSeconds: 5,
@@ -82,7 +86,7 @@ class _IncomingRequestsWidgetState extends State<IncomingRequestsWidget> {
 
   Future<void> _decline(String requestId) async {
     try {
-      final res = await PaymentRequestApiService.rejectPaymentRequest(token: FFAppState().accessToken, requestId: requestId);
+      final res = await ApiService.request(method: 'POST', path: '/payment-requests/$requestId/reject');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res['message'] ?? 'Declined')));
       setState(() => _load());
     } catch (e) {
@@ -110,7 +114,6 @@ class _IncomingRequestsWidgetState extends State<IncomingRequestsWidget> {
                 final r = list[i] as Map<String, dynamic>;
                 final requester = r['users_requester'] ?? {};
                 return ListTile(
-                  onTap: () => context.push('/money-request-approval/${r['id']}'),
                   title: Text(requester['username'] ?? 'User'),
                   subtitle: Text('${(r['amount'] as num).toString()} FARM'),
                   trailing: Row(mainAxisSize: MainAxisSize.min, children: [

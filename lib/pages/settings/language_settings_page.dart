@@ -2,7 +2,8 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
+import '/backend/services/api_service.dart';
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '/core/app_config.dart';
 
@@ -110,23 +111,10 @@ class _LanguageSettingsPageWidgetState
 
     try {
 
-      await http.put(
-
-        Uri.parse(
-          '${AppConfig.api}/settings/language',
-        ),
-
-        headers: {
-
-          'Content-Type': 'application/json',
-
-          'Authorization':
-              'Bearer ${FFAppState().accessToken}',
-        },
-
-        body: jsonEncode({
-          'language': language,
-        }),
+      await ApiService.request(
+        method: 'PUT',
+        path: '/settings/language',
+        body: {'language': language},
       );
 
     } catch (e) {

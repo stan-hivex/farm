@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
 import '/core/app_config.dart';
-import 'package:http/http.dart' as http;
 import '/core/theme_extensions.dart';
 
 import '/app_state.dart';
@@ -124,68 +122,37 @@ class _ChangePinPageWidgetState
     });
 
     try {
-      final response = await http.post(
-        Uri.parse(
-          '${AppConfig.api}/auth/change-pin',
-        ),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization':
-              'Bearer ${FFAppState().accessToken}',
-        },
-        body: jsonEncode({
-          "old_pin": oldPin,
-          "new_pin": newPin,
-          "confirm_pin": confirmPin,
-        }),
+      final data = await ApiService.changePin(
+        currentPin: oldPin,
+        newPin: newPin,
+        confirmPin: confirmPin,
       );
 
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode == 200 ||
-          response.statusCode == 201) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(
-          SnackBar(
-            content: Text(
-              data['message'] ??
-                  'PIN changed successfully',
-            ),
-          ),
-        );
-
-        Navigator.pop(context);
-      } else {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(
-          SnackBar(
-            content: Text(
-              data['message'] ??
-                  'Failed to change PIN',
-            ),
-          ),
-        );
-
-        // Reset only old pin if incorrect
-        if ((data['message'] ?? '')
-            .toString()
-            .toLowerCase()
-            .contains('old pin')) {
-          setState(() {
-            oldPin = '';
-            step2 = false;
-          });
-        }
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            "Error: $e",
+            data['message'] ?? 'PIN changed successfully',
           ),
         ),
       );
+
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.toString(),
+          ),
+        ),
+      );
+      // If error message indicates old pin wrong, reset old pin
+      final err = e.toString().toLowerCase();
+      if (err.contains('old pin')) {
+        setState(() {
+          oldPin = '';
+          step2 = false;
+        });
+      }
     }
 
     setState(() {

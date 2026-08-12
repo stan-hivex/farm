@@ -3,7 +3,8 @@ import '/components/project_card/project_card_widget.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/core/app_config.dart';
-import 'package:http/http.dart' as http;
+import '/backend/services/api_service.dart';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
@@ -53,27 +54,13 @@ class _InvestmentMarketplaceWidgetState
     setState(() => isLoading = true);
 
     try {
-      final token = FFAppState().accessToken;
-
-      final response = await http.get(
-        Uri.parse('$baseUrl/investments'),
-        headers: {
-          "Authorization": "Bearer $token",
-          "Content-Type": "application/json",
-        },
-      );
-
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
-        setState(() {
-          projects = data['data'] ?? [];
-          filteredProjects = projects;
-          isLoading = false;
-        });
-      } else {
-        setState(() => isLoading = false);
-      }
+      final resp = await ApiService.request(method: 'GET', path: '/investments', requiresAuth: false);
+      final data = resp['data'] ?? resp;
+      setState(() {
+        projects = data is Map ? (data['data'] ?? []) as List : (data as List? ?? []);
+        filteredProjects = projects;
+        isLoading = false;
+      });
     } catch (e) {
       debugPrint("ERROR: $e");
       setState(() => isLoading = false);

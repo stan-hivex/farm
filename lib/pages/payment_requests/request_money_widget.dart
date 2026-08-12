@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/backend/api_requests/payment_request_api_service.dart';
+import '/backend/services/api_service.dart';
 
 class RequestMoneyWidget extends StatefulWidget {
   const RequestMoneyWidget({super.key});
@@ -36,11 +36,14 @@ class _RequestMoneyWidgetState extends State<RequestMoneyWidget> {
 
     try {
       setState(() => _submitting = true);
-      final res = await PaymentRequestApiService.requestPayment(
-        token: FFAppState().accessToken,
-        recipientIdentifier: recipient,
-        amount: amount,
-        description: desc,
+      final res = await ApiService.request(
+        method: 'POST',
+        path: '/payment-requests/request',
+        body: {
+          'recipient_identifier': recipient,
+          'amount': amount,
+          'description': desc,
+        },
       );
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res['message'] ?? 'Request created')));
       Navigator.of(context).pop();

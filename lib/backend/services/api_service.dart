@@ -36,23 +36,22 @@ class ApiService {
     int timeoutSeconds = 20,
   }) async {
     final uri = Uri.parse('${AppConfig.api}$path');
-    final token = FFAppState().accessToken;
+    // Ensure we resolve a valid access token from persisted/session state.
+    String token = await FFAppState().getActiveAccessToken();
+    // If this request requires auth and we don't have a token in memory,
+    // attempt a refresh (serialized inside RefreshManager) before proceeding.
+    if (requiresAuth && token.isEmpty && FFAppState().refreshToken.isNotEmpty) {
+      try {
+        await RefreshManager().refreshIfNeeded(force: false);
+      } catch (_) {}
+      token = await FFAppState().getActiveAccessToken();
+    }
 
     final headers = <String, String>{
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       if (requiresAuth && token.isNotEmpty) 'Authorization': 'Bearer $token',
     };
-
-    debugPrint('[ApiService] REQUEST $method $path requiresAuth=$requiresAuth tokenPresent=${token.isNotEmpty} tokenLength=${token.length}');
-    debugPrint('[ApiService] REQUEST HEADERS ${headers.toString()}');
-    if (body != null) {
-      try {
-        debugPrint('[ApiService] REQUEST BODY ${jsonEncode(body)}');
-      } catch (_) {
-        debugPrint('[ApiService] REQUEST BODY (non-json) $body');
-      }
-    }
 
     http.Response response;
     final start = DateTime.now();
@@ -88,11 +87,7 @@ class ApiService {
           break;
         case 'DELETE':
           response = await _client
-              .delete(
-                uri,
-                headers: headers,
-                body: body != null ? jsonEncode(body) : null,
-              )
+              .delete(uri, headers: headers)
               .timeout(Duration(seconds: timeoutSeconds));
           break;
         default:
@@ -415,20 +410,8 @@ class ApiService {
         requiresAuth: false,
       );
 
-  static Future<Map<String, dynamic>> deleteAccount({
-    required String password,
-    required bool acknowledged,
-    required bool confirmDelete,
-  }) =>
-      _request(
-        method: 'DELETE',
-        path: '/auth/delete-account',
-        body: {
-          'password': password,
-          'acknowledged': acknowledged,
-          'confirm_delete': confirmDelete,
-        },
-      );
+  static Future<Map<String, dynamic>> deleteAccount() =>
+      _request(method: 'DELETE', path: '/auth/delete-account');
 
   // ── Wallet ────────────────────────────────────────────────────────────────
     static Future<Map<String, dynamic>> getWallet({int timeoutSeconds = 20}) =>

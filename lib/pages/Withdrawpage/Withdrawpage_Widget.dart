@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
+import '/backend/services/api_service.dart';
 import '/core/app_config.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
@@ -88,51 +88,15 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
 
   // Fee rates per method
   final Map<String, double> _fees = {
-    'BANK': 0.015,
-    'MOBILE_MONEY': 0.015,
-    'CRYPTO': 0.015,
-  };
-
-  final Map<String, Map<String, double?>> _withdrawLimits = {
-    'BANK': {'min': 4999, 'max': 999999},
-    'MOBILE_MONEY': {'min': 1499, 'max': 249999},
-    'CRYPTO': {'min': 100, 'max': null},
+    'BANK': 0.0,
+    'MOBILE_MONEY': 0.0,
+    'CRYPTO': 0.0,
   };
 
   double get amount => double.tryParse(_amountCtrl.text.trim()) ?? 0;
   double get feeRate => _fees[selectedMethod] ?? 0.015;
   double get fee => amount * feeRate;
   double get settlement => amount - fee;
-
-  Map<String, double?> get _activeWithdrawLimits =>
-      _withdrawLimits[selectedMethod] ?? _withdrawLimits['BANK']!;
-  double get _activeWithdrawMin => _activeWithdrawLimits['min'] ?? 10;
-  double? get _activeWithdrawMax => _activeWithdrawLimits['max'];
-  bool get _hasValidWithdrawAmount =>
-      amount > 0 &&
-      amount >= _activeWithdrawMin &&
-      (_activeWithdrawMax == null || amount <= _activeWithdrawMax!);
-
-  String _formatAmount(double value) {
-    final formatter = RegExp(r'(\d)(?=(\d{3})+(?!\d))');
-    return value.toStringAsFixed(value.truncateToDouble() == value ? 0 : 2).replaceAllMapped(
-      formatter,
-      (match) => '${match[1]},',
-    );
-  }
-
-  String get _withdrawValidationMessage {
-    if (amount <= 0) {
-      return 'Range: FARM ${_formatAmount(_activeWithdrawMin)}${_activeWithdrawMax == null ? '+' : ' - FARM ${_formatAmount(_activeWithdrawMax!)}'}';
-    }
-    if (_hasValidWithdrawAmount) {
-      return 'Range: FARM ${_formatAmount(_activeWithdrawMin)}${_activeWithdrawMax == null ? '+' : ' - FARM ${_formatAmount(_activeWithdrawMax!)}'}';
-    }
-    final maxText = _activeWithdrawMax == null
-        ? ' and above'
-        : ' and FARM ${_formatAmount(_activeWithdrawMax!)}';
-    return 'Amount must be between FARM ${_formatAmount(_activeWithdrawMin)}$maxText';
-  }
 
   @override
   void initState() {
@@ -156,11 +120,6 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
 
   Future<void> _promptBiometricForPinField() async {
     if (_lastPinAuthResult?.biometricUsed == true) {
-      return;
-    }
-
-    if (!_hasValidWithdrawAmount) {
-      _snack(_withdrawValidationMessage);
       return;
     }
 
@@ -207,27 +166,11 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   // ── Fetch wallet ─────────────────────────────────────────────────────────
   Future<void> _fetchWallet() async {
     try {
-      final res = await http.get(
-        Uri.parse('${AppConfig.api}/wallet'),
-        headers: {'Authorization': 'Bearer ${FFAppState().accessToken}'},
-      );
+      final resp = await ApiService.getWallet();
       if (!mounted) return;
-      if (res.statusCode == 200) {
-        final body = jsonDecode(res.body);
-        // Support different backend shapes: { data: { available_balance } } or { balance }
-        double bal = 0;
-        if (body is Map<String, dynamic>) {
-          bal = (body['data']?['available_balance'] ??
-                  body['data']?['balance'] ??
-                  body['available_balance'] ??
-                  body['balance'] ??
-                  0)
-              .toDouble();
-        } else {
-          bal = 0;
-        }
-        setState(() => walletBalance = bal);
-      }
+      final data = resp['data'] as Map<String, dynamic>? ?? resp;
+      final bal = (data['available_balance'] ?? data['balance'] ?? 0).toString();
+      setState(() => walletBalance = double.tryParse(bal) ?? 0);
     } catch (_) {
     } finally {
       if (mounted) setState(() => loadingWallet = false);
@@ -237,20 +180,10 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   // ── Fetch withdrawal history ─────────────────────────────────────────────
   Future<void> _fetchHistory() async {
     try {
-      final res = await http.get(
-        // Backend withdraw history endpoint
-        Uri.parse('${AppConfig.api}/withdraw/history'),
-        headers: {'Authorization': 'Bearer ${FFAppState().accessToken}'},
-      );
+      final resp = await ApiService.getWithdrawalHistory();
       if (!mounted) return;
-      if (res.statusCode == 200) {
-        final body = jsonDecode(res.body);
-        if (body is List) {
-          setState(() => history = body);
-        } else if (body is Map<String, dynamic>) {
-          setState(() => history = body['data'] ?? body['withdrawals'] ?? []);
-        }
-      }
+      final items = resp['data'] is List ? resp['data'] as List : resp['data']?['withdrawals'] as List? ?? [];
+      setState(() => history = items);
     } catch (_) {
     } finally {
       if (mounted) setState(() => loadingHistory = false);
@@ -279,8 +212,12 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
       TransactionAuthenticationResult? preAuthResult}) async {
     if (isLoading) return;
 
-    if (!_hasValidWithdrawAmount) {
-      _snack(_withdrawValidationMessage);
+    if (amount < 10) {
+      _snack('Minimum withdrawal is KES 10');
+      return;
+    }
+    if (amount > 70000) {
+      _snack('Maximum withdrawal is KES 70,000');
       return;
     }
     if (amount > walletBalance) {
@@ -345,35 +282,25 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
             requestBody['phoneNumber'] = _mobileCtrl.text.trim();
             break;
           case 'CRYPTO':
-            requestBody['cryptoAsset'] = selectedCryptoAsset;
-            requestBody['cryptoAddress'] = _walletCtrl.text.trim();
+            requestBody['cryptoAddress'] = selectedCryptoAsset;
             requestBody['network'] = selectedCryptoNetwork ?? '';
+            requestBody['walletAddress'] = _walletCtrl.text.trim();
             break;
         }
 
-        final res = await http.post(
-          Uri.parse('${AppConfig.api}/withdraw/create'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ${FFAppState().accessToken}',
-          },
-          body: jsonEncode(requestBody),
+        final resp = await ApiService.request(
+          method: 'POST',
+          path: '/withdraw/create',
+          body: requestBody,
         );
 
         if (mounted) {
-          final decoded = jsonDecode(res.body);
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            await AppSessionManager().syncNow(
-              profileTimeoutSeconds: 5,
-              walletTimeoutSeconds: 5,
-              transactionsTimeoutSeconds: 5,
-            );
-            _snack('Withdrawal request submitted successfully');
-          } else {
-            _snack(decoded is Map && decoded['message'] != null
-                ? decoded['message'].toString()
-                : 'Withdrawal failed');
-          }
+          await AppSessionManager().syncNow(
+            profileTimeoutSeconds: 5,
+            walletTimeoutSeconds: 5,
+            transactionsTimeoutSeconds: 5,
+          );
+          _snack('Withdrawal request submitted successfully');
         }
         return;
       }
@@ -401,44 +328,29 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
           requestBody['phoneNumber'] = _mobileCtrl.text.trim();
           break;
         case 'CRYPTO':
-          requestBody['cryptoAsset'] = selectedCryptoAsset;
-          requestBody['cryptoAddress'] = _walletCtrl.text.trim();
+          requestBody['cryptoAddress'] = selectedCryptoAsset;
           requestBody['network'] = selectedCryptoNetwork ?? '';
+          requestBody['walletAddress'] = _walletCtrl.text.trim();
           break;
       }
 
-      final res = await http.post(
-        Uri.parse('${AppConfig.api}/withdraw/create'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${FFAppState().accessToken}',
-        },
-        body: jsonEncode(requestBody),
+      final data = await ApiService.request(
+        method: 'POST',
+        path: '/withdraw/create',
+        body: requestBody,
       );
 
       if (!mounted) return;
-      final data = jsonDecode(res.body);
 
-      print('[WITHDRAW] Response Status: ${res.statusCode}');
-      print('[WITHDRAW] Response: ${res.body}');
-
-      if (res.statusCode == 200 || res.statusCode == 201) {
-        await AppSessionManager().syncNow(
-          profileTimeoutSeconds: 5,
-          walletTimeoutSeconds: 5,
-          transactionsTimeoutSeconds: 5,
-        );
-        _snack('Withdrawal submitted successfully.');
-        _clearFields();
-        await _fetchWallet();
-        await _fetchHistory();
-      } else {
-        final errorMsg = data['message'] ??
-            data['error'] ??
-            'Withdrawal failed. Please try again.';
-        print('[WITHDRAW] Backend Error: $errorMsg');
-        _snack(errorMsg);
-      }
+      await AppSessionManager().syncNow(
+        profileTimeoutSeconds: 5,
+        walletTimeoutSeconds: 5,
+        transactionsTimeoutSeconds: 5,
+      );
+      _snack('Withdrawal submitted successfully.');
+      _clearFields();
+      await _fetchWallet();
+      await _fetchHistory();
     } catch (e) {
       if (mounted) _snack('Network error: $e');
     } finally {
@@ -815,27 +727,13 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                                'Min: FARM ${_formatAmount(_activeWithdrawMin)}',
+                            Text('Min: FARM 10',
                                 style: GoogleFonts.plusJakartaSans(
                                     color: theme.secondaryText, fontSize: 12)),
-                            Text(
-                                _activeWithdrawMax == null
-                                    ? 'Max: FARM no limit'
-                                    : 'Max: FARM ${_formatAmount(_activeWithdrawMax!)}',
+                            Text('Max: FARM 70,000',
                                 style: GoogleFonts.plusJakartaSans(
                                     color: theme.secondaryText, fontSize: 12)),
                           ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _withdrawValidationMessage,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12,
-                            color: amount > 0 && !_hasValidWithdrawAmount
-                                ? Colors.redAccent
-                                : theme.secondaryText,
-                          ),
                         ),
                       ],
                     ),
@@ -966,9 +864,8 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16)),
                         ),
-                        onPressed: (isLoading || !_hasValidWithdrawAmount)
-                            ? null
-                            : _createWithdraw,
+                        onPressed:
+                            (isLoading || amount <= 0) ? null : _createWithdraw,
                         child: isLoading
                             ? const CircularProgressIndicator(color: Colors.white)
                             : Text('Withdraw Funds',

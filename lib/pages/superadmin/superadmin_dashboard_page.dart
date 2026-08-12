@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:convert' as convert;
+ 
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -7,7 +7,8 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '/app_state.dart';
 import '/core/app_config.dart';
-import '/backend/api_requests/api_manager.dart';
+import '/backend/services/api_service.dart';
+ 
 import '/pages/loginpage/loginpage_widget.dart';
 import '/pages/superadmin/add_admin_page.dart';
 import '/pages/superadmin/superadmin_wallet_page.dart';
@@ -102,21 +103,8 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
       final token = await FFAppState().getActiveAccessToken();
       if (token.isEmpty) throw Exception('Not authenticated');
 
-      final response = await ApiManager.instance.makeApiCall(
-        callName: 'superadminWallet',
-        apiUrl: '${AppConfig.api}/admin/wallet',
-        callType: ApiCallType.GET,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        params: {},
-        returnBody: true,
-      );
-
-      final decoded = response.jsonBody as Map<String, dynamic>?;
-      if (decoded == null) throw Exception('Invalid wallet response');
-      setState(() => _superadminWallet = decoded['data'] ?? decoded);
+      final resp = await ApiService.request(method: 'GET', path: '/admin/wallet');
+      setState(() => _superadminWallet = resp['data'] ?? resp);
     } catch (e) {
       debugPrint('[SuperadminDashboardPage] _loadSuperadminWallet failed: $e');
     }
@@ -137,29 +125,10 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
 
       // Fetch dashboard data from backend
       debugPrint('[SuperadminDashboardPage] _loadDashboardData calling ${AppConfig.api}/superadmin/dashboard');
-      final response = await ApiManager.instance.makeApiCall(
-        callName: 'superadminDashboard',
-        apiUrl: '${AppConfig.api}/superadmin/dashboard',
-        callType: ApiCallType.GET,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        params: {},
-        returnBody: true,
-      );
-      debugPrint('[SuperadminDashboardPage] _loadDashboardData response status=${response.statusCode} body=${response.bodyText}');
+      final resp = await ApiService.request(method: 'GET', path: '/superadmin/dashboard');
+      debugPrint('[SuperadminDashboardPage] _loadDashboardData response body=${resp}');
 
-      final decoded = response.jsonBody as Map<String, dynamic>?;
-      if (decoded == null) {
-        throw Exception('Invalid dashboard response');
-      }
-
-      if (decoded['status'] == 'success' || decoded['data'] != null) {
-        setState(() => _dashboardData = decoded['data'] ?? decoded);
-      } else {
-        throw Exception(decoded['message'] ?? 'Failed to load dashboard');
-      }
+      setState(() => _dashboardData = resp['data'] ?? resp);
     } catch (e, st) {
       debugPrint('[SuperadminDashboardPage] _loadDashboardData failed: $e');
       debugPrint(st.toString());
@@ -218,21 +187,8 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
       if (token.isEmpty) throw Exception('Not authenticated');
 
       debugPrint('[SuperadminDashboardPage] _loadExchangeRates calling ${AppConfig.api}/admin/exchange-rates');
-      final response = await ApiManager.instance.makeApiCall(
-        callName: 'superadminExchangeRates',
-        apiUrl: '${AppConfig.api}/admin/exchange-rates',
-        callType: ApiCallType.GET,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        params: {},
-        returnBody: true,
-      );
-
-      final decoded = response.jsonBody as Map<String, dynamic>?;
-      if (decoded == null) throw Exception('Invalid exchange rate response');
-      final rates = decoded['data'] as List<dynamic>? ?? [];
+      final resp = await ApiService.request(method: 'GET', path: '/admin/exchange-rates');
+      final rates = (resp['data'] as List<dynamic>?) ?? [];
 
       String kesFarm = '1';
       String farmKes = '1';
@@ -278,16 +234,10 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
       final token = await FFAppState().getActiveAccessToken();
       if (token.isEmpty) throw Exception('Not authenticated');
 
-      final response = await ApiManager.instance.makeApiCall(
-        callName: 'superadminUpdateExchangeRates',
-        apiUrl: '${AppConfig.api}/admin/exchange-rates',
-        callType: ApiCallType.PUT,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        params: {},
-        body: convert.jsonEncode({
+      final resp = await ApiService.request(
+        method: 'PUT',
+        path: '/admin/exchange-rates',
+        body: {
           'rates': [
             {
               'base_currency': 'KES',
@@ -300,14 +250,10 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
               'rate': double.parse(_farmToKesCtrl.text.trim()),
             },
           ],
-        }),
-        bodyType: BodyType.JSON,
-        returnBody: true,
+        },
       );
 
-      final decoded = response.jsonBody as Map<String, dynamic>?;
-      final message = decoded?['message'] ?? 'Exchange rates updated';
-      if (!response.succeeded) throw Exception(message);
+      final message = resp['message'] ?? 'Exchange rates updated';
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

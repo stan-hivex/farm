@@ -1,16 +1,9 @@
-import 'dart:convert';
-import '/core/app_config.dart';
-import 'package:http/http.dart' as http;
+import '/backend/services/api_service.dart';
 
 class UserApiService {
-  static String get baseUrl => '${AppConfig.api}/users';
-
   static String getSuggestionValue(Map<String, dynamic> user) {
     final username = (user['username'] ?? '').toString().trim();
-    if (username.isNotEmpty) {
-      return username;
-    }
-
+    if (username.isNotEmpty) return username;
     final phone = (user['phone'] ?? '').toString().trim();
     return phone;
   }
@@ -18,15 +11,8 @@ class UserApiService {
   static String getSuggestionLabel(Map<String, dynamic> user) {
     final username = (user['username'] ?? '').toString().trim();
     final phone = (user['phone'] ?? '').toString().trim();
-
-    if (username.isNotEmpty && phone.isNotEmpty) {
-      return '@$username • $phone';
-    }
-
-    if (username.isNotEmpty) {
-      return '@$username';
-    }
-
+    if (username.isNotEmpty && phone.isNotEmpty) return '@$username • $phone';
+    if (username.isNotEmpty) return '@$username';
     return phone;
   }
 
@@ -35,95 +21,74 @@ class UserApiService {
   }
 
   static Future<List<dynamic>> searchUsers({
-    required String token,
     required String query,
   }) async {
-    // Backend controller uses ?q= not ?query=
-    final uri = Uri.parse('$baseUrl/search')
-        .replace(queryParameters: {'q': query});
-
-    final res = await http.get(
-      uri,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
+    final path = '/users/search?q=${Uri.encodeQueryComponent(query)}';
+    final resp = await ApiService.request(
+      method: 'GET',
+      path: path,
+      requiresAuth: true,
     );
-
-    if (res.statusCode != 200) throw Exception('Failed to search users');
-    final body = jsonDecode(res.body);
-    return List<dynamic>.from(body['data'] ?? []);
+    return List<dynamic>.from(resp['data'] ?? []);
   }
 
-  static Future<Map<String, dynamic>> getProfile({
-    required String token,
-  }) async {
-    final res = await http.get(
-      Uri.parse('$baseUrl/me'),
-      headers: {'Authorization': 'Bearer $token'},
+  static Future<Map<String, dynamic>> getProfile() async {
+    final resp = await ApiService.request(
+      method: 'GET',
+      path: '/users/me',
+      requiresAuth: true,
     );
-    if (res.statusCode != 200) throw Exception('Failed to load profile');
-    return jsonDecode(res.body)['data'];
+    return resp['data'] ?? resp;
   }
 
   static Future<void> updateProfile({
-    required String token,
     String? firstName,
     String? lastName,
     String? bio,
     String? country,
     String? city,
   }) async {
-    final res = await http.put(
-      Uri.parse('$baseUrl/me'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
+    await ApiService.request(
+      method: 'PUT',
+      path: '/users/me',
+      body: {
         if (firstName != null) 'first_name': firstName,
         if (lastName != null) 'last_name': lastName,
         if (bio != null) 'bio': bio,
         if (country != null) 'country': country,
         if (city != null) 'city': city,
-      }),
+      },
+      requiresAuth: true,
     );
-    if (res.statusCode != 200) throw Exception('Failed to update profile');
   }
 
-  static Future<List<dynamic>> getContacts({required String token}) async {
-    final res = await http.get(
-      Uri.parse('$baseUrl/contacts'),
-      headers: {'Authorization': 'Bearer $token'},
+  static Future<List<dynamic>> getContacts() async {
+    final resp = await ApiService.request(
+      method: 'GET',
+      path: '/users/contacts',
+      requiresAuth: true,
     );
-    if (res.statusCode != 200) throw Exception('Failed to load contacts');
-    return jsonDecode(res.body)['data'] ?? [];
+    return resp['data'] ?? [];
   }
 
   static Future<void> addContact({
-    required String token,
     required String identifier,
     String? nickname,
   }) async {
-    final res = await http.post(
-      Uri.parse('$baseUrl/contacts'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({'identifier': identifier, if (nickname != null) 'nickname': nickname}),
+    await ApiService.request(
+      method: 'POST',
+      path: '/users/contacts',
+      body: {'identifier': identifier, if (nickname != null) 'nickname': nickname},
+      requiresAuth: true,
     );
-    if (res.statusCode != 200 && res.statusCode != 201) {
-      throw Exception(jsonDecode(res.body)['message'] ?? 'Failed to add contact');
-    }
   }
 
-  static Future<List<dynamic>> getNotifications({required String token}) async {
-    final res = await http.get(
-      Uri.parse('$baseUrl/notifications'),
-      headers: {'Authorization': 'Bearer $token'},
+  static Future<List<dynamic>> getNotifications() async {
+    final resp = await ApiService.request(
+      method: 'GET',
+      path: '/users/notifications',
+      requiresAuth: true,
     );
-    if (res.statusCode != 200) return [];
-    return jsonDecode(res.body)['data'] ?? [];
+    return resp['data'] ?? [];
   }
 }

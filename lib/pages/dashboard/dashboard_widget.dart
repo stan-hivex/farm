@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:http/http.dart' as http;
 import '/core/app_config.dart';
 import '/backend/services/api_service.dart';
 import '/components/quick_action/quick_action_widget.dart';
@@ -168,16 +167,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
 
   Future<void> logoutUser() async {
     try {
-      final response = await http.post(
-        Uri.parse('${AppConfig.api}/auth/logout'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${FFAppState().accessToken}',
-        },
-      );
-
-      print('LOGOUT STATUS: ${response.statusCode}');
-      print('LOGOUT BODY: ${response.body}');
+      await ApiService.logout();
 
       // Clear local session ALWAYS (even if backend fails)
       FFAppState().accessToken = '';
@@ -205,34 +195,13 @@ class _DashboardWidgetState extends State<DashboardWidget>
 
   Future<void> fetchWalletBalance() async {
     try {
-      final response = await http.get(
-        Uri.parse('${AppConfig.api}/wallet'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${FFAppState().accessToken}',
-        },
-      );
-
-      print('BALANCE STATUS: ${response.statusCode}');
-      print('BALANCE BODY: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        setState(() {
-          walletBalance =
-              double.tryParse(data['data']['balance'].toString()) ?? 0.0;
-
-          kesEquivalent =
-              double.tryParse(data['data']['kes_equivalent'].toString()) ?? 0.0;
-
-          isBalanceLoading = false;
-        });
-      } else {
-        setState(() {
-          isBalanceLoading = false;
-        });
-      }
+      final response = await ApiService.getWallet();
+      final data = response['data'] as Map<String, dynamic>? ?? response;
+      setState(() {
+        walletBalance = double.tryParse((data['balance'] ?? data['available_balance'] ?? 0).toString()) ?? 0.0;
+        kesEquivalent = double.tryParse((data['kes_equivalent'] ?? 0).toString()) ?? 0.0;
+        isBalanceLoading = false;
+      });
     } catch (e) {
       print('BALANCE ERROR: $e');
 
@@ -244,27 +213,11 @@ class _DashboardWidgetState extends State<DashboardWidget>
 
   Future<void> fetchUserProfile() async {
     try {
-      final response = await http.get(
-        Uri.parse('${AppConfig.api}/users/me'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${FFAppState().accessToken}',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final kycStatus =
-            data['data']?['kyc_status'] ?? data['data']?['kycStatus'];
-
-        if (kycStatus is String) {
-          FFAppState().kycStatus = kycStatus;
-        }
-
-        setState(() {
-          profileImageUrl = data['data']['profile_image'];
-        });
-      }
+      final response = await ApiService.getProfile(timeoutSeconds: 10);
+      final data = response['data'] as Map<String, dynamic>? ?? response;
+      final kycStatus = data['kyc_status'] ?? data['kycStatus'];
+      if (kycStatus is String) FFAppState().kycStatus = kycStatus;
+      setState(() { profileImageUrl = data['profile_image']; });
     } catch (e) {
       print('PROFILE ERROR: $e');
     }
@@ -284,31 +237,9 @@ class _DashboardWidgetState extends State<DashboardWidget>
 
   Future<void> fetchTransactions() async {
     try {
-      final response = await http.get(
-        Uri.parse(
-          '${AppConfig.api}/transactions?page=1&limit=5',
-        ),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${FFAppState().accessToken}',
-        },
-      );
-
-      print('TRANSACTIONS STATUS: ${response.statusCode}');
-      print('TRANSACTIONS BODY: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        setState(() {
-          transactions = data['data'];
-          isTransactionsLoading = false;
-        });
-      } else {
-        setState(() {
-          isTransactionsLoading = false;
-        });
-      }
+      final response = await ApiService.getTransactions(page: 1, limit: 5, timeoutSeconds: 10);
+      final items = response['data'] as List? ?? [];
+      setState(() { transactions = items; isTransactionsLoading = false; });
     } catch (e) {
       print('TRANSACTIONS ERROR: $e');
 
@@ -399,39 +330,26 @@ class _DashboardWidgetState extends State<DashboardWidget>
           "device_fingerprint": authResult?.deviceFingerprint,
         };
 
-        final response = await http.post(
-          Uri.parse('${AppConfig.api}/wallet/send'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ${FFAppState().accessToken}',
-          },
-          body: jsonEncode(body),
-        );
-
-        print('SEND STATUS: ${response.statusCode}');
-        print('SEND BODY: ${response.body}');
-
-        if (response.statusCode == 200 || response.statusCode == 201) {
+        try {
+          await ApiService.request(method: 'POST', path: '/wallet/send', body: body);
           await AppSessionManager().syncNow(
             profileTimeoutSeconds: 5,
             walletTimeoutSeconds: 5,
             transactionsTimeoutSeconds: 5,
           );
-
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text("Transaction successful")),
             );
           }
           return true;
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Transaction failed: ${e.toString().replaceFirst('Exception: ', '')}")),
+            );
+          }
         }
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Transaction failed: ${response.body}")),
-          );
-        }
-        return false;
       }
 
       if (pin.isEmpty) {
@@ -450,19 +368,8 @@ class _DashboardWidgetState extends State<DashboardWidget>
         "description": description ?? "Transfer",
       };
 
-      final response = await http.post(
-        Uri.parse('${AppConfig.api}/wallet/send'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${FFAppState().accessToken}',
-        },
-        body: jsonEncode(body),
-      );
-
-      print('SEND STATUS: ${response.statusCode}');
-      print('SEND BODY: ${response.body}');
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
+      try {
+        await ApiService.request(method: 'POST', path: '/wallet/send', body: body);
         await AppSessionManager().syncNow(
           profileTimeoutSeconds: 5,
           walletTimeoutSeconds: 5,
@@ -475,10 +382,10 @@ class _DashboardWidgetState extends State<DashboardWidget>
           );
         }
         return true;
-      } else {
+      } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Failed: ${response.body}")),
+            SnackBar(content: Text("Failed: ${e.toString().replaceFirst('Exception: ', '')}")),
           );
         }
         return false;

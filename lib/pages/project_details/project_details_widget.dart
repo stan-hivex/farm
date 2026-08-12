@@ -1,6 +1,5 @@
-import 'dart:convert';
 import '/core/app_config.dart';
-import 'package:http/http.dart' as http;
+import '/backend/services/api_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:percent_indicator/percent_indicator.dart';
@@ -47,17 +46,11 @@ class _ProjectDetailsWidgetState extends State<ProjectDetailsWidget> {
   }
 
   try {
-    final response = await http.get(
-      Uri.parse('$baseUrl/projects/${widget.projectId}'),
-    );
-
-    debugPrint("PROJECT RESPONSE: ${response.body}");
-
-    final data = jsonDecode(response.body);
-
-    if (response.statusCode == 200 && data['data'] != null) {
+    final resp = await ApiService.request(method: 'GET', path: '/projects/${widget.projectId}', requiresAuth: false);
+    final data = resp['data'] is Map ? resp['data'] as Map<String, dynamic> : resp as Map<String, dynamic>;
+    if (data.isNotEmpty) {
       setState(() {
-        project = data['data'];
+        project = data;
         isLoading = false;
       });
     } else {
@@ -84,41 +77,29 @@ class _ProjectDetailsWidgetState extends State<ProjectDetailsWidget> {
     });
 
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/projects/invest'),
-        headers: {
-          'Content-Type': 'application/json',
-
-          // ADD USER TOKEN
-          'Authorization': 'Bearer YOUR_JWT_TOKEN',
-        },
-        body: jsonEncode({
+      final data = await ApiService.request(
+        method: 'POST',
+        path: '/projects/invest',
+        body: {
           'project_id': project!['id'],
           'amount': double.parse(amountController.text),
-        }),
+        },
       );
 
-      final data = jsonDecode(response.body);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(data['message'] ?? 'Investment successful'),
+        ),
+      );
 
-      if (response.statusCode == 201 || response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(data['message']),
-          ),
-        );
+      fetchProject();
 
-        fetchProject();
-
-        amountController.clear();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(data['message'] ?? 'Investment failed'),
-          ),
-        );
-      }
+      amountController.clear();
     } catch (e) {
       debugPrint(e.toString());
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
     }
 
     setState(() {

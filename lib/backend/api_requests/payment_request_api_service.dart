@@ -1,133 +1,72 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import '/core/app_config.dart';
+import '/backend/services/api_service.dart';
 
 class PaymentRequestApiService {
-  static String get _base => '${AppConfig.api}/payment-requests';
-
   static Future<Map<String, dynamic>> requestPayment({
-    required String token,
     required String recipientIdentifier,
     required double amount,
     String? description,
   }) async {
-    final res = await http.post(Uri.parse('$_base/request'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'recipient_identifier': recipientIdentifier,
-          'amount': amount,
-          'description': description ?? '',
-        }));
-    final body = jsonDecode(res.body);
-    if (res.statusCode != 200 && res.statusCode != 201) {
-      throw Exception(body['message'] ?? 'Failed to create payment request');
-    }
-    return body;
+    final resp = await ApiService.request(
+      method: 'POST',
+      path: '/payment-requests/request',
+      body: {
+        'recipient_identifier': recipientIdentifier,
+        'amount': amount,
+        'description': description ?? '',
+      },
+      requiresAuth: true,
+    );
+    return resp;
   }
 
-  static Future<List<dynamic>> getPendingRequests({
-    required String token,
-  }) async {
-    final res = await http.get(Uri.parse('$_base/pending'), headers: {
-      'Authorization': 'Bearer $token',
-      'Content-Type': 'application/json',
-    });
-    if (res.statusCode != 200) throw Exception('Failed to load payment requests');
-    final body = jsonDecode(res.body);
-    return List<dynamic>.from(body['data'] ?? []);
-  }
-
-  static Future<Map<String, dynamic>> getPaymentRequestDetails({
-    required String token,
-    required String requestId,
-  }) async {
-    final res = await http.get(Uri.parse('$_base/$requestId'), headers: {
-      'Authorization': 'Bearer $token',
-      'Content-Type': 'application/json',
-    });
-    final body = jsonDecode(res.body);
-    if (res.statusCode != 200 && res.statusCode != 201) {
-      throw Exception(body['message'] ?? 'Failed to load payment request');
-    }
-    return body;
-  }
-
-  static Future<Map<String, dynamic>> approvePaymentRequest({
-    required String token,
-    required String requestId,
-    String? pin,
-    bool? biometricAuth,
-    String? deviceFingerprint,
-  }) async {
-    final res = await http.post(Uri.parse('$_base/approve'), headers: {
-      'Authorization': 'Bearer $token',
-      'Content-Type': 'application/json',
-    }, body: jsonEncode({
-      'request_id': requestId,
-      if (pin != null) 'pin': pin,
-      if (biometricAuth == true) 'biometric_auth': true,
-      if (deviceFingerprint != null) 'device_fingerprint': deviceFingerprint,
-    }));
-    final body = jsonDecode(res.body);
-    if (res.statusCode != 200 && res.statusCode != 201) {
-      throw Exception(body['message'] ?? 'Failed to approve payment request');
-    }
-    return body;
+  static Future<List<dynamic>> getPendingRequests() async {
+    final resp = await ApiService.request(
+      method: 'GET',
+      path: '/payment-requests/pending',
+      requiresAuth: true,
+    );
+    return List<dynamic>.from(resp['data'] ?? []);
   }
 
   static Future<Map<String, dynamic>> acceptPaymentRequest({
-    required String token,
     required String requestId,
     String? pin,
     bool? biometricAuth,
     String? deviceFingerprint,
   }) async {
-    return approvePaymentRequest(
-      token: token,
-      requestId: requestId,
-      pin: pin,
-      biometricAuth: biometricAuth,
-      deviceFingerprint: deviceFingerprint,
+    final resp = await ApiService.request(
+      method: 'POST',
+      path: '/payment-requests/accept',
+      body: {
+        'request_id': requestId,
+        if (pin != null) 'pin': pin,
+        if (biometricAuth == true) 'biometric_auth': true,
+        if (deviceFingerprint != null) 'device_fingerprint': deviceFingerprint,
+      },
+      requiresAuth: true,
     );
+    return resp;
   }
 
   static Future<Map<String, dynamic>> rejectPaymentRequest({
-    required String token,
     required String requestId,
   }) async {
-    return declinePaymentRequest(token: token, requestId: requestId);
-  }
-
-  static Future<Map<String, dynamic>> declinePaymentRequest({
-    required String token,
-    required String requestId,
-  }) async {
-    final res = await http.post(Uri.parse('$_base/$requestId/decline'), headers: {
-      'Authorization': 'Bearer $token',
-      'Content-Type': 'application/json',
-    });
-    final body = jsonDecode(res.body);
-    if (res.statusCode != 200 && res.statusCode != 201) {
-      throw Exception(body['message'] ?? 'Failed to decline payment request');
-    }
-    return body;
+    final resp = await ApiService.request(
+      method: 'POST',
+      path: '/payment-requests/$requestId/reject',
+      requiresAuth: true,
+    );
+    return resp;
   }
 
   static Future<Map<String, dynamic>> cancelPaymentRequest({
-    required String token,
     required String requestId,
   }) async {
-    final res = await http.post(Uri.parse('$_base/$requestId/cancel'), headers: {
-      'Authorization': 'Bearer $token',
-      'Content-Type': 'application/json',
-    });
-    final body = jsonDecode(res.body);
-    if (res.statusCode != 200 && res.statusCode != 201) {
-      throw Exception(body['message'] ?? 'Failed to cancel payment request');
-    }
-    return body;
+    final resp = await ApiService.request(
+      method: 'POST',
+      path: '/payment-requests/$requestId/cancel',
+      requiresAuth: true,
+    );
+    return resp;
   }
 }

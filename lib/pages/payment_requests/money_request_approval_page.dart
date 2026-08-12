@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import '/app_state.dart';
-import '/backend/api_requests/payment_request_api_service.dart';
+import '/backend/services/api_service.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/services/app_session_manager.dart';
 import '/services/transaction_authorization_service.dart';
@@ -50,10 +50,7 @@ class _MoneyRequestApprovalPageState extends State<MoneyRequestApprovalPage> {
     while (_loadAttempts < 10) {
       try {
         _loadAttempts += 1;
-        final data = await PaymentRequestApiService.getPaymentRequestDetails(
-          token: FFAppState().accessToken,
-          requestId: widget.requestId,
-        );
+        final data = await ApiService.request(method: 'GET', path: '/payment-requests/${widget.requestId}');
         final request = data['data'] as Map<String, dynamic>?;
         if (!mounted) return data;
         setState(() {
@@ -105,10 +102,7 @@ class _MoneyRequestApprovalPageState extends State<MoneyRequestApprovalPage> {
     _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
       if (!mounted || _isExpired || _completed || _processing) return;
       try {
-        final data = await PaymentRequestApiService.getPaymentRequestDetails(
-          token: FFAppState().accessToken,
-          requestId: widget.requestId,
-        );
+        final data = await ApiService.request(method: 'GET', path: '/payment-requests/${widget.requestId}');
         if (!mounted) return;
         final request = data['data'] as Map<String, dynamic>?;
         if (request == null) return;
@@ -215,12 +209,15 @@ class _MoneyRequestApprovalPageState extends State<MoneyRequestApprovalPage> {
 
     setState(() => _processing = true);
     try {
-      final res = await PaymentRequestApiService.approvePaymentRequest(
-        token: FFAppState().accessToken,
-        requestId: widget.requestId,
-        pin: authResult.biometricUsed == true ? null : pin,
-        biometricAuth: authResult.biometricUsed == true ? true : null,
-        deviceFingerprint: authResult.deviceFingerprint,
+      final res = await ApiService.request(
+        method: 'POST',
+        path: '/payment-requests/accept',
+        body: {
+          'request_id': widget.requestId,
+          if (authResult.biometricUsed != true) 'pin': pin,
+          if (authResult.biometricUsed == true) 'biometric_auth': true,
+          if (authResult.deviceFingerprint != null) 'device_fingerprint': authResult.deviceFingerprint,
+        },
       );
       await AppSessionManager().syncNow(
         profileTimeoutSeconds: 5,
@@ -249,10 +246,7 @@ class _MoneyRequestApprovalPageState extends State<MoneyRequestApprovalPage> {
     if (_processing || _completed) return;
     setState(() => _processing = true);
     try {
-      final res = await PaymentRequestApiService.declinePaymentRequest(
-        token: FFAppState().accessToken,
-        requestId: widget.requestId,
-      );
+      final res = await ApiService.request(method: 'POST', path: '/payment-requests/${widget.requestId}/reject');
       setState(() {
         _completed = true;
         _statusMessage = res['message'] ?? 'Request declined';

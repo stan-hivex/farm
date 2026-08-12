@@ -4,6 +4,7 @@ import '/backend/services/api_service.dart';
 import '/core/responsive.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
+import '/utils/refresh_loading_state.dart';
 import '/utils/transaction_peer_resolver.dart';
 import 'all_transactions_model.dart';
 
@@ -23,6 +24,7 @@ class _AllTransactionsWidgetState extends State<AllTransactionsWidget> {
   late AllTransactionsModel _model;
 
   bool _loading = true;
+  bool _hasCompletedFirstLoad = false;
   String _error = '';
   List<Map<String, dynamic>> _transactions = [];
   String _selectedType = 'all';
@@ -43,10 +45,12 @@ class _AllTransactionsWidgetState extends State<AllTransactionsWidget> {
 
   Future<void> _loadTransactions() async {
     if (!mounted) return;
-    setState(() {
-      _loading = true;
-      _error = '';
-    });
+    if (_transactions.isEmpty) {
+      setState(() {
+        _loading = true;
+        _error = '';
+      });
+    }
 
     try {
       final response = await ApiService.getTransactions(
@@ -71,6 +75,7 @@ class _AllTransactionsWidgetState extends State<AllTransactionsWidget> {
       setState(() {
         _transactions = filtered;
         _loading = false;
+        _hasCompletedFirstLoad = true;
       });
     } catch (e) {
       try {
@@ -88,12 +93,14 @@ class _AllTransactionsWidgetState extends State<AllTransactionsWidget> {
         setState(() {
           _transactions = filtered;
           _loading = false;
+          _hasCompletedFirstLoad = true;
         });
       } catch (inner) {
         if (!mounted) return;
         setState(() {
           _error = e.toString();
           _loading = false;
+          _hasCompletedFirstLoad = true;
         });
       }
     }
@@ -243,7 +250,11 @@ class _AllTransactionsWidgetState extends State<AllTransactionsWidget> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                if (_loading)
+                if (RefreshLoadingState.shouldShowInitialLoading(
+                      isLoading: _loading,
+                      hasCompletedFirstLoad: _hasCompletedFirstLoad,
+                      hasContent: _transactions.isNotEmpty,
+                    ))
                   const Center(
                       child: Padding(
                           padding: EdgeInsets.symmetric(vertical: 24),

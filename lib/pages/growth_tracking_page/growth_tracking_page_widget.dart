@@ -6,6 +6,7 @@ import '/backend/services/api_service.dart';
 import '/flutter_flow/flutter_flow_charts.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
+import '/utils/refresh_loading_state.dart';
 import 'growth_tracking_page_model.dart';
 
 export 'growth_tracking_page_model.dart';
@@ -25,6 +26,7 @@ class _GrowthTrackingPageWidgetState extends State<GrowthTrackingPageWidget> {
   late GrowthTrackingPageModel _model;
 
   bool _loading = true;
+  bool _hasCompletedFirstLoad = false;
   String _error = '';
   String _selectedPeriod = 'daily';
   List<double> _values = [];
@@ -91,12 +93,14 @@ class _GrowthTrackingPageWidgetState extends State<GrowthTrackingPageWidget> {
         _labels = labels;
         _growth = growth;
         _loading = false;
+        _hasCompletedFirstLoad = true;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _error = e.toString();
         _loading = false;
+        _hasCompletedFirstLoad = true;
       });
     }
   }
@@ -168,7 +172,11 @@ class _GrowthTrackingPageWidgetState extends State<GrowthTrackingPageWidget> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      if (_loading)
+                      if (RefreshLoadingState.shouldShowInitialLoading(
+                            isLoading: _loading,
+                            hasCompletedFirstLoad: _hasCompletedFirstLoad,
+                            hasContent: _values.isNotEmpty,
+                          ))
                         Center(
                             child: Padding(
                                 padding:

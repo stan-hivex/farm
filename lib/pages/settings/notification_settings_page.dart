@@ -1,6 +1,6 @@
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 import '/backend/services/api_service.dart';
 import '/core/app_config.dart';
@@ -27,16 +27,6 @@ class _NotificationSettingsPageWidgetState
   late bool smsNotifications;
   late bool soundEnabled;
   late bool vibrationEnabled;
-  late bool receiveMoneyRequests;
-  late bool moneySent;
-  late bool moneyReceived;
-  late bool deposits;
-  late bool withdrawals;
-  late bool escrow;
-  late bool merchantPayments;
-  late bool securityAlerts;
-  late bool promotions;
-  late bool announcements;
 
   bool loading = true;
   bool notificationsLoading = true;
@@ -54,16 +44,6 @@ class _NotificationSettingsPageWidgetState
     smsNotifications = FFAppState().smsNotifications;
     soundEnabled = FFAppState().notificationSoundEnabled;
     vibrationEnabled = FFAppState().notificationVibrationEnabled;
-    receiveMoneyRequests = FFAppState().pushNotifications;
-    moneySent = FFAppState().pushNotifications;
-    moneyReceived = FFAppState().pushNotifications;
-    deposits = FFAppState().pushNotifications;
-    withdrawals = FFAppState().pushNotifications;
-    escrow = FFAppState().pushNotifications;
-    merchantPayments = FFAppState().pushNotifications;
-    securityAlerts = FFAppState().pushNotifications;
-    promotions = FFAppState().pushNotifications;
-    announcements = FFAppState().pushNotifications;
   }
 
   @override
@@ -79,49 +59,32 @@ class _NotificationSettingsPageWidgetState
     if (isSaving) return;
     
     try {
-      final response = await http.get(
-      Uri.parse('$baseUrl/notifications/settings'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
+      final resp = await ApiService.request(method: 'GET', path: '/notifications/settings');
 
       if (!mounted || isSaving) return;
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final settings = data['data'];
+      final settings = resp['data'] ?? resp;
 
-        if (settings is Map<String, dynamic>) {
-          setState(() {
-            pushNotifications = settings['push_notifications'] ?? true;
-            emailNotifications = settings['email_notifications'] ?? false;
-            inAppNotifications = settings['in_app_notifications'] ?? true;
-            smsNotifications = settings['sms_notifications'] ?? false;
-            soundEnabled = settings['sound_enabled'] ?? true;
-            vibrationEnabled = settings['vibration_enabled'] ?? true;
-            receiveMoneyRequests = settings['receive_money_requests'] ?? true;
-            moneySent = settings['money_sent'] ?? true;
-            moneyReceived = settings['money_received'] ?? true;
-            deposits = settings['deposits'] ?? true;
-            withdrawals = settings['withdrawals'] ?? true;
-            escrow = settings['escrow'] ?? true;
-            merchantPayments = settings['merchant_payments'] ?? true;
-            securityAlerts = settings['security_alerts'] ?? true;
-            promotions = settings['promotions'] ?? false;
-            announcements = settings['announcements'] ?? false;
-            loading = false;
-          });
-          
-          // Sync app state using update callback (same as biometrics pattern)
-          FFAppState().update(() {
-            FFAppState().pushNotifications = pushNotifications;
-            FFAppState().emailNotifications = emailNotifications;
-            FFAppState().inAppNotifications = inAppNotifications;
-            FFAppState().smsNotifications = smsNotifications;
-            FFAppState().notificationSoundEnabled = soundEnabled;
-            FFAppState().notificationVibrationEnabled = vibrationEnabled;
-          });
-          return;
-        }
+      if (settings is Map<String, dynamic>) {
+        setState(() {
+          pushNotifications = settings['push_notifications'] ?? true;
+          emailNotifications = settings['email_notifications'] ?? false;
+          inAppNotifications = settings['in_app_notifications'] ?? true;
+          smsNotifications = settings['sms_notifications'] ?? false;
+          soundEnabled = settings['sound_enabled'] ?? true;
+          vibrationEnabled = settings['vibration_enabled'] ?? true;
+          loading = false;
+        });
+
+        FFAppState().update(() {
+          FFAppState().pushNotifications = pushNotifications;
+          FFAppState().emailNotifications = emailNotifications;
+          FFAppState().inAppNotifications = inAppNotifications;
+          FFAppState().smsNotifications = smsNotifications;
+          FFAppState().notificationSoundEnabled = soundEnabled;
+          FFAppState().notificationVibrationEnabled = vibrationEnabled;
+        });
+        return;
       }
 
       if (!mounted) return;
@@ -178,35 +141,22 @@ class _NotificationSettingsPageWidgetState
     try {
       isSaving = true;
       
-      final response = await http.put(
-        Uri.parse('$baseUrl/notifications/settings'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({
+      final resp = await ApiService.request(
+        method: 'PUT',
+        path: '/notifications/settings',
+        body: {
           'push_notifications': pushNotifications,
           'email_notifications': emailNotifications,
           'in_app_notifications': inAppNotifications,
           'sms_notifications': smsNotifications,
           'sound_enabled': soundEnabled,
           'vibration_enabled': vibrationEnabled,
-          'receive_money_requests': receiveMoneyRequests,
-          'money_sent': moneySent,
-          'money_received': moneyReceived,
-          'deposits': deposits,
-          'withdrawals': withdrawals,
-          'escrow': escrow,
-          'merchant_payments': merchantPayments,
-          'security_alerts': securityAlerts,
-          'promotions': promotions,
-          'announcements': announcements,
-        }),
+        },
       );
 
       if (!mounted) return false;
 
-      final success = response.statusCode >= 200 && response.statusCode < 300;
+      final success = resp.isNotEmpty;
       
       if (success) {
         FFAppState().update(() {
@@ -374,106 +324,6 @@ class _NotificationSettingsPageWidgetState
                     subtitle: Text('Vibrate for incoming alerts'),
                     onChanged: isSaving ? null : (value) async {
                       setState(() => vibrationEnabled = value);
-                      await saveSettings();
-                    },
-                  ),
-                  const Divider(height: 1),
-                  SwitchListTile(
-                    value: receiveMoneyRequests,
-                    title: Text('Receive Money Requests'),
-                    subtitle: Text('Get alerts for requested payments'),
-                    onChanged: isSaving ? null : (value) async {
-                      setState(() => receiveMoneyRequests = value);
-                      await saveSettings();
-                    },
-                  ),
-                  const Divider(height: 1),
-                  SwitchListTile(
-                    value: moneySent,
-                    title: Text('Money Sent'),
-                    subtitle: Text('Alerts for outgoing payments'),
-                    onChanged: isSaving ? null : (value) async {
-                      setState(() => moneySent = value);
-                      await saveSettings();
-                    },
-                  ),
-                  const Divider(height: 1),
-                  SwitchListTile(
-                    value: moneyReceived,
-                    title: Text('Money Received'),
-                    subtitle: Text('Alerts when you receive funds'),
-                    onChanged: isSaving ? null : (value) async {
-                      setState(() => moneyReceived = value);
-                      await saveSettings();
-                    },
-                  ),
-                  const Divider(height: 1),
-                  SwitchListTile(
-                    value: deposits,
-                    title: Text('Deposits'),
-                    subtitle: Text('Deposit updates'),
-                    onChanged: isSaving ? null : (value) async {
-                      setState(() => deposits = value);
-                      await saveSettings();
-                    },
-                  ),
-                  const Divider(height: 1),
-                  SwitchListTile(
-                    value: withdrawals,
-                    title: Text('Withdrawals'),
-                    subtitle: Text('Withdrawal updates'),
-                    onChanged: isSaving ? null : (value) async {
-                      setState(() => withdrawals = value);
-                      await saveSettings();
-                    },
-                  ),
-                  const Divider(height: 1),
-                  SwitchListTile(
-                    value: escrow,
-                    title: Text('Escrow'),
-                    subtitle: Text('Escrow updates'),
-                    onChanged: isSaving ? null : (value) async {
-                      setState(() => escrow = value);
-                      await saveSettings();
-                    },
-                  ),
-                  const Divider(height: 1),
-                  SwitchListTile(
-                    value: merchantPayments,
-                    title: Text('Merchant Payments'),
-                    subtitle: Text('Merchant payment alerts'),
-                    onChanged: isSaving ? null : (value) async {
-                      setState(() => merchantPayments = value);
-                      await saveSettings();
-                    },
-                  ),
-                  const Divider(height: 1),
-                  SwitchListTile(
-                    value: securityAlerts,
-                    title: Text('Security Alerts'),
-                    subtitle: Text('Important account security updates'),
-                    onChanged: isSaving ? null : (value) async {
-                      setState(() => securityAlerts = value);
-                      await saveSettings();
-                    },
-                  ),
-                  const Divider(height: 1),
-                  SwitchListTile(
-                    value: promotions,
-                    title: Text('Promotions'),
-                    subtitle: Text('Marketing and campaigns'),
-                    onChanged: isSaving ? null : (value) async {
-                      setState(() => promotions = value);
-                      await saveSettings();
-                    },
-                  ),
-                  const Divider(height: 1),
-                  SwitchListTile(
-                    value: announcements,
-                    title: Text('Announcements'),
-                    subtitle: Text('Platform announcements'),
-                    onChanged: isSaving ? null : (value) async {
-                      setState(() => announcements = value);
                       await saveSettings();
                     },
                   ),

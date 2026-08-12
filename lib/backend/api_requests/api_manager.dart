@@ -11,7 +11,10 @@ import 'package:http_parser/http_parser.dart';
 import 'package:mime_type/mime_type.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/browser_client.dart'
-    if (dart.library.io) 'browser_client_stub.dart';
+  if (dart.library.io) 'browser_client_stub.dart';
+
+import '/core/app_config.dart';
+import '/backend/services/api_service.dart';
 
 import '/flutter_flow/uploaded_file.dart';
 
@@ -548,6 +551,54 @@ class ApiManager {
       return _apiCache[callOptions]!;
     }
 
+    // Attempt to delegate common JSON/GET calls for the project's API
+    // to the centralized `ApiService` so token resolution and refresh
+    // orchestration remains consistent.
+    try {
+      // Only delegate when the call targets the configured App API host
+      if (apiUrl.startsWith(AppConfig.api) || apiUrl.contains(AppConfig.api)) {
+        // extract path relative to AppConfig.api
+        final idx = apiUrl.indexOf(AppConfig.api);
+        String path = apiUrl.substring(idx + AppConfig.api.length);
+        if (!path.startsWith('/')) path = '/$path';
+
+        // determine requiresAuth heuristically for auth endpoints
+        final requiresAuth = !(path.startsWith('/auth') || path.startsWith('/auth/'));
+
+        // Build a body map for JSON bodies if possible
+        Map<String, dynamic>? bodyMap;
+        if (body != null && body.isNotEmpty) {
+          try {
+            final decoded = json.decode(body);
+            if (decoded is Map<String, dynamic>) bodyMap = decoded;
+          } catch (_) {
+            // ignore - cannot decode non-json body
+          }
+        } else if (body == null && (bodyType == BodyType.JSON || params.isNotEmpty)) {
+          // If caller passed params and expected JSON body, use params
+          bodyMap = params.isNotEmpty ? params : null;
+        }
+
+        // Only delegate for safe cases (GET or JSON-able bodies)
+        if (callType == ApiCallType.GET || bodyMap != null) {
+          final resp = await ApiService.request(
+            method: callType.toString().split('.').last,
+            path: path,
+            body: bodyMap,
+            requiresAuth: requiresAuth,
+          );
+
+          final response = ApiCallResponse(resp, {}, 200, response: null, streamedResponse: null, exception: null, requestOptions: callOptions);
+          if (cache) _apiCache[callOptions] = response;
+          return response;
+        }
+      }
+    } catch (e) {
+      return ApiCallResponse(null, {}, -1, exception: e);
+    }
+
+    // Fallback to previous behavior for streaming, multipart, or other
+    // complex cases that ApiService doesn't directly support.
     ApiCallResponse result;
     try {
       switch (callType) {

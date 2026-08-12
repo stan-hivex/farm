@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '/backend/services/api_service.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
+import '/utils/refresh_loading_state.dart';
 
 class MerchantSalesWidget extends StatefulWidget {
   const MerchantSalesWidget({super.key});
@@ -15,6 +16,7 @@ class MerchantSalesWidget extends StatefulWidget {
 
 class _MerchantSalesWidgetState extends State<MerchantSalesWidget> {
   bool loading = true;
+  bool _hasCompletedFirstLoad = false;
   String error = '';
   List<Map<String, dynamic>> sales = [];
 
@@ -45,12 +47,14 @@ class _MerchantSalesWidgetState extends State<MerchantSalesWidget> {
       setState(() {
         sales = items;
         loading = false;
+        _hasCompletedFirstLoad = true;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         error = e.toString();
         loading = false;
+        _hasCompletedFirstLoad = true;
       });
     }
   }
@@ -95,7 +99,11 @@ class _MerchantSalesWidgetState extends State<MerchantSalesWidget> {
               children: [
                 Text('Merchant sales recorded by username', style: theme.titleMedium.copyWith(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 10),
-                if (loading)
+                if (RefreshLoadingState.shouldShowInitialLoading(
+                      isLoading: loading,
+                      hasCompletedFirstLoad: _hasCompletedFirstLoad,
+                      hasContent: sales.isNotEmpty,
+                    ))
                   const Center(child: CircularProgressIndicator())
                 else if (error.isNotEmpty)
                   Text(error, style: const TextStyle(color: Colors.redAccent))
