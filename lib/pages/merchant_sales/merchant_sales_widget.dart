@@ -94,7 +94,8 @@ class _MerchantSalesWidgetState extends State<MerchantSalesWidget> {
                 else
                   Column(
                     children: sales.map((tx) {
-                      final amount = tx['amount']?.toString() ?? '0';
+                      final amountValue = tx['amount'] ?? tx['value'] ?? 0;
+                      final amount = double.tryParse(amountValue.toString())?.toStringAsFixed(2) ?? amountValue.toString();
                       final payerUsername = tx['sender_username']?.toString().trim().isNotEmpty == true
                           ? '@${tx['sender_username']}'
                           : tx['customer_name']?.toString().trim().isNotEmpty == true
@@ -108,23 +109,73 @@ class _MerchantSalesWidgetState extends State<MerchantSalesWidget> {
                           : payerUsername;
                       final status = tx['status']?.toString() ?? 'Unknown';
                       final date = _formatDate(tx['created_at'] ?? tx['createdAt'] ?? tx['timestamp']);
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        child: Padding(
-                          padding: const EdgeInsets.all(14),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(title, style: theme.titleSmall.copyWith(fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 8),
-                              Text('Amount: $amount FARM', style: theme.bodyMedium),
-                              const SizedBox(height: 4),
-                              Text('Status: $status', style: theme.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
-                              const SizedBox(height: 4),
-                              Text(date, style: theme.bodySmall.copyWith(color: theme.secondaryText)),
-                            ],
-                          ),
+
+                      // Determine direction: outgoing = merchant paid someone, incoming = merchant received
+                      final type = (tx['transaction_type'] ?? tx['type'] ?? '').toString().toLowerCase();
+                      final isOutgoing = tx['is_outgoing'] == true || type.contains('send') || type.contains('sent') || type.contains('outgoing');
+
+                      // Bubble layout
+                      final isDark = Theme.of(context).brightness == Brightness.dark;
+                      final screenWidth = MediaQuery.of(context).size.width;
+                      final bubbleWidth = screenWidth * 0.78; // consistent width similar to chat apps
+
+                      Color bubbleColor;
+                      Color textColor;
+                      if (!isDark) {
+                        // Light mode
+                        if (!isOutgoing) {
+                          // incoming -> left: white bg, black text
+                          bubbleColor = Colors.white;
+                          textColor = Colors.black;
+                        } else {
+                          // outgoing -> right: black bg, white text
+                          bubbleColor = Colors.black;
+                          textColor = Colors.white;
+                        }
+                      } else {
+                        // Dark mode
+                        if (!isOutgoing) {
+                          // incoming -> left: white bg, black text for visibility in dark mode
+                          bubbleColor = Colors.white;
+                          textColor = Colors.black;
+                        } else {
+                          // outgoing -> right: grey bg, white text
+                          bubbleColor = Colors.grey.shade800;
+                          textColor = Colors.white;
+                        }
+                      }
+
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Row(
+                          mainAxisAlignment: isOutgoing ? MainAxisAlignment.end : MainAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: bubbleWidth,
+                              constraints: BoxConstraints(maxWidth: bubbleWidth),
+                              decoration: BoxDecoration(
+                                color: bubbleColor,
+                                borderRadius: BorderRadius.circular(18),
+                                boxShadow: [
+                                  if (!isDark)
+                                    BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))
+                                ],
+                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(title, style: theme.titleSmall.copyWith(fontWeight: FontWeight.bold, color: textColor)),
+                                  const SizedBox(height: 8),
+                                  Text('Amount: $amount FARM', style: theme.bodyMedium.copyWith(color: textColor)),
+                                  const SizedBox(height: 4),
+                                  Text('Status: $status', style: theme.bodyMedium.copyWith(fontWeight: FontWeight.w600, color: textColor)),
+                                  const SizedBox(height: 4),
+                                  Text(date, style: theme.bodySmall.copyWith(color: textColor.withOpacity(0.9))),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       );
                     }).toList(),

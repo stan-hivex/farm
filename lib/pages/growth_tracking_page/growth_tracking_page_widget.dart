@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '/backend/services/api_service.dart';
 import '/flutter_flow/flutter_flow_charts.dart';
+import 'package:intl/intl.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/utils/refresh_loading_state.dart';
@@ -29,6 +30,7 @@ class _GrowthTrackingPageWidgetState extends State<GrowthTrackingPageWidget> {
   bool _hasCompletedFirstLoad = false;
   String _error = '';
   String _selectedPeriod = 'daily';
+  DateTime? _selectedMonth;
   List<double> _values = [];
   List<String> _labels = [];
   double _growth = 0.0;
@@ -65,27 +67,92 @@ class _GrowthTrackingPageWidgetState extends State<GrowthTrackingPageWidget> {
       }[_selectedPeriod]!;
 
       final payload = await ApiService.getGrowthHistory(days: period);
-      final history =
-          payload['data'] is List ? payload['data'] as List : <dynamic>[];
+      final history = payload['data'] is List ? payload['data'] as List : <dynamic>[];
 
-      final values = history
-          .map<double>((item) =>
-              double.tryParse(
-                  (item['total'] ?? item['value'] ?? item['amount'] ?? 0)
-                      .toString()) ??
-              0.0)
-          .toList();
-      final labels = history
-          .map<String>((item) =>
-              item['date']?.toString() ??
-              item['day']?.toString() ??
-              item['label']?.toString() ??
-              '')
-          .toList();
-      final growth =
-          (values.length > 1 && values.isNotEmpty && values.first > 0)
-              ? ((values.last - values.first) / values.first) * 100
-              : 0.0;
+      // normalize entries to (date, value)
+      final entries = <Map<String, dynamic>>[];
+      for (final item in history) {
+        if (item is! Map<String, dynamic> && item is! Map) continue;
+        final raw = item is Map<String, dynamic> ? item : Map<String, dynamic>.from(item as Map);
+        final rawValue = raw['total'] ?? raw['value'] ?? raw['amount'] ?? 0;
+        final value = double.tryParse(rawValue.toString()) ?? 0.0;
+        final rawDateStr = raw['date']?.toString() ?? raw['day']?.toString() ?? raw['label']?.toString() ?? '';
+        DateTime? parsed;
+        try {
+          parsed = DateTime.tryParse(rawDateStr);
+        } catch (_) {
+          parsed = null;
+        }
+        if (parsed == null) {
+          final m = RegExp(r"(\d{4})[-/](\d{1,2})[-/](\d{1,2})").firstMatch(rawDateStr);
+          if (m != null) {
+            parsed = DateTime(int.parse(m.group(1)!), int.parse(m.group(2)!), int.parse(m.group(3)!));
+          }
+        }
+        if (parsed == null) continue;
+        entries.add({'date': parsed.toUtc(), 'value': value});
+      }
+
+      entries.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
+
+      final List<double> values = [];
+      final List<String> labels = [];
+
+      if (_selectedPeriod == 'daily') {
+        for (final e in entries) {
+          values.add(e['value'] as double);
+          labels.add(DateFormat('MM-dd').format(e['date'] as DateTime));
+        }
+      } else if (_selectedPeriod == 'weekly') {
+        var weekIndex = 0;
+        var accum = 0.0;
+        var dayCount = 0;
+        for (var i = 0; i < entries.length; i++) {
+          accum += entries[i]['value'] as double;
+          dayCount++;
+          if (dayCount == 7 || i == entries.length - 1) {
+            weekIndex++;
+            values.add(accum);
+            labels.add('Week $weekIndex');
+            accum = 0.0;
+            dayCount = 0;
+          }
+        }
+      } else if (_selectedPeriod == 'monthly') {
+        DateTime selectedMonth = _selectedMonth ?? (entries.isNotEmpty ? (entries.last['date'] as DateTime) : DateTime.now());
+        selectedMonth = DateTime(selectedMonth.year, selectedMonth.month, 1).toUtc();
+        final monthEntries = entries.where((e) {
+          final d = e['date'] as DateTime;
+          return d.year == selectedMonth.year && d.month == selectedMonth.month;
+        }).toList();
+
+        final buckets = List.generate(4, (_) => <Map<String, dynamic>>[]);
+        for (final e in monthEntries) {
+          final d = e['date'] as DateTime;
+          final day = d.day;
+          final bucketIndex = (day <= 7) ? 0 : (day <= 14) ? 1 : (day <= 21) ? 2 : 3;
+          buckets[bucketIndex].add(e);
+        }
+        for (var i = 0; i < 4; i++) {
+          final sum = buckets[i].fold<double>(0.0, (p, c) => p + (c['value'] as double));
+          values.add(sum);
+          labels.add('Week ${i + 1}');
+        }
+      } else if (_selectedPeriod == 'yearly') {
+        final Map<int, double> byYear = {};
+        for (final e in entries) {
+          final d = e['date'] as DateTime;
+          final y = d.year;
+          byYear[y] = (byYear[y] ?? 0) + (e['value'] as double);
+        }
+        final sortedYears = byYear.keys.toList()..sort();
+        for (final y in sortedYears) {
+          values.add(byYear[y] ?? 0.0);
+          labels.add(y.toString());
+        }
+      }
+
+      final growth = (values.length > 1 && values.isNotEmpty && values.first > 0) ? ((values.last - values.first) / values.first) * 100 : 0.0;
 
       if (!mounted) return;
       setState(() {
@@ -127,6 +194,36 @@ class _GrowthTrackingPageWidgetState extends State<GrowthTrackingPageWidget> {
                   style:
                       theme.titleMedium.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: 12),
+              // Month selector for monthly view
+              if (_selectedPeriod == 'monthly')
+                Builder(builder: (context) {
+                  final now = DateTime.now();
+                  final months = List<DateTime>.generate(12, (i) => DateTime(now.year, now.month - i, 1));
+                  final selected = _selectedMonth ?? months.first;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Row(
+                      children: [
+                        const Text('Month:'),
+                        const SizedBox(width: 8),
+                        DropdownButton<DateTime>(
+                          value: selected,
+                          items: months.map((m) {
+                            return DropdownMenuItem<DateTime>(
+                              value: m,
+                              child: Text(DateFormat.yMMM().format(m)),
+                            );
+                          }).toList(),
+                          onChanged: (v) {
+                            if (v == null) return;
+                            setState(() => _selectedMonth = v);
+                            _loadGrowth();
+                          },
+                        ),
+                      ],
+                    ),
+                  );
+                }),
               Wrap(
                 spacing: 8,
                 children: [

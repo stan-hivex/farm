@@ -542,6 +542,12 @@
       "languageVersion": "2.15"
     },
     {
+      "name": "image_gallery_saver",
+      "rootUri": "file:///C:/Users/u/AppData/Local/Pub/Cache/hosted/pub.dev/image_gallery_saver-1.7.1",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
       "name": "image_picker",
       "rootUri": "file:///C:/Users/u/AppData/Local/Pub/Cache/hosted/pub.dev/image_picker-1.2.2",
       "packageUri": "lib/",
@@ -808,6 +814,36 @@
     {
       "name": "percent_indicator",
       "rootUri": "file:///C:/Users/u/AppData/Local/Pub/Cache/hosted/pub.dev/percent_indicator-4.2.2",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
+      "name": "permission_handler",
+      "rootUri": "file:///C:/Users/u/AppData/Local/Pub/Cache/hosted/pub.dev/permission_handler-10.4.5",
+      "packageUri": "lib/",
+      "languageVersion": "2.15"
+    },
+    {
+      "name": "permission_handler_android",
+      "rootUri": "file:///C:/Users/u/AppData/Local/Pub/Cache/hosted/pub.dev/permission_handler_android-10.3.6",
+      "packageUri": "lib/",
+      "languageVersion": "2.15"
+    },
+    {
+      "name": "permission_handler_apple",
+      "rootUri": "file:///C:/Users/u/AppData/Local/Pub/Cache/hosted/pub.dev/permission_handler_apple-9.1.4",
+      "packageUri": "lib/",
+      "languageVersion": "2.15"
+    },
+    {
+      "name": "permission_handler_platform_interface",
+      "rootUri": "file:///C:/Users/u/AppData/Local/Pub/Cache/hosted/pub.dev/permission_handler_platform_interface-3.12.0",
+      "packageUri": "lib/",
+      "languageVersion": "2.14"
+    },
+    {
+      "name": "permission_handler_windows",
+      "rootUri": "file:///C:/Users/u/AppData/Local/Pub/Cache/hosted/pub.dev/permission_handler_windows-0.1.3",
       "packageUri": "lib/",
       "languageVersion": "2.12"
     },

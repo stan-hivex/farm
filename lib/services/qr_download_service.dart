@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:image_gallery_saver/image_gallery_saver.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 const _kQrDownloadChannel = 'farm.qr_download_service';
 
@@ -76,24 +78,24 @@ class QrDownloadService {
         destination: QrDownloadDestination.unknown,
       );
     }
-
     if (Platform.isAndroid || Platform.isIOS) {
       try {
-        final response = await _channel.invokeMapMethod<String, dynamic>(
-          'downloadQr',
-          {
-            'bytes': bytes,
-            'fileName': name,
-          },
-        );
+        // Request permission where necessary
+        if (Platform.isAndroid) {
+          final status = await Permission.storage.request();
+          if (!status.isGranted) {
+            return QrDownloadResult(success: false, message: 'Storage permission denied.', destination: QrDownloadDestination.unknown);
+          }
+        } else if (Platform.isIOS) {
+          final status = await Permission.photosAddOnly.request();
+          if (!status.isGranted) {
+            return QrDownloadResult(success: false, message: 'Photos permission denied.', destination: QrDownloadDestination.unknown);
+          }
+        }
 
-        final success = response?['success'] == true;
-        final message = response?['message']?.toString() ??
-            (success
-                ? 'QR code saved successfully.'
-                : 'Unable to save QR code.');
-        final destination = _destinationFromString(response?['destination']?.toString());
-        final fileUri = response?['fileUri']?.toString();
+        final result = await ImageGallerySaver.saveImage(bytes, name: name);
+        final success = result['isSuccess'] == true || result['filePath'] != null;
+        final filePath = result['filePath']?.toString() ?? result['filePath'];
 
         if (success) {
           _lastSavedBytes = bytes;
@@ -102,16 +104,35 @@ class QrDownloadService {
 
         return QrDownloadResult(
           success: success,
-          message: message,
-          fileUri: fileUri,
-          destination: destination,
+          message: success ? 'QR code saved successfully.' : 'Unable to save QR code.',
+          fileUri: filePath?.toString(),
+          destination: Platform.isAndroid ? QrDownloadDestination.androidPictures : QrDownloadDestination.iosPhotos,
         );
-      } on PlatformException catch (error) {
-        return QrDownloadResult(
-          success: false,
-          message: error.message ?? 'Failed to save QR code.',
-          destination: QrDownloadDestination.unknown,
-        );
+      } catch (e) {
+        // Fallback to platform channel if available
+        try {
+          final response = await _channel.invokeMapMethod<String, dynamic>(
+            'downloadQr',
+            {
+              'bytes': bytes,
+              'fileName': name,
+            },
+          );
+
+          final success = response?['success'] == true;
+          final message = response?['message']?.toString() ?? (success ? 'QR code saved successfully.' : 'Unable to save QR code.');
+          final destination = _destinationFromString(response?['destination']?.toString());
+          final fileUri = response?['fileUri']?.toString();
+
+          if (success) {
+            _lastSavedBytes = bytes;
+            _lastSavedFileName = name;
+          }
+
+          return QrDownloadResult(success: success, message: message, fileUri: fileUri, destination: destination);
+        } on PlatformException catch (error) {
+          return QrDownloadResult(success: false, message: error.message ?? 'Failed to save QR code.', destination: QrDownloadDestination.unknown);
+        }
       }
     }
 
@@ -123,7 +144,17 @@ class QrDownloadService {
     String subject = 'Farm QR Code',
     String text = 'Scan this Farm QR code.',
   }) async {
-    final file = await _writeTemporaryFile(bytes, _lastSavedFileName ?? _createFileName());
+    File file;
+    try {
+      file = await _writeTemporaryFile(bytes, _lastSavedFileName ?? _createFileName());
+    } on MissingPluginException {
+      // Fallback to system temp directory if path_provider is not registered
+      final tmp = Directory.systemTemp;
+      final path = '${tmp.path}${Platform.pathSeparator}${_lastSavedFileName ?? _createFileName()}';
+      file = File(path);
+      await file.writeAsBytes(bytes, flush: true);
+    }
+
     final xfile = XFile(file.path);
     await SharePlus.instance.share(
       ShareParams(
@@ -160,7 +191,12 @@ class QrDownloadService {
   }
 
   Future<File> _writeTemporaryFile(Uint8List bytes, String fileName) async {
-    final directory = await getTemporaryDirectory();
+    Directory directory;
+    try {
+      directory = await getTemporaryDirectory();
+    } on MissingPluginException {
+      directory = Directory.systemTemp;
+    }
     final path = '${directory.path}${Platform.pathSeparator}$fileName';
     final file = File(path);
     await file.writeAsBytes(bytes, flush: true);
