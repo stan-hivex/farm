@@ -37,21 +37,6 @@ class AuthService {
 
   AuthService._internal();
 
-  static Map<String, dynamic> normalizeLoginResponse(Map<String, dynamic> response) {
-    final responseData = response['data'] as Map<String, dynamic>? ?? {};
-    final farmJwt = responseData['access_token'] as String? ?? '';
-    final refreshToken = responseData['refresh_token'] as String? ?? '';
-    final backendUser = responseData['user'] as Map<String, dynamic>? ?? {};
-
-    return {
-      'farmJwt': farmJwt,
-      'refreshToken': refreshToken,
-      'data': responseData,
-      'user': backendUser,
-      'loginMethod': 'backend',
-    };
-  }
-
   SupabaseClient get _supabase => SupabaseConfig.client;
 
   /// Sign up a new user with email and password.
@@ -130,7 +115,7 @@ class AuthService {
 
       // Backend handles all authentication directly - no intermediate verification needed
       if (farmJwt.isNotEmpty) {
-        await _persistSessionTokens(
+        _persistSessionTokens(
           farmJwt: farmJwt,
           refreshToken: refreshToken,
           backendUser: backendUser,
@@ -175,7 +160,7 @@ class AuthService {
       final backendUser = responseData['user'] as Map<String, dynamic>?;
 
       if (farmJwt.isNotEmpty) {
-        await _persistSessionTokens(
+        _persistSessionTokens(
           farmJwt: farmJwt,
           refreshToken: refreshToken,
           backendUser: backendUser,
@@ -212,7 +197,7 @@ class AuthService {
       final backendUser = responseData['user'] as Map<String, dynamic>?;
 
       if (farmJwt.isNotEmpty) {
-        await _persistSessionTokens(
+        _persistSessionTokens(
           farmJwt: farmJwt,
           refreshToken: refreshToken,
           backendUser: backendUser,
@@ -235,22 +220,21 @@ class AuthService {
     await NotificationService.registerForCurrentUser();
   }
 
-  Future<void> _persistSessionTokens({
+  void _persistSessionTokens({
     required String farmJwt,
     required String refreshToken,
     required Map<String, dynamic>? backendUser,
-  }) async {
+  }) {
     final role = backendUser is Map<String, dynamic>
         ? backendUser['role']?.toString().toLowerCase() ?? ''
         : '';
     final normalizedRole = role.isEmpty ? 'user' : role;
 
-    if (normalizedRole == 'admin' || normalizedRole == 'super_admin') {
-      await FFAppState().markAuthInstall();
-      FFAppState().accessToken = farmJwt;
-      FFAppState().refreshToken = refreshToken;
-      FFAppState().isLoggedIn = true;
-      FFAppState().userId = backendUser?['id']?.toString() ?? '';
+    if (normalizedRole == 'admin') {
+      FFAppState().accessToken = '';
+      FFAppState().refreshToken = '';
+      FFAppState().isLoggedIn = false;
+      FFAppState().userId = '';
       FFAppState().firstName = '';
       FFAppState().userName = '';
       FFAppState().phone = '';
@@ -258,15 +242,42 @@ class AuthService {
       FFAppState().emailVerified = false;
       FFAppState().role = normalizedRole;
 
-      debugPrint('${normalizedRole.toUpperCase()} login detected.');
-      debugPrint('Saving ${normalizedRole == 'admin' ? 'AdminSession' : 'SuperAdminSession'}...');
+      debugPrint('Admin login detected.');
+      debugPrint('Saving AdminSession...');
       debugPrint('Access token length: ${farmJwt.length}');
       debugPrint('Refresh token length: ${refreshToken.length}');
-      debugPrint('Role: ${normalizedRole.toUpperCase()}');
-      await AuthSessionStore.saveRoleSession(
-        role: normalizedRole,
+      debugPrint('Role: ADMIN');
+      AuthSessionStore.saveAdminSession(
         accessToken: farmJwt,
         refreshToken: refreshToken,
+        role: normalizedRole,
+        userId: backendUser?['id']?.toString() ?? '',
+      );
+      debugPrint('Skipping biometric setup.');
+      return;
+    }
+
+    if (normalizedRole == 'super_admin') {
+      FFAppState().accessToken = '';
+      FFAppState().refreshToken = '';
+      FFAppState().isLoggedIn = false;
+      FFAppState().userId = '';
+      FFAppState().firstName = '';
+      FFAppState().userName = '';
+      FFAppState().phone = '';
+      FFAppState().kycStatus = '';
+      FFAppState().emailVerified = false;
+      FFAppState().role = normalizedRole;
+
+      debugPrint('Super admin login detected.');
+      debugPrint('Saving SuperAdminSession...');
+      debugPrint('Access token length: ${farmJwt.length}');
+      debugPrint('Refresh token length: ${refreshToken.length}');
+      debugPrint('Role: SUPER_ADMIN');
+      AuthSessionStore.saveSuperAdminSession(
+        accessToken: farmJwt,
+        refreshToken: refreshToken,
+        role: normalizedRole,
         userId: backendUser?['id']?.toString() ?? '',
       );
       debugPrint('Skipping biometric setup.');
@@ -274,7 +285,6 @@ class AuthService {
     }
 
     final backendData = backendUser!;
-    await FFAppState().markAuthInstall();
     FFAppState().accessToken = farmJwt;
     FFAppState().refreshToken = refreshToken;
     FFAppState().isLoggedIn = farmJwt.isNotEmpty;
@@ -285,7 +295,7 @@ class AuthService {
     FFAppState().kycStatus = backendData['kyc_status']?.toString() ?? '';
     FFAppState().emailVerified = backendData['email_verified'] == true;
     FFAppState().role = normalizedRole;
-    await AuthSessionStore.saveUserSession(
+    AuthSessionStore.saveUserSession(
       accessToken: farmJwt,
       refreshToken: refreshToken,
       role: normalizedRole,
@@ -390,12 +400,14 @@ class AuthService {
     required bool acknowledged,
     required bool confirmDelete,
   }) async {
+    print('DELETE ACCOUNT CALLED');
+    print(StackTrace.current);
     try {
-      await ApiService.deleteAccount(
-        password: password,
-        acknowledged: acknowledged,
-        confirmDelete: confirmDelete,
-      );
+      await ApiService.deleteAccount(body: {
+        'password': password,
+        'acknowledged': acknowledged,
+        'confirm_delete': confirmDelete,
+      });
     } catch (e) {
       throw Exception('Account deletion failed: $e');
     }
@@ -539,4 +551,10 @@ class AuthService {
   /// Listen to auth state changes.
   /// Returns a stream that emits AuthState when authentication changes.
   Stream<AuthState> get authStateChanges => _supabase.auth.onAuthStateChange;
+
+  /// Helper to normalize various backend login responses for tests and callers.
+  /// Returns the response map as-is by default; override if normalization required.
+  static Map<String, dynamic> normalizeLoginResponse(Map<String, dynamic> resp) {
+    return resp;
+  }
 }

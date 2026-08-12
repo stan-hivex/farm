@@ -137,7 +137,7 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
 
       final usedBiometric = authResult?.biometricUsed == true;
       if (usedBiometric) {
-        final token = await FFAppState().getActiveAccessToken();
+        await FFAppState().getActiveAccessToken();
         final Map<String, dynamic> body = {
           'amount': double.parse(_amountController.text),
           'method': _selectedWithdrawalMethod,

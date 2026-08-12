@@ -62,7 +62,7 @@ class WalletApiService {
   static Future<List<dynamic>> getPendingRequests() async {
     final resp = await ApiService.request(
       method: 'GET',
-      path: '/transfer-requests/pending',
+      path: '/payment-requests/pending',
       requiresAuth: true,
     );
     return List<dynamic>.from(resp['data'] ?? []);
@@ -72,7 +72,7 @@ class WalletApiService {
     int page = 1,
     int limit = 10,
   }) async {
-    final path = '/transfer-requests?page=${Uri.encodeQueryComponent(page.toString())}&limit=${Uri.encodeQueryComponent(limit.toString())}';
+    final path = '/payment-requests?page=${Uri.encodeQueryComponent(page.toString())}&limit=${Uri.encodeQueryComponent(limit.toString())}';
     final resp = await ApiService.request(
       method: 'GET',
       path: path,
@@ -82,15 +82,15 @@ class WalletApiService {
   }
 
   static Future<Map<String, dynamic>> requestFunds({
-    required String senderIdentifier,
+    required String recipientIdentifier,
     required double amount,
     String? description,
   }) async {
     final resp = await ApiService.request(
       method: 'POST',
-      path: '/transfer-requests/request',
+      path: '/payment-requests/request',
       body: {
-        'sender_identifier': senderIdentifier,
+        'recipient_identifier': recipientIdentifier,
         'amount': amount,
         'description': description ?? '',
       },
@@ -107,7 +107,7 @@ class WalletApiService {
   }) async {
     final resp = await ApiService.request(
       method: 'POST',
-      path: '/transfer-requests/accept',
+      path: '/payment-requests/accept',
       body: {
         'request_id': requestId,
         if (pin != null) 'pin': pin,
@@ -124,7 +124,7 @@ class WalletApiService {
   }) async {
     final resp = await ApiService.request(
       method: 'POST',
-      path: '/transfer-requests/$requestId/reject',
+      path: '/payment-requests/$requestId/reject',
       requiresAuth: true,
     );
     return resp;
@@ -135,7 +135,7 @@ class WalletApiService {
   }) async {
     final resp = await ApiService.request(
       method: 'POST',
-      path: '/transfer-requests/$requestId/cancel',
+      path: '/payment-requests/$requestId/cancel',
       requiresAuth: true,
     );
     return resp;

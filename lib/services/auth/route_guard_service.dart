@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '/app_state.dart';
 import '/admin/services/admin_api_service.dart';
@@ -79,53 +78,43 @@ class RouteGuardService {
       }
     }
 
-    final sessionCandidates = <AuthSession?>[];
-    if (role.isNotEmpty) {
-      sessionCandidates.add(await AuthSessionStore.readRoleSession(role));
+    if (role.isEmpty) {
+      debugPrint('[RouteGuardService] hasValidBackendJwt role empty and no valid in-memory token');
+      return false;
     }
-    sessionCandidates.add(await AuthSessionStore.readAdminSession());
-    sessionCandidates.add(await AuthSessionStore.readSuperAdminSession());
-    sessionCandidates.add(await AuthSessionStore.readUserSession());
 
-    for (final persistedSession in sessionCandidates) {
-      final persistedToken = persistedSession?.accessToken ?? '';
-      final persistedRefreshToken = persistedSession?.refreshToken ?? '';
-      if ((persistedToken.isNotEmpty && _isJwtValid(persistedToken)) || persistedRefreshToken.isNotEmpty) {
-        if (state.accessToken != persistedToken && persistedToken.isNotEmpty) {
-          state.accessToken = persistedToken;
-        }
-        if (persistedRefreshToken.isNotEmpty) {
-          state.refreshToken = persistedRefreshToken;
-        }
-        if (persistedSession?.role.isNotEmpty ?? false) {
-          state.role = persistedSession!.role;
-        }
-        state.isLoggedIn = true;
-        debugPrint('[RouteGuardService] hasValidBackendJwt loaded persisted session for role=${persistedSession?.role ?? role}');
-        return true;
+    final persistedSession = await AuthSessionStore.readRoleSession(role);
+    final persistedToken = persistedSession?.accessToken ?? '';
+    if (persistedToken.isNotEmpty && _isJwtValid(persistedToken)) {
+      if (state.accessToken != persistedToken) {
+        state.accessToken = persistedToken;
       }
+      if (persistedSession?.refreshToken.isNotEmpty ?? false) {
+        state.refreshToken = persistedSession!.refreshToken;
+      }
+      debugPrint('[RouteGuardService] hasValidBackendJwt loaded valid persisted session for role=$role');
+      return true;
     }
 
     if (role == 'admin' || role == 'super_admin') {
       final adminRefresh = await AdminApiService.ensureValidSession(force: false);
       debugPrint('[RouteGuardService] admin session refresh returned=$adminRefresh');
       if (adminRefresh) {
-        final refreshedSession = role.isNotEmpty ? await AuthSessionStore.readRoleSession(role) : null;
+        final refreshedSession = await AuthSessionStore.readRoleSession(role);
         final refreshedToken = refreshedSession?.accessToken ?? '';
-        if ((refreshedToken.isNotEmpty && _isJwtValid(refreshedToken)) || (refreshedSession?.refreshToken.isNotEmpty ?? false)) {
-          if (state.accessToken != refreshedToken && refreshedToken.isNotEmpty) {
+        if (refreshedToken.isNotEmpty && _isJwtValid(refreshedToken)) {
+          if (state.accessToken != refreshedToken) {
             state.accessToken = refreshedToken;
           }
           if (refreshedSession?.refreshToken.isNotEmpty ?? false) {
             state.refreshToken = refreshedSession!.refreshToken;
           }
-          state.isLoggedIn = true;
           return true;
         }
       }
     }
 
-    debugPrint('[RouteGuardService] hasValidBackendJwt found no usable persisted token for role=$role');
+    debugPrint('[RouteGuardService] hasValidBackendJwt found no valid token for role=$role');
     return false;
   }
 
@@ -182,7 +171,7 @@ class RouteGuardService {
       final hasSupabaseSession = await hasValidSupabaseSession();
       final isAdminRole = role == 'admin' || role == 'super_admin';
 
-      if (!hasBackendJwt) {
+      if (!hasBackendJwt || role.isEmpty) {
         return false;
       }
 
@@ -190,7 +179,7 @@ class RouteGuardService {
         return true;
       }
 
-      return isLoggedInFlag || hasSupabaseSession || (state.accessToken.isNotEmpty && _isJwtValid(state.accessToken));
+      return isLoggedInFlag || hasSupabaseSession;
     } catch (e) {
       debugPrint('Error checking authentication: $e');
       return false;
@@ -236,14 +225,12 @@ class RouteGuardService {
     BuildContext context,
     String currentPath,
   ) async {
-    final state = FFAppState();
-    final role = state.role.toLowerCase();
-    final loggedIn = state.isLoggedIn;
-    final accessTokenLength = state.accessToken.length;
-    final refreshTokenLength = state.refreshToken.length;
-    final persistedSession = role.isNotEmpty ? await AuthSessionStore.readRoleSession(role) : null;
-    final fallbackSession = persistedSession ?? await AuthSessionStore.readAdminSession() ?? await AuthSessionStore.readSuperAdminSession() ?? await AuthSessionStore.readUserSession();
-    final sessionExists = fallbackSession?.accessToken.isNotEmpty ?? false;
+    final role = FFAppState().role.toLowerCase();
+    final loggedIn = FFAppState().isLoggedIn;
+    final accessTokenLength = FFAppState().accessToken.length;
+    final refreshTokenLength = FFAppState().refreshToken.length;
+    final persistedSession = await AuthSessionStore.readRoleSession(role);
+    final sessionExists = persistedSession?.accessToken.isNotEmpty ?? false;
 
     print('AUTH GUARD CHECK');
     print('Current route: $currentPath');
@@ -273,14 +260,8 @@ class RouteGuardService {
         debugPrint('SUPER_ADMIN REDIRECTED TO LOGIN');
         debugPrint(StackTrace.current.toString());
       }
-      final prefs = await SharedPreferences.getInstance();
-      final hasInstallMarker = (prefs.getString('authInstallId') ?? '').trim().isNotEmpty;
-      final hasPersistedSession = await AuthSessionStore.readAdminSession() != null ||
-          await AuthSessionStore.readSuperAdminSession() != null ||
-          await AuthSessionStore.readUserSession() != null;
-      if (!hasInstallMarker && !hasPersistedSession) {
-        await FFAppState().clearAuthCredentials();
-      }
+      // Clear stale auth data before redirecting to login
+      await FFAppState().clearAuthCredentials();
       return '/loginpage';
     }
 

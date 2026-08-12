@@ -97,9 +97,8 @@ class AppSessionManager {
       // 2) Use cached values if available to avoid UI placeholders
       final cachedProfile = ApiService.getCached('/users/me');
       final cachedWallet = ApiService.getCached('/wallet');
-      final hasUsableCache = (cachedProfile != null && cachedProfile.isNotEmpty) ||
-          (cachedWallet != null && cachedWallet.isNotEmpty);
-      if (hasUsableCache) {
+      if ((cachedProfile != null && cachedProfile.isNotEmpty) ||
+          (cachedWallet != null && cachedWallet.isNotEmpty)) {
         FFAppState().batchUpdate(() {
           if (cachedProfile != null && cachedProfile.isNotEmpty) {
             final profileData = _extractData(cachedProfile);
@@ -131,7 +130,7 @@ class AppSessionManager {
         debugPrint('[AppSessionManager] Applied cached profile/wallet to state');
       }
 
-      // 3) Critical fetches concurrently: profile + wallet, but keep existing UI stable while revalidating
+      // 3) Critical fetches concurrently: profile + wallet
       final criticalStart = DateTime.now();
       final profileFuture = _safeFetch('/users/me', () => ApiService.getProfile(timeoutSeconds: 2), timeoutSeconds: 2);
       final walletFuture = _safeFetch('/wallet', () => ApiService.getWallet(timeoutSeconds: 2), timeoutSeconds: 2);

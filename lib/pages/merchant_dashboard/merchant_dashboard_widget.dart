@@ -275,7 +275,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
         payoutLoading = true;
       });
 
-      final body = await ApiService.request(
+      await ApiService.request(
         method: 'POST',
         path: '/merchant/payout',
         body: {

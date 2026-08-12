@@ -466,9 +466,9 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
 
       await ApiService.request(
         method: 'POST',
-        path: '/transfer-requests/request',
+        path: '/payment-requests/request',
         body: {
-          'sender_identifier': recipientController.text.trim(),
+          'recipient_identifier': recipientController.text.trim(),
           'amount': amount,
           'description': descriptionController.text.trim(),
         },
@@ -536,7 +536,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
 
   Future<void> fetchPendingRequests() async {
     try {
-      final resp = await ApiService.request(method: 'GET', path: '/transfer-requests/pending');
+      final resp = await ApiService.request(method: 'GET', path: '/payment-requests/pending');
       final requests = resp['data'] ?? resp;
       if (mounted) {
         setState(() {
@@ -551,7 +551,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
 
   Future<void> fetchMyTransferRequests() async {
     try {
-      final resp = await ApiService.request(method: 'GET', path: '/transfer-requests');
+      final resp = await ApiService.request(method: 'GET', path: '/payment-requests');
       final requests = resp['data'] ?? resp;
       if (mounted) {
         setState(() {
@@ -568,7 +568,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
   }
 
   void _prepareSendFlowFromRequest(dynamic req, {required bool incoming}) {
-    final person = incoming ? req['users_requester'] : req['users_sender'];
+    final person = incoming ? req['users_requester'] : req['users_recipient'];
     final username = _parseStringValue(person?['username']);
     final phoneNumber = _parseStringValue(person?['phone_number']);
     final identifier = username.isNotEmpty ? username : phoneNumber;
@@ -606,7 +606,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
       ).then((r) => r.toTransactionAuthenticationResult());
       await ApiService.request(
         method: 'POST',
-        path: '/transfer-requests/accept',
+        path: '/payment-requests/accept',
         body: {
           'request_id': requestId,
           if (pin != null) 'pin': pin,
@@ -647,7 +647,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
     try {
       await ApiService.request(
         method: 'POST',
-        path: '/transfer-requests/$requestId/reject',
+        path: '/payment-requests/$requestId/reject',
       );
       if (mounted)
         ScaffoldMessenger.of(context)
@@ -670,7 +670,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
     try {
       await ApiService.request(
         method: 'POST',
-        path: '/transfer-requests/$requestId/cancel',
+        path: '/payment-requests/$requestId/cancel',
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1004,7 +1004,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
 
   Widget buildOutgoingRequestCard(dynamic req) {
     final theme = FlutterFlowTheme.of(context);
-    final recipient = req['users_sender'];
+    final recipient = req['users_recipient'];
     final recipientName = recipient != null
         ? '${recipient['first_name']} ${recipient['last_name']}'
         : 'Recipient';
@@ -1177,7 +1177,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
 
   void _showRequestDetailSheet(dynamic req, {required bool incoming}) {
     final theme = FlutterFlowTheme.of(context);
-    final person = incoming ? req['users_requester'] : req['users_sender'];
+    final person = incoming ? req['users_requester'] : req['users_recipient'];
     final personName = person != null
         ? '${person['first_name']} ${person['last_name']}'
         : (incoming ? 'Requester' : 'Recipient');

@@ -4,10 +4,11 @@ import '/backend/services/api_service.dart';
 import '/components/button/button_widget.dart';
 import '/components/profile_info_tile/profile_info_tile_widget.dart';
 import '/components/settings_action_tile/settings_action_tile_widget.dart';
-import '/backend/services/api_service.dart';
+// removed duplicate import
 import '/services/app_session_manager.dart';
 import '/services/auth/auth_service.dart';
 import '/services/biometric_lock_service.dart';
+import '/pages/settings/delete_account_page.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/core/theme_extensions.dart';
@@ -162,7 +163,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
   Future<void> fetchSecuritySettings() async {
     try {
       final resp = await ApiService.request(method: 'GET', path: '/security/settings');
-      final data = Map<String, dynamic>.from(resp['data'] ?? resp as Map<String, dynamic>);
+      final data = Map<String, dynamic>.from(resp['data'] ?? resp);
       final remoteBiometricsEnabled = data['biometrics_enabled'] ?? false;
       final resolvedBiometricsEnabled = FFAppState().biometricsEnabled || remoteBiometricsEnabled;
       final remoteHasPin = data['has_pin'] ?? false;
@@ -997,29 +998,52 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                   child: Container(
                     child: Padding(
                       padding: const EdgeInsets.all(24.0),
-                      child: Container(
-                        child: wrapWithModel(
-                          model: _model.buttonModel,
-                          updateCallback: () => safeSetState(() {}),
-                          child: ButtonWidget(
-                            content: 'Sign Out',
-                            icon: Icon(
-                              Icons.logout_rounded,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          wrapWithModel(
+                            model: _model.buttonModel,
+                            updateCallback: () => safeSetState(() {}),
+                            child: ButtonWidget(
+                              content: 'Sign Out',
+                              icon: Icon(
+                                Icons.logout_rounded,
+                                color: FlutterFlowTheme.of(context).primaryText,
+                                size: 16.0,
+                              ),
+                              icon_present: true,
+                              icon_end_present: false,
+                              on_tap: '',
+                              onTapCallback: logoutUser,
                               color: FlutterFlowTheme.of(context).primaryText,
+                              variant: 'outline',
+                              size: 'medium',
+                              full_width: true,
+                              loading: false,
+                              disabled: false,
+                            ),
+                          ),
+                          const SizedBox(height: 12.0),
+                          ButtonWidget(
+                            content: 'Delete Account',
+                            icon: Icon(
+                              Icons.delete_forever_rounded,
+                              color: Colors.white,
                               size: 16.0,
                             ),
                             icon_present: true,
                             icon_end_present: false,
                             on_tap: '',
-                            onTapCallback: logoutUser,
-                            color: FlutterFlowTheme.of(context).primaryText,
-                            variant: 'outline',
+                            onTapCallback: () {
+                              context.pushNamed(DeleteAccountPageWidget.routeName);
+                            },
+                            variant: 'destructive',
                             size: 'medium',
                             full_width: true,
                             loading: false,
                             disabled: false,
                           ),
-                        ),
+                        ],
                       ),
                     ),
                   ),

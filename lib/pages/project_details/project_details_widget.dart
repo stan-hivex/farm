@@ -47,7 +47,7 @@ class _ProjectDetailsWidgetState extends State<ProjectDetailsWidget> {
 
   try {
     final resp = await ApiService.request(method: 'GET', path: '/projects/${widget.projectId}', requiresAuth: false);
-    final data = resp['data'] is Map ? resp['data'] as Map<String, dynamic> : resp as Map<String, dynamic>;
+    final data = resp['data'] is Map ? Map<String, dynamic>.from(resp['data']) : Map<String, dynamic>.from(resp);
     if (data.isNotEmpty) {
       setState(() {
         project = data;

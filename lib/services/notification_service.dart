@@ -3,11 +3,10 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 
 import '/backend/services/api_service.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/pages/payment_requests/money_request_approval_page.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -19,12 +18,15 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 class NotificationService {
   NotificationService._();
 
+  // Notifier to signal when a new notification arrives or a pending tap is available.
+  // Widgets can add/remove listeners via `NotificationService.notificationReceived.addListener(...)`.
+  static final ValueNotifier<int> notificationReceived = ValueNotifier<int>(0);
+
   static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   static final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
   static Map<String, dynamic>? _pendingTapPayload;
-  static final ValueNotifier<int> notificationReceived = ValueNotifier<int>(0);
 
   static Future<void> initialize() async {
     if (_initialized) return;
@@ -125,7 +127,11 @@ class NotificationService {
     final payload = _payloadFromMessage(message);
     FFAppState().unreadNotificationCount =
         FFAppState().unreadNotificationCount + 1;
-    notificationReceived.value = notificationReceived.value + 1;
+
+    // Notify listeners that a new notification has been received.
+    try {
+      notificationReceived.value = notificationReceived.value + 1;
+    } catch (_) {}
 
     if (kIsWeb) return;
     final notification = message.notification;
@@ -138,68 +144,6 @@ class NotificationService {
     final summary = payload['type']?.toString().contains('transfer') == true
         ? 'Transfer update'
         : 'New update';
-
-    final metadata = payload['metadata'];
-    String? requestId = payload['request_id']?.toString() ?? payload['entityId']?.toString();
-    if ((requestId == null || requestId.isEmpty) && metadata != null) {
-      if (metadata is Map<String, dynamic>) {
-        requestId = metadata['request_id']?.toString() ?? metadata['entityId']?.toString();
-      } else if (metadata is String) {
-        try {
-          final parsed = jsonDecode(metadata);
-          if (parsed is Map<String, dynamic>) {
-            requestId = parsed['request_id']?.toString() ?? parsed['entityId']?.toString();
-          }
-        } catch (_) {
-          // ignore invalid JSON metadata
-        }
-      }
-    }
-    final isMoneyRequest = payload['type']?.toString().toLowerCase().contains('request') == true || payload['type']?.toString().toLowerCase().contains('payment') == true;
-    final context = appNavigatorKey.currentContext;
-    final validRequestId = requestId;
-    if (context != null && validRequestId != null && validRequestId.isNotEmpty && isMoneyRequest) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!context.mounted) return;
-        showDialog(
-          context: context,
-          barrierDismissible: true,
-          builder: (dialogContext) => SafeArea(
-            child: Dialog(
-              insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 600, maxHeight: 760),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Stack(
-                    children: [
-                      SingleChildScrollView(
-                        child: Material(
-                          color: Theme.of(context).scaffoldBackgroundColor,
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 40),
-                            child: MoneyRequestApprovalPage(requestId: validRequestId, compact: true),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: IconButton(
-                          icon: const Icon(Icons.close_rounded),
-                          tooltip: 'Close',
-                          onPressed: () => Navigator.of(dialogContext).pop(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      });
-    }
 
     await _localNotifications.show(
       id: message.hashCode,
@@ -248,6 +192,10 @@ class NotificationService {
   static void _handlePayload(Map<String, dynamic> payload) {
     _pendingTapPayload = payload;
     _navigatePendingTap();
+    // Notify listeners that a pending payload/tap is available.
+    try {
+      notificationReceived.value = notificationReceived.value + 1;
+    } catch (_) {}
   }
 
   static void _navigatePendingTap() {
@@ -260,25 +208,10 @@ class NotificationService {
         ? metadata['event']?.toString().toLowerCase() ?? payload['type']?.toString().toLowerCase() ?? 'general'
         : payload['type']?.toString().toLowerCase() ?? 'general';
     String route;
-    String requestId = payload['request_id']?.toString() ?? payload['entityId']?.toString() ?? '';
-    if (requestId.isEmpty && metadata != null) {
-      if (metadata is Map<String, dynamic>) {
-        requestId = metadata['request_id']?.toString() ?? metadata['entityId']?.toString() ?? '';
-      } else if (metadata is String) {
-        try {
-          final parsed = jsonDecode(metadata);
-          if (parsed is Map<String, dynamic>) {
-            requestId = parsed['request_id']?.toString() ?? parsed['entityId']?.toString() ?? '';
-          }
-        } catch (_) {
-          // ignore invalid JSON metadata
-        }
-      }
-    }
     if (type.contains('transfer')) {
       route = '/allTransactions';
     } else if (type.contains('request')) {
-      route = requestId.isNotEmpty ? '/money-request-approval/$requestId' : '/incoming-requests';
+      route = '/incoming-requests';
     } else if (type.contains('deposit')) {
       route = '/depositpage';
     } else if (type.contains('withdraw')) {

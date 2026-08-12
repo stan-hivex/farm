@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/backend/services/api_service.dart';
-import '/app_state.dart';
-import 'package:provider/provider.dart';
+// Removed unused imports
 
 class AllRequestsWidget extends StatefulWidget {
   final List<dynamic> pendingRequests;
@@ -33,7 +32,7 @@ class _AllRequestsWidgetState extends State<AllRequestsWidget> {
   Future<void> _cancel(String id) async {
     try {
       setState(() => _loading = true);
-      await ApiService.request(method: 'POST', path: '/transfer-requests/$id/cancel');
+      await ApiService.request(method: 'POST', path: '/payment-requests/$id/cancel');
       setState(() {
         outgoing.removeWhere((r) => r['id'] == id);
         pending.removeWhere((r) => r['id'] == id);
@@ -98,7 +97,7 @@ class _AllRequestsWidgetState extends State<AllRequestsWidget> {
   }
 
   Widget _buildOutgoing(dynamic req) {
-    final recipient = req['users_sender'];
+    final recipient = req['users_recipient'];
     final recipientUsername = recipient != null ? recipient['username'] : 'unknown';
     final amount = (req['amount'] ?? 0).toString();
     final status = (req['status'] ?? 'pending').toString();

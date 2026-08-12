@@ -132,7 +132,7 @@ class _NotificationsManagementPageState
                     const SizedBox(height: 8),
                     TextField(
                       controller: _titleCtrl,
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: context.onSurface),
                       decoration: _inputDec('e.g. System Maintenance Notice'),
                     ),
                     const SizedBox(height: 20),
@@ -141,7 +141,7 @@ class _NotificationsManagementPageState
                     TextField(
                       controller: _bodyCtrl,
                       maxLines: 5,
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: context.onSurface),
                       decoration:
                           _inputDec('Write your notification message here...'),
                     ),
@@ -161,15 +161,15 @@ class _NotificationsManagementPageState
                               style: GoogleFonts.plusJakartaSans(
                                   fontSize: 11,
                                   color: _type == t
-                                      ? Colors.white
-                                      : context.onSurface)),
+                                      ? context.background
+                                      : context.onSurface.withOpacity(0.7))),
                           selected: _type == t,
-                          selectedColor: Colors.black,
-                          backgroundColor: Colors.white,
+                          selectedColor: accent,
+                          backgroundColor: cardColor,
                           side: BorderSide(
                               color: _type == t
-                                  ? Colors.black
-                                  : context.onSurface.withOpacity(0.2)),
+                                  ? accent
+                                  : context.onSurface.withOpacity(0.1)),
                           onSelected: (_) => setState(() => _type = t),
                         ),
                     ]),
@@ -184,15 +184,15 @@ class _NotificationsManagementPageState
                               style: GoogleFonts.plusJakartaSans(
                                   fontSize: 11,
                                   color: _recipientMode == mode
-                                      ? Colors.white
-                                      : context.onSurface)),
+                                      ? context.background
+                                      : context.onSurface.withOpacity(0.7))),
                           selected: _recipientMode == mode,
-                          selectedColor: Colors.black,
-                          backgroundColor: Colors.white,
+                          selectedColor: accent,
+                          backgroundColor: cardColor,
                           side: BorderSide(
                               color: _recipientMode == mode
-                                  ? Colors.black
-                                  : context.onSurface.withOpacity(0.2)),
+                                  ? accent
+                                  : context.onSurface.withOpacity(0.1)),
                           onSelected: (_) => setState(() => _recipientMode = mode),
                         ),
                     ]),
@@ -202,7 +202,7 @@ class _NotificationsManagementPageState
                       const SizedBox(height: 8),
                       TextField(
                         controller: _recipientsCtrl,
-                        style: const TextStyle(color: Colors.white),
+                        style: TextStyle(color: context.onSurface),
                         decoration: _inputDec(
                             'User IDs, emails, or phone numbers (comma separated)'),
                       ),
@@ -229,15 +229,15 @@ class _NotificationsManagementPageState
                               style: GoogleFonts.plusJakartaSans(
                                   fontSize: 11,
                                   color: _audience == a
-                                      ? Colors.white
-                                      : context.onSurface)),
+                                      ? context.background
+                                      : context.onSurface.withOpacity(0.7))),
                           selected: _audience == a,
-                          selectedColor: Colors.black,
-                          backgroundColor: Colors.white,
+                          selectedColor: accent,
+                          backgroundColor: cardColor,
                           side: BorderSide(
                               color: _audience == a
-                                  ? Colors.black
-                                  : context.onSurface.withOpacity(0.2)),
+                                  ? accent
+                                  : context.onSurface.withOpacity(0.1)),
                           onSelected: (_) => setState(() => _audience = a),
                         ),
                     ]),

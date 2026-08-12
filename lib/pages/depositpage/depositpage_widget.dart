@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import '/backend/services/api_service.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '/core/app_config.dart';
+// Removed unused import
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
@@ -135,11 +136,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
     setState(() => isLoading = true);
 
     try {
-      final endpoint = selectedMethod == 'CRYPTO'
-          ? '${AppConfig.api}/crypto/deposit'
-          : '${AppConfig.api}/deposit/create';
-
-      final paymentMethodRaw = selectedMethod == 'CARD'
+        final paymentMethodRaw = selectedMethod == 'CARD'
           ? 'card'
           : selectedMethod == 'BANK_TRANSFER'
               ? 'bank_transfer'
@@ -176,7 +173,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
 
       if (!mounted) return;
 
-      if (data == null) throw Exception('Empty response from server');
+      // ApiService.request returns a non-null map on success; handle unexpected types elsewhere.
 
       final paymentUrl = (data['authorization_url'] ??
               data['payment_url'] ??
@@ -189,98 +186,95 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
           data['reference'] ??
           data['transaction_reference'];
 
-        if (paymentUrl != null) {
-          // Launch Paystack / Ivorypay payment page in browser
-          final uri = Uri.parse(paymentUrl);
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-          _snack(
-            'Complete payment in browser.\n'
-            '~$farmAmount FARM will credit after confirmation.',
-          );
+      if (paymentUrl != null) {
+        // Launch Paystack / Ivorypay payment page in browser
+        final uri = Uri.parse(paymentUrl);
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        _snack(
+          'Complete payment in browser.\n'
+          '~$farmAmount FARM will credit after confirmation.',
+        );
 
-          // Poll with timeout and handle all statuses: completed, failed, cancelled
-          int pollAttempts = 0;
-          const maxAttempts = 60; // ~10 minutes (60 * 10 seconds)
+        // Poll with timeout and handle all statuses: completed, failed, cancelled
+        int pollAttempts = 0;
+        const maxAttempts = 60; // ~10 minutes (60 * 10 seconds)
 
-          Timer.periodic(const Duration(seconds: 10), (timer) async {
-            if (!mounted) {
-              timer.cancel();
-              return;
+        Timer.periodic(const Duration(seconds: 10), (timer) async {
+          if (!mounted) {
+            timer.cancel();
+            return;
+          }
+
+          pollAttempts++;
+
+          // Timeout after 10 minutes
+          if (pollAttempts > maxAttempts) {
+            timer.cancel();
+            if (mounted) {
+              _snack(
+                'Payment verification timed out. '
+                'Please check your transaction status on the dashboard.',
+              );
             }
+            return;
+          }
 
-            pollAttempts++;
+          await _fetchHistory();
+          await _fetchWallet();
 
-            // Timeout after 10 minutes
-            if (pollAttempts > maxAttempts) {
+          // Find the specific deposit by reference if available
+          Map<String, dynamic>? targetDeposit;
+          if (depositRef != null) {
+            targetDeposit = recentDeposits.firstWhere(
+              (d) =>
+                  d['reference'] == depositRef ||
+                  d['transaction_reference'] == depositRef,
+              orElse: () => {},
+            );
+            if ((targetDeposit?.isEmpty ?? false)) targetDeposit = null;
+          }
+
+          // Fallback to latest if no specific reference found
+          final deposit = targetDeposit ??
+              (recentDeposits.isNotEmpty ? recentDeposits.first : null);
+
+          if (deposit != null) {
+            final status = (deposit['status'] ?? '').toString().toLowerCase();
+
+            // Accept backend `SUCCESS`/`success` as completed as well as legacy `completed`
+            if (status == 'completed' || status == 'success') {
+              timer.cancel();
+              if (mounted && FFAppState().accessToken.isNotEmpty) {
+                _snack('Payment confirmed! Redirecting to dashboard...');
+                Future.delayed(const Duration(milliseconds: 1500), () {
+                  if (mounted) context.go('/dashboard');
+                });
+              }
+            } else if (status == 'failed' ||
+                status == 'cancelled' ||
+                status == 'error') {
               timer.cancel();
               if (mounted) {
                 _snack(
-                  'Payment verification timed out. '
-                  'Please check your transaction status on the dashboard.',
+                  'Payment ${status == 'cancelled' ? 'cancelled' : 'failed'}. '
+                  'No funds were deducted. Please try again.',
                 );
-              }
-              return;
-            }
 
-            await _fetchHistory();
-            await _fetchWallet();
-
-            // Find the specific deposit by reference if available
-            Map<String, dynamic>? targetDeposit;
-            if (depositRef != null) {
-              targetDeposit = recentDeposits.firstWhere(
-                (d) =>
-                    d['reference'] == depositRef ||
-                    d['transaction_reference'] == depositRef,
-                orElse: () => {},
-              );
-              if ((targetDeposit?.isEmpty ?? false)) targetDeposit = null;
-            }
-
-            // Fallback to latest if no specific reference found
-            final deposit = targetDeposit ??
-                (recentDeposits.isNotEmpty ? recentDeposits.first : null);
-
-            if (deposit != null) {
-              final status = (deposit['status'] ?? '').toString().toLowerCase();
-
-              // Accept backend `SUCCESS`/`success` as completed as well as legacy `completed`
-              if (status == 'completed' || status == 'success') {
-                timer.cancel();
-                if (mounted && FFAppState().accessToken.isNotEmpty) {
-                  _snack('Payment confirmed! Redirecting to dashboard...');
-                  Future.delayed(const Duration(milliseconds: 1500), () {
-                    if (mounted) context.go('/dashboard');
-                  });
-                }
-              } else if (status == 'failed' ||
-                  status == 'cancelled' ||
-                  status == 'error') {
-                timer.cancel();
-                if (mounted) {
-                  _snack(
-                    'Payment ${status == 'cancelled' ? 'cancelled' : 'failed'}. '
-                    'No funds were deducted. Please try again.',
-                  );
-
-                  // Refresh history and wallet to reflect backend state. Do not call a
-                  // non-existent DELETE endpoint; backend controls lifecycle.
-                  await _fetchHistory();
-                  await _fetchWallet();
-                }
+                // Refresh history and wallet to reflect backend state. Do not call a
+                // non-existent DELETE endpoint; backend controls lifecycle.
+                await _fetchHistory();
+                await _fetchWallet();
               }
             }
-          });
-        }
-
-        amountController.clear();
+          }
+        });
       } else {
         _snack(
-          data['message'] ??
-              data['error']?.toString() ??
-              'Deposit failed. Please try again.',
+          data['message'] ?? data['error']?.toString() ?? 'Deposit failed. Please try again.',
         );
       }
+
+      amountController.clear();
     } catch (e) {
       if (mounted) _snack('Network error: $e');
     } finally {

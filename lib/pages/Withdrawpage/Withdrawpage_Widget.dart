@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/backend/services/api_service.dart';
-import '/core/app_config.dart';
+// Removed unused import
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
@@ -93,10 +93,36 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
     'CRYPTO': 0.0,
   };
 
+  final Map<String, Map<String, double?>> _withdrawLimits = {
+    'BANK': {'min': 4999, 'max': 999999},
+    'MOBILE_MONEY': {'min': 1499, 'max': 249999},
+    'CRYPTO': {'min': 100, 'max': null},
+  };
+
   double get amount => double.tryParse(_amountCtrl.text.trim()) ?? 0;
   double get feeRate => _fees[selectedMethod] ?? 0.015;
   double get fee => amount * feeRate;
   double get settlement => amount - fee;
+  double get _minimumWithdrawAmount => _withdrawLimits[selectedMethod]?['min'] ?? 10;
+  double? get _maximumWithdrawAmount => _withdrawLimits[selectedMethod]?['max'];
+  bool get _hasAmountValue => _amountCtrl.text.trim().isNotEmpty;
+  String? get _amountValidationError {
+    if (!_hasAmountValue) return null;
+    if (amount <= 0) {
+      return 'Enter a valid amount';
+    }
+    if (amount < _minimumWithdrawAmount) {
+      return 'Minimum withdrawal is FARM ${_minimumWithdrawAmount.toStringAsFixed(0)}';
+    }
+    if (_maximumWithdrawAmount != null && amount > _maximumWithdrawAmount!) {
+      return 'Maximum withdrawal is FARM ${_maximumWithdrawAmount!.toStringAsFixed(0)}';
+    }
+    if (amount > walletBalance) {
+      return 'Insufficient FARM balance';
+    }
+    return null;
+  }
+  bool get _amountValid => _hasAmountValue && _amountValidationError == null;
 
   @override
   void initState() {
@@ -212,12 +238,16 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
       TransactionAuthenticationResult? preAuthResult}) async {
     if (isLoading) return;
 
-    if (amount < 10) {
-      _snack('Minimum withdrawal is KES 10');
+    if (amount <= 0) {
+      _snack('Enter a valid withdrawal amount');
       return;
     }
-    if (amount > 70000) {
-      _snack('Maximum withdrawal is KES 70,000');
+    if (amount < _minimumWithdrawAmount) {
+      _snack('Minimum withdrawal is FARM ${_minimumWithdrawAmount.toStringAsFixed(0)}');
+      return;
+    }
+    if (_maximumWithdrawAmount != null && amount > _maximumWithdrawAmount!) {
+      _snack('Maximum withdrawal is FARM ${_maximumWithdrawAmount!.toStringAsFixed(0)}');
       return;
     }
     if (amount > walletBalance) {
@@ -282,13 +312,13 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
             requestBody['phoneNumber'] = _mobileCtrl.text.trim();
             break;
           case 'CRYPTO':
-            requestBody['cryptoAddress'] = selectedCryptoAsset;
+            requestBody['cryptoAsset'] = selectedCryptoAsset;
+            requestBody['cryptoAddress'] = _walletCtrl.text.trim();
             requestBody['network'] = selectedCryptoNetwork ?? '';
-            requestBody['walletAddress'] = _walletCtrl.text.trim();
             break;
         }
 
-        final resp = await ApiService.request(
+        await ApiService.request(
           method: 'POST',
           path: '/withdraw/create',
           body: requestBody,
@@ -334,7 +364,7 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
           break;
       }
 
-      final data = await ApiService.request(
+      await ApiService.request(
         method: 'POST',
         path: '/withdraw/create',
         body: requestBody,
@@ -717,20 +747,32 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                           style: GoogleFonts.plusJakartaSans(
                               fontSize: 36,
                               fontWeight: FontWeight.bold,
-                              color: theme.primaryText),
+                              color: _amountValid || !_hasAmountValue
+                                  ? theme.primaryText
+                                  : Colors.red),
                           decoration: InputDecoration(
-                              border: InputBorder.none,
-                              hintText: '0.00',
-                              hintStyle: TextStyle(color: theme.secondaryText)),
+                            border: InputBorder.none,
+                            hintText: '0.00',
+                            hintStyle: TextStyle(color: theme.secondaryText),
+                            helperText: _amountValidationError,
+                            helperStyle: TextStyle(
+                                color: _amountValid || !_hasAmountValue
+                                    ? theme.secondaryText
+                                    : Colors.red,
+                                fontSize: 12),
+                          ),
                         ),
                         const Divider(),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('Min: FARM 10',
+                            Text('Min: FARM ${_minimumWithdrawAmount.toStringAsFixed(0)}',
                                 style: GoogleFonts.plusJakartaSans(
                                     color: theme.secondaryText, fontSize: 12)),
-                            Text('Max: FARM 70,000',
+                            Text(
+                                _maximumWithdrawAmount == null
+                                    ? 'No max'
+                                    : 'Max: FARM ${_maximumWithdrawAmount!.toStringAsFixed(0)}',
                                 style: GoogleFonts.plusJakartaSans(
                                     color: theme.secondaryText, fontSize: 12)),
                           ],
@@ -810,7 +852,9 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                       width: double.infinity,
                       height: 58,
                       child: ElevatedButton(
-                        onPressed: _promptBiometricForPinField,
+                        onPressed: (!_amountValid || isLoading)
+                            ? null
+                            : _promptBiometricForPinField,
                         style: ElevatedButton.styleFrom(
                           backgroundColor:
                               isDark ? const Color(0xFF1F1F1F) : Colors.black,
@@ -864,8 +908,7 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16)),
                         ),
-                        onPressed:
-                            (isLoading || amount <= 0) ? null : _createWithdraw,
+                        onPressed: (isLoading || !_amountValid) ? null : _createWithdraw,
                         child: isLoading
                             ? const CircularProgressIndicator(color: Colors.white)
                             : Text('Withdraw Funds',

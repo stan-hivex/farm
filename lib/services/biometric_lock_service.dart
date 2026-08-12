@@ -1,5 +1,4 @@
-import 'dart:convert';
-import 'dart:math';
+// Removed unused imports
 
 import 'package:flutter/foundation.dart';
 import 'package:local_auth/local_auth.dart';
@@ -97,13 +96,7 @@ class BiometricLockService {
     debugPrint('Stored biometric last verified: ${now.toIso8601String()}');
   }
 
-  String _generateFingerprint() {
-    final rnd = Random.secure();
-    final bytes = List<int>.generate(16, (_) => rnd.nextInt(256));
-    final fingerprint = base64Url.encode(bytes);
-    debugPrint('Generated fingerprint: $fingerprint');
-    return fingerprint;
-  }
+  // Removed unused helper `_generateFingerprint`.
 
   Future<bool> enableBiometrics() async {
     try {
@@ -161,11 +154,6 @@ class BiometricLockService {
       }
 
       await clearBiometricData();
-
-      FFAppState().update(() {
-        FFAppState().biometricsEnabled = false;
-        FFAppState().biometricLastVerified = null;
-      });
 
       return true;
     } catch (e, stack) {

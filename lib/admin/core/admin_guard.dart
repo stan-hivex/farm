@@ -9,9 +9,8 @@ class AdminGuard {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('adminToken') ?? '';
     final role = prefs.getString('adminRole') ?? '';
-    final refreshToken = prefs.getString('adminRefreshToken') ?? '';
     debugPrint('[AdminGuard] isAuthenticated prefTokenPresent=${token.isNotEmpty} prefRole=$role');
-    if (token.isNotEmpty && (role == 'admin' || role == 'super_admin') && (_isJwtValid(token) || refreshToken.isNotEmpty)) {
+    if (token.isNotEmpty && (role == 'admin' || role == 'super_admin') && _isJwtValid(token)) {
       return true;
     }
 
@@ -19,12 +18,11 @@ class AdminGuard {
     final superAdminSession = await AuthSessionStore.readSuperAdminSession();
     final adminToken = adminSession?.accessToken ?? superAdminSession?.accessToken ?? '';
     final adminRole = adminSession?.role ?? superAdminSession?.role ?? '';
-    final adminRefresh = adminSession?.refreshToken ?? superAdminSession?.refreshToken ?? '';
     debugPrint('[AdminGuard] isAuthenticated persistedTokenPresent=${adminToken.isNotEmpty} persistedRole=$adminRole');
 
     return adminToken.isNotEmpty &&
         (adminRole == 'admin' || adminRole == 'super_admin') &&
-        (_isJwtValid(adminToken) || adminRefresh.isNotEmpty || refreshToken.isNotEmpty);
+        _isJwtValid(adminToken);
   }
 
   static bool _isJwtValid(String token) {

@@ -14,7 +14,6 @@ import 'web_url_strategy.dart';
 import 'services/app_session_manager.dart';
 import 'services/biometric_lock_service.dart';
 import 'services/notification_service.dart';
-import 'services/auth/session_store_service.dart';
 import 'pages/biometric_unlock_page/biometric_unlock_page_widget.dart';
 
 Widget buildSafeErrorWidget(FlutterErrorDetails details) {
@@ -52,10 +51,6 @@ void main() async {
   final storedRefreshToken = await SharedPreferences.getInstance().then((prefs) => prefs.getString('refreshToken'));
   print('Stored access token exists = ${storedAccessToken != null}');
   print('Stored refresh token exists = ${storedRefreshToken != null}');
-  final storedAdminSession = await AuthSessionStore.readAdminSession();
-  final storedSuperAdminSession = await AuthSessionStore.readSuperAdminSession();
-  print('Stored admin session exists = ${storedAdminSession != null}');
-  print('Stored super admin session exists = ${storedSuperAdminSession != null}');
   await FFAppState().initializePersistedState();
   await NotificationService.initialize();
   await FlutterFlowTheme.initialize();
