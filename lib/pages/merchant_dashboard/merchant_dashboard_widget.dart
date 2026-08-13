@@ -415,22 +415,15 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
         return AlertDialog(
           title: const Text('✓ QR Code Saved'),
           content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _openQrKit();
-              },
-              child: const Text('OPEN'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _shareQrKit();
-              },
-              child: const Text('SHARE'),
-            ),
-          ],
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _shareQrKit();
+                },
+                child: const Text('SHARE'),
+              ),
+            ],
         );
       },
     );
@@ -800,19 +793,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                             ),
                           ],
                         ),
-                        FlutterFlowIconButton(
-                          borderRadius: 8,
-                          buttonSize: 40,
-                          fillColor: Colors.transparent,
-                          icon: Icon(
-                            Icons.settings_rounded,
-                            color: FlutterFlowTheme.of(context).primaryText,
-                            size: 24,
-                          ),
-                          onPressed: () {
-                            print('IconButton pressed ...');
-                          },
-                        ),
+                        const SizedBox(width: 40),
                       ],
                     ),
                   ),

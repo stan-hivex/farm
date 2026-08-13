@@ -256,12 +256,27 @@ class RouteGuardService {
       debugPrint('[RouteGuardService] verifyAndRedirect NOT authenticated');
       debugPrint('[RouteGuardService] role=$role loggedIn=$loggedIn currentPath=$currentPath');
       debugPrint('[RouteGuardService] redirect reason=$reason');
+      // If we have a persisted session, try a forced refresh once before clearing
+      if (sessionExists) {
+        try {
+          final refreshed = await RefreshManager().refreshIfNeeded(force: true);
+          debugPrint('[RouteGuardService] forced refresh attempted, result=$refreshed');
+          if (refreshed) {
+            // Refresh succeeded; allow navigation to continue
+            return null;
+          }
+        } catch (e) {
+          debugPrint('[RouteGuardService] forced refresh failed: $e');
+        }
+      }
       if (role == 'super_admin') {
         debugPrint('SUPER_ADMIN REDIRECTED TO LOGIN');
         debugPrint(StackTrace.current.toString());
       }
-      // Clear stale auth data before redirecting to login
-      await FFAppState().clearAuthCredentials();
+      // Do NOT clear persisted auth here — preserve tokens and let explicit
+      // logout or genuine backend revocation handle clearing. Redirect to
+      // login so the user can re-authenticate if desired.
+      debugPrint('[RouteGuardService] Not authenticated — redirecting to login (preserving persisted session)');
       return '/loginpage';
     }
 

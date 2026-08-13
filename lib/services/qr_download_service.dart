@@ -6,8 +6,12 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+
+// Conditional import for web download helper
+import 'qr_web_stub.dart'
+  if (dart.library.html) 'qr_web_impl.dart' as qr_web;
 
 const _kQrDownloadChannel = 'farm.qr_download_service';
 
@@ -72,71 +76,140 @@ class QrDownloadService {
   }) async {
     final name = fileName ?? _createFileName();
     if (kIsWeb) {
+      final ok = await qr_web.saveFileWeb(bytes, name);
       return QrDownloadResult(
-        success: false,
-        message: 'Saving QR code is not supported in this build.',
-        destination: QrDownloadDestination.unknown,
+        success: ok,
+        message: ok ? 'Download started' : 'Failed to start download',
+        destination: ok ? QrDownloadDestination.temp : QrDownloadDestination.unknown,
       );
     }
+
     if (Platform.isAndroid || Platform.isIOS) {
       try {
-        // Request permission where necessary
+        // Ensure permissions where necessary
+        final permissionOk = await _ensureSavePermission();
+        if (!permissionOk) {
+          return QrDownloadResult(success: false, message: 'Permission denied. Please enable storage/photos permission in Settings.', destination: QrDownloadDestination.unknown);
+        }
+
+        // Save to temporary file first
+        final tempFile = await _writeTemporaryFile(bytes, name);
+        
+        // On Android, delegate to native MediaStore saver via MethodChannel; on iOS, open with share dialog
         if (Platform.isAndroid) {
-          final status = await Permission.storage.request();
-          if (!status.isGranted) {
-            return QrDownloadResult(success: false, message: 'Storage permission denied.', destination: QrDownloadDestination.unknown);
-          }
-        } else if (Platform.isIOS) {
-          final status = await Permission.photosAddOnly.request();
-          if (!status.isGranted) {
-            return QrDownloadResult(success: false, message: 'Photos permission denied.', destination: QrDownloadDestination.unknown);
-          }
-        }
-
-        final result = await ImageGallerySaver.saveImage(bytes, name: name);
-        final success = result['isSuccess'] == true || result['filePath'] != null;
-        final filePath = result['filePath']?.toString() ?? result['filePath'];
-
-        if (success) {
-          _lastSavedBytes = bytes;
-          _lastSavedFileName = name;
-        }
-
-        return QrDownloadResult(
-          success: success,
-          message: success ? 'QR code saved successfully.' : 'Unable to save QR code.',
-          fileUri: filePath?.toString(),
-          destination: Platform.isAndroid ? QrDownloadDestination.androidPictures : QrDownloadDestination.iosPhotos,
-        );
-      } catch (e) {
-        // Fallback to platform channel if available
-        try {
-          final response = await _channel.invokeMapMethod<String, dynamic>(
-            'downloadQr',
-            {
+          try {
+            final Map<dynamic, dynamic>? response = await _channel.invokeMethod('downloadQr', {
               'bytes': bytes,
               'fileName': name,
-            },
-          );
+            });
 
-          final success = response?['success'] == true;
-          final message = response?['message']?.toString() ?? (success ? 'QR code saved successfully.' : 'Unable to save QR code.');
-          final destination = _destinationFromString(response?['destination']?.toString());
-          final fileUri = response?['fileUri']?.toString();
+            if (response == null) {
+              // Fallback to temp
+              _lastSavedBytes = bytes;
+              _lastSavedFileName = name;
+              return QrDownloadResult(
+                success: true,
+                message: 'QR code saved to temporary file.',
+                fileUri: tempFile.path,
+                destination: QrDownloadDestination.temp,
+              );
+            }
 
-          if (success) {
+            final success = response['success'] == true;
+            final message = response['message']?.toString() ?? '';
+            final fileUri = response['fileUri']?.toString();
+            final destStr = response['destination']?.toString();
+
             _lastSavedBytes = bytes;
             _lastSavedFileName = name;
-          }
 
-          return QrDownloadResult(success: success, message: message, fileUri: fileUri, destination: destination);
-        } on PlatformException catch (error) {
-          return QrDownloadResult(success: false, message: error.message ?? 'Failed to save QR code.', destination: QrDownloadDestination.unknown);
+            return QrDownloadResult(
+              success: success,
+              message: message,
+              fileUri: fileUri,
+              destination: _destinationFromString(destStr),
+            );
+          } catch (e) {
+            // Channel failed — fallback to temporary file
+            _lastSavedBytes = bytes;
+            _lastSavedFileName = name;
+            return QrDownloadResult(
+              success: true,
+              message: 'Saved to temporary file (native save failed): $e',
+              fileUri: tempFile.path,
+              destination: QrDownloadDestination.temp,
+            );
+          }
+        } else if (Platform.isIOS) {
+          // On iOS, write temp file and open share sheet so user can save to Photos
+          _lastSavedBytes = bytes;
+          _lastSavedFileName = name;
+          try {
+            final xfile = XFile(tempFile.path);
+            await SharePlus.instance.share(
+              ShareParams(text: 'Scan this Farm QR code.', files: [xfile]),
+            );
+          } catch (_) {}
+          return QrDownloadResult(
+            success: true,
+            message: 'QR code saved to temporary file and share sheet opened.',
+            fileUri: tempFile.path,
+            destination: QrDownloadDestination.iosPhotos,
+          );
         }
+      } catch (e) {
+        return QrDownloadResult(success: false, message: 'Failed to save QR code: $e', destination: QrDownloadDestination.unknown);
       }
     }
 
     return _saveToTemporaryDirectory(bytes, name);
+  }
+
+  Future<bool> _ensureSavePermission() async {
+    if (kIsWeb) return true;
+
+    if (Platform.isAndroid) {
+      try {
+        final deviceInfo = DeviceInfoPlugin();
+        final androidInfo = await deviceInfo.androidInfo;
+        final sdkInt = androidInfo.version.sdkInt ?? 0;
+
+        PermissionStatus status;
+        if (sdkInt >= 33) {
+          status = await Permission.photos.request();
+        } else {
+          status = await Permission.storage.request();
+        }
+
+        if (status.isGranted) return true;
+        if (status.isPermanentlyDenied) {
+          // Ask user to enable via settings
+          await openAppSettings();
+          return false;
+        }
+        return false;
+      } catch (_) {
+        final status = await Permission.storage.request();
+        if (status.isGranted) return true;
+        if (status.isPermanentlyDenied) {
+          await openAppSettings();
+          return false;
+        }
+        return false;
+      }
+    }
+
+    if (Platform.isIOS) {
+      final status = await Permission.photosAddOnly.request();
+      if (status.isGranted) return true;
+      if (status.isPermanentlyDenied) {
+        await openAppSettings();
+        return false;
+      }
+      return false;
+    }
+
+    return true;
   }
 
   Future<void> shareQr(
@@ -157,11 +230,7 @@ class QrDownloadService {
 
     final xfile = XFile(file.path);
     await SharePlus.instance.share(
-      ShareParams(
-        text: text,
-        subject: subject,
-        files: [xfile],
-      ),
+      ShareParams(text: text, subject: subject, files: [xfile]),
     );
   }
 

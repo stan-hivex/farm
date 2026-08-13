@@ -245,6 +245,7 @@ class AdminApiService {
       }
 
       final prefs = await SharedPreferences.getInstance();
+      debugPrint('[AdminApiService] 401 Unauthorized — clearing persisted admin session keys (reason=unauthorized)');
       await prefs.remove('adminToken');
       await prefs.remove('adminRefreshToken');
       await prefs.remove('adminRole');
@@ -306,8 +307,7 @@ class AdminApiService {
     try {
       await _req(method: 'POST', path: '/auth/logout');
     } finally {
-      print('CLEAR SESSION CALLED');
-      print(StackTrace.current);
+      debugPrint('[AdminApiService] explicit logout — clearing persisted admin session keys (reason=explicit logout)');
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('adminToken');
       await prefs.remove('adminRefreshToken');

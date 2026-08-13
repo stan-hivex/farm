@@ -1,11 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/app_state.dart';
-import '/backend/services/api_service.dart';
+import '/core/app_config.dart';
+import '/backend/api_requests/api_manager.dart';
+import '/pages/superadmin/superadmin_dashboard_page.dart';
+import '/pages/superadmin/superadmin_pin_setup_page.dart';
+import '/pages/superadmin/superadmin_change_pin_page.dart';
 import '/services/app_session_manager.dart';
+import '/admin/services/admin_api_service.dart';
 import '/services/transaction_authentication_service.dart';
 import '/services/transaction_authorization_service.dart';
- 
+import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class SuperadminWalletPage extends StatefulWidget {
   const SuperadminWalletPage({super.key});
@@ -17,20 +26,21 @@ class SuperadminWalletPage extends StatefulWidget {
   State<SuperadminWalletPage> createState() => _SuperadminWalletPageState();
 }
 
-class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
+class _SuperadminWalletPageState extends State<SuperadminWalletPage>
+    with WidgetsBindingObserver {
   Map<String, dynamic>? _walletData;
   bool _loading = true;
   bool _loadingHistory = true;
   String? _error;
   String _selectedWithdrawalMethod = 'MOBILE_MONEY';
   String? _selectedBank;
+  String _selectedCryptoAsset = 'USDC';
+  String? _selectedCryptoNetwork;
   List<dynamic> _history = [];
 
   final _amountController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _accountNameController = TextEditingController();
   final _accountNumberController = TextEditingController();
-  final _bankNameController = TextEditingController();
   final _cryptoAddressController = TextEditingController();
   final _cryptoNetworkController = TextEditingController();
   final _pinController = TextEditingController();
@@ -57,25 +67,129 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
     'UBA Kenya',
   ];
 
+  final List<String> _cryptoAssets = ['USDC', 'USDT'];
+
+  final Map<String, List<String>> _cryptoNetworks = {
+    'USDC': [
+      'BNB Smart Chain (BEP20)',
+      'Polygon',
+      'Solana',
+      'Base',
+      'Starknet',
+      'Algorand',
+    ],
+    'USDT': [
+      'BNB Smart Chain (BEP20)',
+      'Polygon',
+      'Solana',
+      'Starknet',
+    ],
+  };
+
+  final Map<String, Map<String, double?>> _withdrawLimits = {
+    'BANK': {'min': 4999, 'max': 999999},
+    'MOBILE_MONEY': {'min': 1499, 'max': 249999},
+    'CRYPTO': {'min': 100, 'max': null},
+  };
+
+  double get _amount => double.tryParse(_amountController.text.trim()) ?? 0;
+
+  Map<String, double?> get _activeWithdrawLimits =>
+      _withdrawLimits[_selectedWithdrawalMethod] ?? _withdrawLimits['BANK']!;
+
+  double get _activeWithdrawMin => _activeWithdrawLimits['min'] ?? 10;
+
+  double? get _activeWithdrawMax => _activeWithdrawLimits['max'];
+
+  bool get _hasValidWithdrawAmount =>
+      _amount > 0 &&
+      _amount >= _activeWithdrawMin &&
+      (_activeWithdrawMax == null || _amount <= _activeWithdrawMax!);
+
+  String get _withdrawValidationMessage {
+    if (_amount <= 0) {
+      return 'Range: FARM ${_formatAmount(_activeWithdrawMin)}${_activeWithdrawMax == null ? '+' : ' - FARM ${_formatAmount(_activeWithdrawMax!)}'}';
+    }
+    if (_hasValidWithdrawAmount) {
+      return 'Range: FARM ${_formatAmount(_activeWithdrawMin)}${_activeWithdrawMax == null ? '+' : ' - FARM ${_formatAmount(_activeWithdrawMax!)}'}';
+    }
+    final maxText = _activeWithdrawMax == null
+        ? ' and above'
+        : ' and FARM ${_formatAmount(_activeWithdrawMax!)}';
+    return 'Amount must be between FARM ${_formatAmount(_activeWithdrawMin)}$maxText';
+  }
+
+  String _methodToBackend(String method) {
+    return method == 'BANK' ? 'BANK_TRANSFER' : method;
+  }
+
+  String _formatAmount(double value) {
+    return value.toStringAsFixed(value.truncateToDouble() == value ? 0 : 2).replaceAllMapped(
+      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+      (match) => '${match[1]},',
+    );
+  }
+
+  void _snack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Timer? _refreshTimer;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadWalletData();
     _fetchWithdrawalHistory();
+    _startPeriodicRefresh();
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     _amountController.dispose();
     _phoneController.dispose();
-    _accountNameController.dispose();
     _accountNumberController.dispose();
-    _bankNameController.dispose();
     _cryptoAddressController.dispose();
     _cryptoNetworkController.dispose();
     _pinController.dispose();
     _pinFocusNode.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      _startPeriodicRefresh();
+      unawaited(_refreshSessionAndReload());
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+      _refreshTimer?.cancel();
+    }
+  }
+
+  void _startPeriodicRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+      if (!mounted) return;
+      unawaited(_refreshSessionAndReload());
+    });
+  }
+
+  Future<void> _refreshSessionAndReload() async {
+    if (!mounted) return;
+    try {
+      final refreshed = await AdminApiService.ensureValidSession(force: true);
+      if (refreshed) {
+        await Future.wait([
+          _loadWalletData(),
+          _fetchWithdrawalHistory(),
+        ]);
+      }
+    } catch (_) {}
   }
 
   Future<void> _promptBiometricForPinField() async {
@@ -113,8 +227,30 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
       _error = null;
     });
     try {
-      final resp = await ApiService.request(method: 'GET', path: '/admin/wallet');
-      setState(() => _walletData = resp['data'] ?? resp);
+      final token = await FFAppState().getActiveAccessToken();
+
+      if (token.isEmpty) {
+        throw Exception('Not authenticated');
+      }
+
+      final response = await ApiManager.instance.makeApiCall(
+        callName: 'superadminWallet',
+        apiUrl: '${AppConfig.api}/admin/wallet',
+        callType: ApiCallType.GET,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        params: {},
+        returnBody: true,
+      );
+
+      final decoded = response.jsonBody as Map<String, dynamic>?;
+      if (decoded == null) {
+        throw Exception('Invalid wallet response');
+      }
+
+      setState(() => _walletData = decoded['data'] ?? decoded);
     } catch (e) {
       setState(() => _error = e.toString().replaceAll('Exception: ', ''));
     } finally {
@@ -122,127 +258,141 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
     }
   }
 
-  Future<void> _processWithdrawal({TransactionAuthenticationResult? preAuthResult}) async {
-    if (_amountController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all required fields')),
-      );
+  Future<void> _processWithdrawal({bool skipConfirm = false, TransactionAuthenticationResult? preAuthResult}) async {
+    if (!_hasValidWithdrawAmount) {
+      _snack(_withdrawValidationMessage);
       return;
     }
 
+    if (!_isDestinationValid()) {
+      _snack('Please complete your withdrawal destination');
+      return;
+    }
+
+    if (!skipConfirm) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (c) => AlertDialog(
+          title: const Text('Confirm Withdrawal'),
+          content: Text(
+            'Withdraw ${_amount.toStringAsFixed(4)} FARM via ${_selectedWithdrawalMethod.replaceAll('_', ' ')}?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(c).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(c).pop(true),
+              child: const Text('Confirm'),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) return;
+    }
+
     try {
-      final authResult = preAuthResult ?? _lastPinAuthResult ?? await TransactionAuthorizationService().authorizeTransaction(
-        localizedReason: 'Confirm withdrawal',
-      ).then((r) => r.toTransactionAuthenticationResult());
+      final authResult = preAuthResult ??
+          _lastPinAuthResult ??
+          await TransactionAuthorizationService()
+              .authorizeTransaction(
+                localizedReason: 'Confirm withdrawal',
+              )
+              .then((r) => r.toTransactionAuthenticationResult());
 
       final usedBiometric = authResult?.biometricUsed == true;
+      final token = await FFAppState().getActiveAccessToken();
+      final body = {
+        'amount': _amount,
+        'method': _methodToBackend(_selectedWithdrawalMethod),
+        'pin': usedBiometric ? null : _pinController.text.trim(),
+      };
+
       if (usedBiometric) {
-        await FFAppState().getActiveAccessToken();
-        final Map<String, dynamic> body = {
-          'amount': double.parse(_amountController.text),
-          'method': _selectedWithdrawalMethod,
-          'pin': null,
-          'biometric_auth': true,
-          'device_fingerprint': authResult?.deviceFingerprint,
-        };
+        body['biometric_auth'] = true;
+        body['device_fingerprint'] = authResult?.deviceFingerprint;
+      }
 
-        if (_selectedWithdrawalMethod == 'MOBILE_MONEY') {
-          if (_phoneController.text.isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Phone number required for mobile money')),
-            );
-            return;
-          }
-          body['phoneNumber'] = _phoneController.text;
-        } else if (_selectedWithdrawalMethod == 'BANK_TRANSFER') {
-          if (_selectedBank == null || _accountNumberController.text.isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Bank and account number required for bank transfer')),
-            );
-            return;
-          }
-          body['accountNumber'] = _accountNumberController.text;
-          body['bankName'] = _selectedBank;
+      switch (_selectedWithdrawalMethod) {
+        case 'BANK':
+          body['accountName'] = _selectedBank ?? '';
+          body['bankName'] = _selectedBank ?? '';
+          body['accountNumber'] = _accountNumberController.text.trim();
+          break;
+        case 'MOBILE_MONEY':
+          body['phoneNumber'] = _phoneController.text.trim();
+          break;
+        case 'CRYPTO':
+          body['cryptoAddress'] = _cryptoAddressController.text.trim();
+          body['cryptoAsset'] = _selectedCryptoAsset;
+          body['network'] = _cryptoNetworkController.text.trim();
+          break;
+      }
+
+      if (usedBiometric) {
+        if (_selectedWithdrawalMethod == 'MOBILE_MONEY' && _phoneController.text.isEmpty) {
+          _snack('Phone number required for mobile money');
+          return;
         }
+        if (_selectedWithdrawalMethod == 'BANK' && (_selectedBank == null || _accountNumberController.text.isEmpty)) {
+          _snack('Bank and account number required for bank transfer');
+          return;
+        }
+        if (_selectedWithdrawalMethod == 'CRYPTO' && (_cryptoAddressController.text.isEmpty || _cryptoNetworkController.text.isEmpty)) {
+          _snack('Crypto address and network required');
+          return;
+        }
+      } else {
+        if (_pinController.text.trim().isEmpty) {
+          _snack('PIN is required to authorize withdrawal');
+          return;
+        }
+      }
 
-        await ApiService.request(
-          method: 'POST',
-          path: '/withdraw/create',
-          body: body,
-        );
+      final response = await http.post(
+        Uri.parse('${AppConfig.api}/withdraw/create'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(body),
+      );
 
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode >= 200 && response.statusCode < 300) {
         await AppSessionManager().syncNow(
           profileTimeoutSeconds: 5,
           walletTimeoutSeconds: 5,
           transactionsTimeoutSeconds: 5,
         );
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Withdrawal request submitted successfully')),
-        );
-        _loadWalletData();
-        _fetchWithdrawalHistory();
-        return;
-      }
-
-      if (_pinController.text.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('PIN is required to authorize withdrawal')),
-        );
-        return;
-      }
-
-        // Ensure authenticated; ApiService.request will attempt refresh if needed
-
-      final Map<String, dynamic> body = {
-        'amount': double.parse(_amountController.text),
-        'method': _selectedWithdrawalMethod,
-        'pin': _pinController.text,
-      };
-
-      if (_selectedWithdrawalMethod == 'MOBILE_MONEY') {
-        if (_phoneController.text.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Phone number required for mobile money')),
-          );
-          return;
-        }
-        body['phoneNumber'] = _phoneController.text;
-      } else if (_selectedWithdrawalMethod == 'BANK_TRANSFER') {
-        if (_selectedBank == null || _accountNumberController.text.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Bank and account number required for bank transfer')),
-          );
-          return;
-        }
-        body['bankName'] = _selectedBank;
-        body['accountNumber'] = _accountNumberController.text;
-      } else if (_selectedWithdrawalMethod == 'CRYPTO') {
-        if (_cryptoAddressController.text.isEmpty || _cryptoNetworkController.text.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Crypto address and network required')),
-          );
-          return;
-        }
-        body['cryptoAddress'] = _cryptoAddressController.text;
-        body['network'] = _cryptoNetworkController.text;
-      }
-
-      final decoded = await ApiService.request(method: 'POST', path: '/withdraw/create', body: body);
-
-      _clearWithdrawalForm();
-      await _loadWalletData();
-      await _fetchWithdrawalHistory();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Withdrawal initiated: ${decoded['reference'] ?? ''}')),
-        );
+        _clearWithdrawalForm();
+        await _loadWalletData();
+        await _fetchWithdrawalHistory();
+        _snack('Withdrawal request submitted successfully');
+      } else {
+        final errorMsg = decoded is Map<String, dynamic>
+            ? decoded['message'] ?? decoded['error'] ?? 'Withdrawal failed'
+            : 'Withdrawal failed';
+        _snack(errorMsg.toString());
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      _snack('Error: $e');
+    }
+  }
+
+  bool _isDestinationValid() {
+    switch (_selectedWithdrawalMethod) {
+      case 'BANK':
+        return _selectedBank != null && _accountNumberController.text.isNotEmpty;
+      case 'MOBILE_MONEY':
+        return _phoneController.text.trim().isNotEmpty;
+      case 'CRYPTO':
+        return _selectedCryptoAsset.isNotEmpty &&
+            _selectedCryptoNetwork?.trim().isNotEmpty == true &&
+            _cryptoAddressController.text.trim().isNotEmpty;
+      default:
+        return false;
     }
   }
 
@@ -252,8 +402,24 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
     });
 
     try {
-      final resp = await ApiService.request(method: 'GET', path: '/withdraw/history');
-      final decoded = resp['data'] ?? resp;
+      final token = await FFAppState().getActiveAccessToken();
+      if (token.isEmpty) throw Exception('Not authenticated');
+
+      final response = await ApiManager.instance.makeApiCall(
+        callName: 'superadminWithdrawHistory',
+        apiUrl: '${AppConfig.api}/withdraw/history',
+        callType: ApiCallType.GET,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        params: {},
+        returnBody: true,
+      );
+
+      final decoded = response.jsonBody;
+      if (decoded == null) throw Exception('Invalid withdraw history response');
+
       final data = decoded is Map<String, dynamic>
           ? decoded['data'] ?? decoded['withdrawals'] ?? []
           : decoded;
@@ -269,12 +435,15 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
   void _clearWithdrawalForm() {
     _amountController.clear();
     _phoneController.clear();
-    _accountNameController.clear();
     _accountNumberController.clear();
-    _bankNameController.clear();
     _cryptoAddressController.clear();
     _cryptoNetworkController.clear();
     _pinController.clear();
+    setState(() {
+      _selectedBank = null;
+      _selectedCryptoAsset = 'USDC';
+      _selectedCryptoNetwork = null;
+    });
   }
 
   String _formatDate(dynamic dateValue) {
@@ -294,6 +463,12 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
     final rawMethod = item['method'] ?? item['payment_method'] ?? item['withdrawal_method'] ?? item['metadata']?['method'] ?? item['metadata']?['payment_method'];
     if (rawMethod == null) return 'Unknown';
     return rawMethod.toString().replaceAll('_', ' ').toUpperCase();
+  }
+
+  double _toDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString()) ?? 0.0;
   }
 
   @override
@@ -354,9 +529,9 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
       );
     }
 
-    final balance = _walletData?['available_balance'] ?? _walletData?['balance'] ?? 0.0;
-    final pendingWithdrawals = _walletData?['pending_withdrawals'] ?? 0.0;
-    final totalWithdrawn = _walletData?['total_withdrawn'] ?? 0.0;
+    final balance = _toDouble(_walletData?['available_balance'] ?? _walletData?['balance'] ?? 0.0);
+    final pendingWithdrawals = _toDouble(_walletData?['pending_withdrawals'] ?? 0.0);
+    final totalWithdrawn = _toDouble(_walletData?['total_withdrawn'] ?? 0.0);
     final currency = _walletData?['currency'] ?? 'FARM';
 
     return Scaffold(
@@ -364,6 +539,17 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
       appBar: AppBar(
         backgroundColor: cardColor,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          color: Colors.white,
+          onPressed: () {
+            if (GoRouter.of(context).canPop()) {
+              context.pop();
+              return;
+            }
+            context.go(SuperadminDashboardPage.routePath);
+          },
+        ),
         title: Text(
           'Superadmin Wallet',
           style: GoogleFonts.plusJakartaSans(
@@ -386,6 +572,74 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
 
               // Withdrawal Stats
               _buildWithdrawalStats(totalWithdrawn, currency, accent, cardColor, muted),
+              const SizedBox(height: 20),
+
+              // Superadmin PIN Actions
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Security Actions',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () => context.push(SuperadminPinSetupPage.routePath),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: accent,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              'Create PIN',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: Colors.black,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () => context.push(SuperadminChangePinPage.routePath),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white12,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              'Change PIN',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 24),
 
               // Withdrawal Method Selection
@@ -661,7 +915,7 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
   Widget _buildMethodTabs(Color accent, Color cardColor) {
     final methods = [
       ('MOBILE_MONEY', 'Mobile Money', Icons.phone_android_rounded),
-      ('BANK_TRANSFER', 'Bank Transfer', Icons.account_balance_rounded),
+      ('BANK', 'Bank Transfer', Icons.account_balance_rounded),
       ('CRYPTO', 'Crypto', Icons.currency_bitcoin_rounded),
     ];
 
@@ -726,7 +980,7 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
           if (_selectedWithdrawalMethod == 'MOBILE_MONEY') ...[
             _buildInputField('Phone Number', _phoneController, 'e.g. +254712345678', accent),
             const SizedBox(height: 14),
-          ] else if (_selectedWithdrawalMethod == 'BANK_TRANSFER') ...[
+          ] else if (_selectedWithdrawalMethod == 'BANK') ...[
             Container(
               decoration: BoxDecoration(
                 border: Border.all(color: Colors.white10),
@@ -758,9 +1012,69 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
             _buildInputField('Account Number', _accountNumberController, 'Bank account number', accent),
             const SizedBox(height: 14),
           ] else if (_selectedWithdrawalMethod == 'CRYPTO') ...[
-            _buildInputField('Wallet Address', _cryptoAddressController, 'Your wallet address', accent),
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.white10),
+                borderRadius: BorderRadius.circular(14),
+                color: cardColor,
+              ),
+              child: DropdownButton<String>(
+                value: _selectedCryptoAsset,
+                hint: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text('Select Crypto Asset', style: GoogleFonts.plusJakartaSans(color: Colors.white70)),
+                ),
+                isExpanded: true,
+                underline: const SizedBox(),
+                dropdownColor: cardColor,
+                items: _cryptoAssets.map((asset) {
+                  return DropdownMenuItem(
+                    value: asset,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(asset, style: GoogleFonts.plusJakartaSans(color: Colors.white)),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    _selectedCryptoAsset = value;
+                    _selectedCryptoNetwork = null;
+                  });
+                },
+              ),
+            ),
             const SizedBox(height: 14),
-            _buildInputField('Network', _cryptoNetworkController, 'e.g. TRON, BSC, ETH', accent),
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.white10),
+                borderRadius: BorderRadius.circular(14),
+                color: cardColor,
+              ),
+              child: DropdownButton<String>(
+                value: _selectedCryptoNetwork,
+                hint: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text('Select Network', style: GoogleFonts.plusJakartaSans(color: Colors.white70)),
+                ),
+                isExpanded: true,
+                underline: const SizedBox(),
+                dropdownColor: cardColor,
+                items: _cryptoNetworks[_selectedCryptoAsset]!.map((network) {
+                  return DropdownMenuItem(
+                    value: network,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(network, style: GoogleFonts.plusJakartaSans(color: Colors.white)),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) => setState(() => _selectedCryptoNetwork = value),
+              ),
+            ),
+            const SizedBox(height: 14),
+            _buildInputField('Crypto Address', _cryptoAddressController, 'Your wallet address', accent),
             const SizedBox(height: 14),
           ],
 

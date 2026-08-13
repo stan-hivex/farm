@@ -31,13 +31,13 @@ class FFAppState extends ChangeNotifier {
       _refreshToken = adminSession.refreshToken;
       _userId = adminSession.userId;
       _role = adminSession.role;
-      _isLoggedIn = false;
+      _isLoggedIn = adminSession.accessToken.isNotEmpty;
     } else if (normalizedStoredRole == 'super_admin' && superAdminSession != null) {
       _accessToken = superAdminSession.accessToken;
       _refreshToken = superAdminSession.refreshToken;
       _userId = superAdminSession.userId;
       _role = superAdminSession.role;
-      _isLoggedIn = false;
+      _isLoggedIn = superAdminSession.accessToken.isNotEmpty;
     } else if (normalizedStoredRole == 'user' && userSession != null) {
       _accessToken = userSession.accessToken;
       _refreshToken = userSession.refreshToken;
@@ -129,6 +129,8 @@ class FFAppState extends ChangeNotifier {
         orElse: () => ThemeMode.system,
       );
     }
+    // Diagnostic auth restore log
+    debugPrint('[AUTH] initializePersistedState: role=$_role userId=$_userId accessTokenPresent=${_accessToken.isNotEmpty} refreshTokenPresent=${_refreshToken.isNotEmpty} isLoggedIn=$_isLoggedIn');
   }
 
   bool _suspendNotifications = false;
@@ -174,7 +176,14 @@ class FFAppState extends ChangeNotifier {
     final persistedSession = await AuthSessionStore.readRoleSession(normalizedRole);
     final persistedToken = persistedSession?.accessToken ?? '';
     if (persistedToken.isNotEmpty) {
+      // Lazily restore in-memory token from persisted role session without
+      // clearing other persisted storage. Do not assume session is invalid —
+      // token will be validated by RefreshManager when needed.
       _accessToken = persistedToken;
+      _refreshToken = persistedSession?.refreshToken ?? _refreshToken;
+      _userId = persistedSession?.userId ?? _userId;
+      _role = persistedSession?.role ?? _role;
+      _isLoggedIn = persistedToken.isNotEmpty;
       notifyListeners();
     }
     return _accessToken;
@@ -482,9 +491,10 @@ class FFAppState extends ChangeNotifier {
     themeMode = value;
   }
 
-  Future<void> clearAuthCredentials() async {
-    print('CLEAR SESSION CALLED');
-    print(StackTrace.current);
+  Future<void> clearAuthCredentials([String? reason]) async {
+    final msg = '[FFAppState] clearAuthCredentials called' + (reason != null ? ' reason=$reason' : '');
+    debugPrint(msg);
+    debugPrint(StackTrace.current.toString());
     accessToken = '';
     refreshToken = '';
     userId = '';

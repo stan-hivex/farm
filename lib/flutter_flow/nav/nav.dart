@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -285,11 +287,27 @@ extension NavParamExtensions on Map<String, String?> {
 
 extension NavigationExtensions on BuildContext {
   void safePop() {
+    debugPrint('[NAV] back pressed');
     // If there is only one route on the stack, navigate to the initial
     // page instead of popping.
     if (canPop()) {
       pop();
     } else {
+      // If running on web, navigate to root. On mobile, if we're already
+      // at a logical app root (dashboard or admin shells), exit the
+      // activity so Android/OS shows the launcher instead of pushing an
+      // empty route which can produce a blank Flutter surface on some
+      // devices/configurations.
+      try {
+        if (!kIsWeb) {
+          final loc = GoRouter.of(appNavigatorKey.currentContext!).getCurrentLocation();
+          // If we're on a top-level dashboard/admin route, exit the app.
+          if (loc.startsWith(DashboardWidget.routePath) || loc.startsWith('/admin') || loc.startsWith(SuperadminDashboardPage.routePath)) {
+            SystemNavigator.pop();
+            return;
+          }
+        }
+      } catch (_) {}
       go('/');
     }
   }

@@ -15,6 +15,7 @@ import 'settings_management_page.dart';
 import 'fee_management_page.dart';
 import 'merchant_kyb_management_page.dart';
 import '../services/admin_api_service.dart';
+import '/services/auth/auth_service.dart';
 import '../core/admin_guard.dart';
 import '../../pages/loginpage/loginpage_widget.dart';
 import '../widgets/admin_sidebar.dart';
@@ -143,7 +144,7 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
   }
 
   Future<void> _logout() async {
-    await AdminApiService.logout();
+    await AuthService().logout();
     if (mounted) {
       AuthNavigation.replaceAllWithBuilder(
         context,

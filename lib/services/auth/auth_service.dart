@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '/core/config/supabase_config.dart';
 import '/core/config/env.dart';
 import '/flutter_flow/flutter_flow_util.dart';
@@ -357,7 +358,7 @@ class AuthService {
 
   /// Log out the user from Supabase and FARM backend, and clear all local auth data.
   Future<void> logout() async {
-    print('LOGOUT CALLED');
+    debugPrint('[AUTH] logout explicitly requested');
     print(StackTrace.current);
     Exception? logoutError;
 
@@ -383,7 +384,19 @@ class AuthService {
     try {
       final activeRole = FFAppState().role;
       await SecureStorageService.clearAuthData();
-      await FFAppState().clearAuthCredentials();
+      // Clear admin-specific SharedPreferences keys if applicable
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        if (activeRole == 'admin' || activeRole == 'super_admin') {
+          await prefs.remove('adminToken');
+          await prefs.remove('adminRefreshToken');
+          await prefs.remove('adminRole');
+          await prefs.remove('adminName');
+        }
+      } catch (e) {
+        debugPrint('[AuthService] Failed to clear admin prefs: $e');
+      }
+      await FFAppState().clearAuthCredentials('explicit logout');
       await FFAppState().clearRoleSession(activeRole);
     } catch (e) {
       debugPrint('Local clear auth data error: $e');
@@ -420,7 +433,7 @@ class AuthService {
 
     try {
       await SecureStorageService.clearAuthData();
-      await FFAppState().clearAuthCredentials();
+      await FFAppState().clearAuthCredentials('logout cleanup');
     } catch (e) {
       debugPrint('Local cleanup error during account deletion: $e');
     }

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '/services/auth/session_store_service.dart';
+import '/admin/services/admin_api_service.dart';
 
 class AdminGuard {
   static Future<bool> isAuthenticated() async {
@@ -20,9 +21,24 @@ class AdminGuard {
     final adminRole = adminSession?.role ?? superAdminSession?.role ?? '';
     debugPrint('[AdminGuard] isAuthenticated persistedTokenPresent=${adminToken.isNotEmpty} persistedRole=$adminRole');
 
-    return adminToken.isNotEmpty &&
-        (adminRole == 'admin' || adminRole == 'super_admin') &&
-        _isJwtValid(adminToken);
+    // If a persisted token exists but is expired, attempt a forced refresh
+    final hasPersisted = adminToken.isNotEmpty &&
+        (adminRole == 'admin' || adminRole == 'super_admin');
+    if (hasPersisted && _isJwtValid(adminToken)) {
+      return true;
+    }
+
+    if (hasPersisted) {
+      try {
+        final refreshed = await AdminApiService.ensureValidSession(force: true);
+        debugPrint('[AdminGuard] forced refresh attempted result=$refreshed');
+        if (refreshed) return true;
+      } catch (e) {
+        debugPrint('[AdminGuard] forced refresh error: $e');
+      }
+    }
+
+    return false;
   }
 
   static bool _isJwtValid(String token) {

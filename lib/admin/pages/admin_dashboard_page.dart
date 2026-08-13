@@ -4,6 +4,7 @@ import '/core/theme_extensions.dart';
 import '../core/admin_guard.dart';
 import '../core/admin_navigation.dart';
 import '../services/admin_api_service.dart';
+import '/services/auth/auth_service.dart';
 import '/pages/loginpage/loginpage_widget.dart';
 import 'add_superadmin_page.dart';
 import 'deposits_management_page.dart';
@@ -220,7 +221,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             GestureDetector(
               onTap: () async {
                 try {
-                  await AdminApiService.logout();
+                  await AuthService().logout();
                 } catch (_) {}
                 if (!mounted) return;
                 AuthNavigation.replaceAllWithBuilder(

@@ -381,7 +381,16 @@ class _KycManagementPageState extends State<KycManagementPage> {
     );
   }
 
-  // Removed unused helper `_largeImg` (was not referenced).
+  Widget _largeImg(String? url) => Container(
+        width: double.infinity,
+        height: 200,
+        decoration: BoxDecoration(
+          color: context.surface,
+          borderRadius: BorderRadius.circular(12),
+          image: url != null ? DecorationImage(image: NetworkImage(url), fit: BoxFit.cover) : null,
+        ),
+        child: url == null ? Center(child: Icon(Icons.image_not_supported, color: context.textSecondary)) : null,
+      );
 
   Widget finalImgsSection(Map<String, dynamic> d) {
     final List<String> imgs = [];

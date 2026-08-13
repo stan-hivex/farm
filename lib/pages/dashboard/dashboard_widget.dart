@@ -18,6 +18,7 @@ import '/pages/notifications/user_notifications_page_widget.dart';
 import '/services/app_session_manager.dart';
 import '/services/transaction_authentication_service.dart';
 import '/services/transaction_authorization_service.dart';
+import '/services/auth/auth_service.dart';
 import '/utils/transaction_peer_resolver.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -167,29 +168,13 @@ class _DashboardWidgetState extends State<DashboardWidget>
 
   Future<void> logoutUser() async {
     try {
-      await ApiService.logout();
-
-      // Clear local session ALWAYS (even if backend fails)
-      FFAppState().accessToken = '';
-      FFAppState().userName = '';
-      FFAppState().isLoggedIn = false;
-      FFAppState().themeMode = ThemeMode.light;
-
-      if (mounted) {
-        context.goNamed('loginpage');
-      }
+      await AuthService().logout();
+      debugPrint('[Dashboard] explicit logout completed');
     } catch (e) {
-      print('LOGOUT ERROR: $e');
-
-      // still force logout locally
-      FFAppState().accessToken = '';
-      FFAppState().userName = '';
-      FFAppState().isLoggedIn = false;
-      FFAppState().themeMode = ThemeMode.light;
-
-      if (mounted) {
-        context.goNamed('loginpage');
-      }
+      debugPrint('[Dashboard] logout error: $e');
+    }
+    if (mounted) {
+      context.goNamed('loginpage');
     }
   }
 

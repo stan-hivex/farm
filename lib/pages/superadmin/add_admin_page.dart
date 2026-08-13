@@ -1,9 +1,11 @@
+import 'dart:convert' as convert;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '/backend/services/api_service.dart';
-// Removed unused imports
+import '/app_state.dart';
+import '/backend/api_requests/api_manager.dart';
+import '/core/app_config.dart';
 
 class AddAdminPage extends StatefulWidget {
   const AddAdminPage({super.key});
@@ -47,10 +49,21 @@ class _AddAdminPageState extends State<AddAdminPage> {
 
     setState(() => _isSubmitting = true);
     try {
-      final res = await ApiService.request(
-        method: 'POST',
-        path: '/auth/admin/create',
-        body: {
+      final token = await FFAppState().getActiveAccessToken();
+      if (token.isEmpty) {
+        throw Exception('Not authenticated');
+      }
+
+      final response = await ApiManager.instance.makeApiCall(
+        callName: 'createAdmin',
+        apiUrl: '${AppConfig.api}/auth/admin/create',
+        callType: ApiCallType.POST,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        params: {},
+        body: convert.jsonEncode({
           'first_name': _firstNameCtrl.text.trim(),
           'last_name': _lastNameCtrl.text.trim(),
           'username': _usernameCtrl.text.trim(),
@@ -58,11 +71,16 @@ class _AddAdminPageState extends State<AddAdminPage> {
           'email': _emailCtrl.text.trim(),
           'country': _countryCtrl.text.trim(),
           'password': _passwordCtrl.text,
-        },
+        }),
+        bodyType: BodyType.JSON,
+        returnBody: true,
       );
 
-      final decoded = res;
-      final message = decoded['message'] ?? 'Admin created successfully';
+      final decoded = response.jsonBody as Map<String, dynamic>?;
+      final message = decoded?['message'] ?? 'Admin created successfully';
+      if (!response.succeeded) {
+        throw Exception(message);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -14,6 +14,7 @@ import 'web_url_strategy.dart';
 import 'services/app_session_manager.dart';
 import 'services/biometric_lock_service.dart';
 import 'services/notification_service.dart';
+import 'services/auth/startup_authenticator.dart';
 import 'pages/biometric_unlock_page/biometric_unlock_page_widget.dart';
 
 Widget buildSafeErrorWidget(FlutterErrorDetails details) {
@@ -52,6 +53,9 @@ void main() async {
   print('Stored access token exists = ${storedAccessToken != null}');
   print('Stored refresh token exists = ${storedRefreshToken != null}');
   await FFAppState().initializePersistedState();
+  // Attempt to restore persisted session and perform a silent refresh before
+  // the app is started so routing decisions can use restored auth state.
+  await StartupAuthenticator().restoreSession();
   await NotificationService.initialize();
   await FlutterFlowTheme.initialize();
 
@@ -176,10 +180,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed) {
+      debugPrint('[APP] lifecycle resumed - preserving session');
       _startPeriodicRefresh();
       _refreshAppState();
       _handleResumeLock();
     } else if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+      debugPrint('[APP] lifecycle paused - preserving session');
       _refreshTimer?.cancel();
     }
   }
