@@ -4,7 +4,6 @@ import 'dart:convert' as convert;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '/app_state.dart';
 import '/core/app_config.dart';
 import '/backend/api_requests/api_manager.dart';
@@ -12,7 +11,6 @@ import '/pages/loginpage/loginpage_widget.dart';
 import '/pages/superadmin/add_admin_page.dart';
 import '/pages/superadmin/superadmin_wallet_page.dart';
 import '/admin/pages/user_management_page.dart';
-import '/services/auth/session_store_service.dart';
 import '/admin/core/admin_navigation.dart';
 import '/admin/services/admin_api_service.dart';
 import 'package:flutter/foundation.dart';
@@ -38,8 +36,12 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
 
   bool _loadingExchangeRates = true;
   bool _savingExchangeRates = false;
+  bool _loadingCurrencyRate = true;
+  bool _savingCurrencyRate = false;
   final TextEditingController _kesToFarmCtrl = TextEditingController();
   final TextEditingController _farmToKesCtrl = TextEditingController();
+  final TextEditingController _usdToKesCtrl = TextEditingController();
+  final TextEditingController _farmToUsdCtrl = TextEditingController();
 
   bool _isCreatingAdmin = false;
 
@@ -53,6 +55,7 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
     _loadDashboardData();
     _loadSuperadminWallet();
     _loadExchangeRates();
+    _loadCurrencyRate();
     _startPeriodicRefresh();
   }
 
@@ -62,6 +65,8 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
     WidgetsBinding.instance.removeObserver(this);
     _kesToFarmCtrl.dispose();
     _farmToKesCtrl.dispose();
+    _usdToKesCtrl.dispose();
+    _farmToUsdCtrl.dispose();
     super.dispose();
   }
 
@@ -93,6 +98,7 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
           _loadDashboardData(),
           _loadSuperadminWallet(),
           _loadExchangeRates(),
+          _loadCurrencyRate(),
         ]);
       }
     } catch (_) {}
@@ -472,6 +478,8 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
                 _buildKPICards(data, cardColor, accent),
                 const SizedBox(height: 28),
                 _buildExchangeRatesSection(data, cardColor, accent, muted),
+                const SizedBox(height: 28),
+                _buildCurrencyConversionRatesSection(cardColor, accent, muted),
                 const SizedBox(height: 28),
                 _buildSuperadminFees(_superadminWallet, cardColor, accent, muted),
                 const SizedBox(height: 28),
@@ -1219,6 +1227,157 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
                 Expanded(
                   child: Text(
                     'Changes here are reflected in user wallet balance interfaces and deposit/withdraw conversion calculations.',
+                    style: GoogleFonts.plusJakartaSans(color: muted, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _loadCurrencyRate() async {
+    setState(() => _loadingCurrencyRate = true);
+    try {
+      final token = await FFAppState().getActiveAccessToken();
+      if (token.isEmpty) throw Exception('Not authenticated');
+
+      final response = await ApiManager.instance.makeApiCall(
+        callName: 'superadminCurrencyRate',
+        apiUrl: '${AppConfig.api}/admin/currency-rates',
+        callType: ApiCallType.GET,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        params: {},
+        returnBody: true,
+      );
+
+      final decoded = response.jsonBody as Map<String, dynamic>?;
+      final rows = decoded?['data'] as List<dynamic>? ?? [];
+      if (rows.isEmpty) {
+        _usdToKesCtrl.text = '150';
+        _farmToUsdCtrl.text = '0.00666667';
+        return;
+      }
+
+      final current = rows.first as Map<String, dynamic>;
+      final usdKes = (current['usd_kes_rate'] ?? 150).toString();
+      final farmUsd = (current['farm_usd_rate'] ?? (1 / double.parse(usdKes)).toString()).toString();
+      if (mounted) {
+        _usdToKesCtrl.text = usdKes;
+        _farmToUsdCtrl.text = farmUsd;
+      }
+    } catch (e, st) {
+      debugPrint('[SuperadminDashboardPage] _loadCurrencyRate failed: $e');
+      debugPrint(st.toString());
+    } finally {
+      if (mounted) setState(() => _loadingCurrencyRate = false);
+    }
+  }
+
+  Future<void> _saveCurrencyRate() async {
+    if (_usdToKesCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please provide the USD/KES rate')),
+      );
+      return;
+    }
+
+    setState(() => _savingCurrencyRate = true);
+    try {
+      final token = await FFAppState().getActiveAccessToken();
+      if (token.isEmpty) throw Exception('Not authenticated');
+
+      final response = await ApiManager.instance.makeApiCall(
+        callName: 'superadminUpdateCurrencyRate',
+        apiUrl: '${AppConfig.api}/admin/currency-rates',
+        callType: ApiCallType.PUT,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: convert.jsonEncode({
+          'usd_kes_rate': double.parse(_usdToKesCtrl.text.trim()),
+        }),
+        bodyType: BodyType.JSON,
+        returnBody: true,
+      );
+
+      final decoded = response.jsonBody as Map<String, dynamic>?;
+      final message = decoded?['message'] ?? 'Conversion rate updated';
+      if (!response.succeeded) throw Exception(message);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message), backgroundColor: Colors.green),
+        );
+      }
+      await _loadCurrencyRate();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving conversion rate: ${e.toString().replaceAll('Exception: ', '')}'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _savingCurrencyRate = false);
+    }
+  }
+
+  Widget _buildCurrencyConversionRatesSection(Color cardColor, Color accent, Color muted) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Currency Conversion Rates',
+            style: GoogleFonts.plusJakartaSans(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Set the authoritative USD/KES rate. FARM is fixed at 1 KES and all crypto conversion values are derived from this single source.',
+            style: GoogleFonts.plusJakartaSans(color: muted, fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+          if (_loadingCurrencyRate)
+            const Center(child: CircularProgressIndicator())
+          else ...[
+            _buildRateField('USD → KES', _usdToKesCtrl, 'Example: 150.00', accent),
+            const SizedBox(height: 16),
+            _buildRateField('FARM → USD', _farmToUsdCtrl, 'Auto-derived', accent),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                ElevatedButton(
+                  onPressed: _savingCurrencyRate ? null : _saveCurrencyRate,
+                  style: ElevatedButton.styleFrom(backgroundColor: accent),
+                  child: Text(
+                    _savingCurrencyRate ? 'Saving...' : 'Save Conversion Rate',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.black,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    '1 FARM = 1 KES and 1 FARM = 1 / USD_KES_RATE USD. USDC and USDT use the same derived value.',
                     style: GoogleFonts.plusJakartaSans(color: muted, fontSize: 12),
                   ),
                 ),
