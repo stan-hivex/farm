@@ -32,7 +32,12 @@ class _SplashPageState extends State<SplashPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.eco_rounded, size: 72, color: theme.primary),
+            Image.asset(
+              'assets/images/app_logo.png',
+              width: 72,
+              height: 72,
+              fit: BoxFit.contain,
+            ),
             const SizedBox(height: 16),
             Text('FARM',
                 style: theme.titleLarge.copyWith(fontWeight: FontWeight.w800)),

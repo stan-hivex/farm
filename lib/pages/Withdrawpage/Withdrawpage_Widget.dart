@@ -86,6 +86,24 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
     ],
   };
 
+  // Map user-facing display names to IvoryPay provider network codes per-token.
+  // Backend/live discovery remains authoritative; this map only ensures
+  // the frontend sends provider codes instead of display labels.
+  final Map<String, Map<String, String>> tokenNetworkProviderCode = {
+    'USDT': {
+      'BNB Smart Chain (BEP20)': 'BSC_MAINNET',
+      'Polygon': 'POLYGON',
+      'Solana': 'SOLANA',
+      'Starknet': 'STARKNET_MAINNET',
+    },
+    'USDC': {
+      'BNB Smart Chain (BEP20)': 'BSC_MAINNET',
+      'Polygon': 'POLYGON',
+      'Solana': 'SOLANA',
+      'Starknet': 'STARKNET_MAINNET',
+    },
+  };
+
   // Fee rates per method
   final Map<String, double> _fees = {
     'BANK': 0.0,
@@ -95,7 +113,8 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
 
   final Map<String, Map<String, double?>> _withdrawLimits = {
     'BANK': {'min': 4999, 'max': 999999},
-    'MOBILE_MONEY': {'min': 1499, 'max': 249999},
+    // Allow mobile money withdrawals as low as 10 FARM per product requirement.
+    'MOBILE_MONEY': {'min': 10, 'max': 249999},
     'CRYPTO': {'min': 100, 'max': null},
   };
 
@@ -314,7 +333,11 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
           case 'CRYPTO':
             requestBody['cryptoAsset'] = selectedCryptoAsset;
             requestBody['cryptoAddress'] = _walletCtrl.text.trim();
-            requestBody['network'] = selectedCryptoNetwork ?? '';
+            // Convert user-facing display name into provider network code.
+            final displayNetwork = selectedCryptoNetwork ?? '';
+            final providerCode = tokenNetworkProviderCode[selectedCryptoAsset]?[displayNetwork] ?? displayNetwork;
+            requestBody['network'] = providerCode;
+            debugPrint('[WITHDRAW][CRYPTO] displayNetwork=$displayNetwork, providerCode=$providerCode, token=$selectedCryptoAsset');
             break;
         }
 
@@ -360,7 +383,10 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
         case 'CRYPTO':
           requestBody['cryptoAsset'] = selectedCryptoAsset;
           requestBody['cryptoAddress'] = _walletCtrl.text.trim();
-          requestBody['network'] = selectedCryptoNetwork ?? '';
+          final displayNetwork = selectedCryptoNetwork ?? '';
+          final providerCode = tokenNetworkProviderCode[selectedCryptoAsset]?[displayNetwork] ?? displayNetwork;
+          requestBody['network'] = providerCode;
+          debugPrint('[WITHDRAW][CRYPTO] displayNetwork=$displayNetwork, providerCode=$providerCode, token=$selectedCryptoAsset');
           break;
       }
 

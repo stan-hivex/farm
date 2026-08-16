@@ -38,6 +38,7 @@ class ApiService {
     final uri = Uri.parse('${AppConfig.api}$path');
     // Ensure we resolve a valid access token from persisted/session state.
     String token = await FFAppState().getActiveAccessToken();
+    debugPrint('[ApiService] resolved token present=${token.isNotEmpty} role=${FFAppState().role}');
     // If this request requires auth and we don't have a token in memory,
     // attempt a refresh (serialized inside RefreshManager) before proceeding.
     if (requiresAuth && token.isEmpty && FFAppState().refreshToken.isNotEmpty) {
@@ -115,8 +116,10 @@ class ApiService {
         requiresAuth &&
         !isRetry &&
         FFAppState().refreshToken.isNotEmpty) {
+      debugPrint('[ApiService] 401/403 detected for $path — attempting refresh');
       final refreshed = await RefreshManager().refreshIfNeeded(force: true);
       if (refreshed) {
+        debugPrint('[ApiService] Token refreshed — retrying original request for $path');
         await Future.delayed(const Duration(milliseconds: 250));
         return _request(
           method: method,
@@ -128,7 +131,10 @@ class ApiService {
         );
       }
 
+      // If refresh did not yield a new token, attempt one more retry with
+      // whatever token is currently available (fallback) before failing.
       if (FFAppState().accessToken.isNotEmpty) {
+        debugPrint('[ApiService] No refreshed token but accessToken present — retrying once for $path');
         await Future.delayed(const Duration(milliseconds: 400));
         return _request(
           method: method,
@@ -139,6 +145,7 @@ class ApiService {
           timeoutSeconds: timeoutSeconds,
         );
       }
+      debugPrint('[ApiService] Refresh failed — throwing unauthorized for $path');
     }
 
     Map<String, dynamic> decoded = {};

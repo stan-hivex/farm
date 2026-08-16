@@ -86,9 +86,26 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage>
     ],
   };
 
+  // Map user-facing display names to IvoryPay provider network codes per-token.
+  final Map<String, Map<String, String>> _tokenNetworkProviderCode = {
+    'USDT': {
+      'BNB Smart Chain (BEP20)': 'BSC_MAINNET',
+      'Polygon': 'POLYGON',
+      'Solana': 'SOLANA',
+      'Starknet': 'STARKNET_MAINNET',
+    },
+    'USDC': {
+      'BNB Smart Chain (BEP20)': 'BSC_MAINNET',
+      'Polygon': 'POLYGON',
+      'Solana': 'SOLANA',
+      'Starknet': 'STARKNET_MAINNET',
+    },
+  };
+
   final Map<String, Map<String, double?>> _withdrawLimits = {
     'BANK': {'min': 4999, 'max': 999999},
-    'MOBILE_MONEY': {'min': 1499, 'max': 249999},
+    // Superadmin UI uses same limits; allow mobile money min = 10
+    'MOBILE_MONEY': {'min': 10, 'max': 249999},
     'CRYPTO': {'min': 100, 'max': null},
   };
 
@@ -326,7 +343,10 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage>
         case 'CRYPTO':
           body['cryptoAddress'] = _cryptoAddressController.text.trim();
           body['cryptoAsset'] = _selectedCryptoAsset;
-          body['network'] = _cryptoNetworkController.text.trim();
+          final displayNetwork = _cryptoNetworkController.text.trim();
+          final providerCode = _tokenNetworkProviderCode[_selectedCryptoAsset]?[displayNetwork] ?? displayNetwork;
+          body['network'] = providerCode;
+          debugPrint('[SUPERADMIN][WITHDRAW][CRYPTO] displayNetwork=$displayNetwork, providerCode=$providerCode, token=$_selectedCryptoAsset');
           break;
       }
 

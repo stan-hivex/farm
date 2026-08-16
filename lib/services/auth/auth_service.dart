@@ -232,9 +232,12 @@ class AuthService {
     final normalizedRole = role.isEmpty ? 'user' : role;
 
     if (normalizedRole == 'admin') {
-      FFAppState().accessToken = '';
-      FFAppState().refreshToken = '';
-      FFAppState().isLoggedIn = false;
+      // Persist admin session tokens and restore them into FFAppState so
+      // the app-wide RefreshManager and ApiService can detect and refresh
+      // admin tokens when needed. Keep biometric setup skipped for admin.
+      FFAppState().accessToken = farmJwt;
+      FFAppState().refreshToken = refreshToken;
+      FFAppState().isLoggedIn = true;
       FFAppState().userId = '';
       FFAppState().firstName = '';
       FFAppState().userName = '';
@@ -254,14 +257,19 @@ class AuthService {
         role: normalizedRole,
         userId: backendUser?['id']?.toString() ?? '',
       );
+      // Also persist into secure storage for cross-layer retrieval.
+      SecureStorageService.writeAccessToken(farmJwt);
+      SecureStorageService.writeRefreshToken(refreshToken);
       debugPrint('Skipping biometric setup.');
       return;
     }
 
     if (normalizedRole == 'super_admin') {
-      FFAppState().accessToken = '';
-      FFAppState().refreshToken = '';
-      FFAppState().isLoggedIn = false;
+      // Persist super admin session tokens and restore them into FFAppState
+      // so centralized refresh logic can manage tokens.
+      FFAppState().accessToken = farmJwt;
+      FFAppState().refreshToken = refreshToken;
+      FFAppState().isLoggedIn = true;
       FFAppState().userId = '';
       FFAppState().firstName = '';
       FFAppState().userName = '';
@@ -281,6 +289,9 @@ class AuthService {
         role: normalizedRole,
         userId: backendUser?['id']?.toString() ?? '',
       );
+      // Persist securely as well.
+      SecureStorageService.writeAccessToken(farmJwt);
+      SecureStorageService.writeRefreshToken(refreshToken);
       debugPrint('Skipping biometric setup.');
       return;
     }

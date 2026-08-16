@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '/app_state.dart';
+import 'session_store_service.dart';
 import '/core/app_config.dart';
 
 class RefreshManager {
@@ -118,6 +119,23 @@ class RefreshManager {
         FFAppState().isLoggedIn = true;
         if (newRefreshToken.isNotEmpty) {
           FFAppState().refreshToken = newRefreshToken;
+        }
+
+        // Persist refreshed tokens into role-specific session store so that
+        // admin/superadmin sessions and other persisted sessions are kept
+        // in sync with the in-memory token state.
+        try {
+          final role = FFAppState().role;
+          if (role.isNotEmpty) {
+            await AuthSessionStore.saveRoleSession(
+              role: role,
+              accessToken: newAccessToken,
+              refreshToken: newRefreshToken,
+              userId: FFAppState().userId,
+            );
+          }
+        } catch (e) {
+          debugPrint('[RefreshManager] Failed to persist refreshed tokens: $e');
         }
 
         _consecutiveFailures = 0;
