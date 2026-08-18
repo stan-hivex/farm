@@ -23,6 +23,9 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
   static Map<String, dynamic>? _pendingTapPayload;
+  // Notifier for in-app listeners to react to incoming notifications.
+  // Using an int ValueNotifier so listeners can simply call addListener/removeListener.
+  static final ValueNotifier<int> notificationReceived = ValueNotifier<int>(0);
 
   static Future<void> initialize() async {
     if (_initialized) return;
@@ -123,6 +126,11 @@ class NotificationService {
     final payload = _payloadFromMessage(message);
     FFAppState().unreadNotificationCount =
         FFAppState().unreadNotificationCount + 1;
+
+    // Notify UI listeners that a new notification arrived.
+    try {
+      notificationReceived.value = notificationReceived.value + 1;
+    } catch (_) {}
 
     if (kIsWeb) return;
     final notification = message.notification;

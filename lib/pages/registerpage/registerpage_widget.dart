@@ -4,7 +4,6 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter/services.dart';
 import 'registerpage_model.dart';
 export 'registerpage_model.dart';
 
@@ -457,37 +456,7 @@ class _RegisterpageWidgetState extends State<RegisterpageWidget> {
     );
   }
 
-  Future<void> _showDocument(String which) async {
-    final path = which == 'privacy'
-        ? 'assets/docs/privacy_policy.md'
-        : 'assets/docs/terms_and_conditions.md';
-    String content;
-    try {
-      content = await rootBundle.loadString(path);
-    } catch (e) {
-      content = 'Document not available. Please contact support or update assets/docs/$path.';
-    }
-
-    if (!mounted) return;
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(which == 'privacy' ? 'Privacy Policy' : 'Terms & Conditions'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: SingleChildScrollView(
-            child: SelectableText(content),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
+ 
 
   @override
   Widget build(BuildContext context) {
@@ -1030,26 +999,6 @@ class _RegisterpageWidgetState extends State<RegisterpageWidget> {
                   ),
                   const SizedBox(height: 32.0),
                   const SizedBox(height: 16.0),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      TextButton(
-                        onPressed: () => _showDocument('privacy'),
-                        child: Text('Privacy Policy',
-                            style: FlutterFlowTheme.of(context).bodyMedium.override(
-                                  color: FlutterFlowTheme.of(context).primary,
-                                )),
-                      ),
-                      const SizedBox(width: 8.0),
-                      TextButton(
-                        onPressed: () => _showDocument('terms'),
-                        child: Text('Terms & Conditions',
-                            style: FlutterFlowTheme.of(context).bodyMedium.override(
-                                  color: FlutterFlowTheme.of(context).primary,
-                                )),
-                      ),
-                    ],
-                  ),
                 ],
               ),
             ),

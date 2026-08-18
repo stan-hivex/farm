@@ -12,6 +12,7 @@ import '/pages/superadmin/superadmin_dashboard_page.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
+import 'package:flutter/services.dart';
 import 'onboarding_model.dart';
 export 'onboarding_model.dart';
 
@@ -50,6 +51,68 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
     _model.dispose();
 
     super.dispose();
+  }
+
+  Future<void> _showDocument(String which) async {
+    final path = which == 'privacy'
+        ? 'assets/docs/privacy_policy.md'
+        : 'assets/docs/terms_and_conditions.md';
+    String content;
+    try {
+      content = await rootBundle.loadString(path);
+    } catch (e) {
+      content = 'Document not available. Please contact support.';
+    }
+
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(which == 'privacy' ? 'Privacy Policy' : 'Terms & Conditions'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Builder(
+              builder: (_) {
+                final blocks = content.split(RegExp(r'\n\n+'));
+                final spans = <TextSpan>[];
+                for (var i = 0; i < blocks.length; i++) {
+                  final block = blocks[i].trim();
+                  if (block.isEmpty) continue;
+                  final lines = block.split('\n');
+                  final first = lines.first.trim();
+                  final rest = lines.length > 1 ? lines.sublist(1).join('\n') : '';
+                  final isHeading =
+                      first == first.toUpperCase() && first.length <= 120;
+                  if (isHeading) {
+                    spans.add(TextSpan(
+                        text: first + '\n',
+                        style: FlutterFlowTheme.of(context).labelLarge.override(
+                              fontWeight: FontWeight.w700,
+                            )));
+                    if (rest.isNotEmpty) {
+                      spans.add(TextSpan(text: rest + '\n\n', style: FlutterFlowTheme.of(context).bodyMedium));
+                    } else {
+                      spans.add(TextSpan(text: '\n', style: FlutterFlowTheme.of(context).bodyMedium));
+                    }
+                  } else {
+                    spans.add(TextSpan(text: block + '\n\n', style: FlutterFlowTheme.of(context).bodyMedium));
+                  }
+                }
+
+                return SelectableText.rich(TextSpan(children: spans));
+              },
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _runStartupAuthCheck() async {
@@ -465,30 +528,27 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
                                     lineHeight: 1.2,
                                   ),
                             ),
-                            Text(
-                              'Terms of Service',
-                              style: FlutterFlowTheme.of(context)
-                                  .labelSmall
-                                  .override(
-                                    font: GoogleFonts.plusJakartaSans(
-                                      fontWeight: FlutterFlowTheme.of(context)
-                                          .labelSmall
-                                          .fontWeight,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .labelSmall
-                                          .fontStyle,
-                                    ),
-                                    color: primaryTextColor,
-                                    letterSpacing: 0.0,
-                                    fontWeight: FlutterFlowTheme.of(context)
-                                        .labelSmall
-                                        .fontWeight,
-                                    fontStyle: FlutterFlowTheme.of(context)
-                                        .labelSmall
-                                        .fontStyle,
-                                    decoration: TextDecoration.underline,
-                                    lineHeight: 1.2,
-                                  ),
+                            const SizedBox(width: 6.0),
+                            TextButton(
+                              onPressed: () => _showDocument('privacy'),
+                              child: Text('Privacy Policy',
+                                  style: FlutterFlowTheme.of(context)
+                                      .labelSmall
+                                      .override(
+                                        color: primaryTextColor,
+                                        decoration: TextDecoration.underline,
+                                      )),
+                            ),
+                            const SizedBox(width: 4.0),
+                            TextButton(
+                              onPressed: () => _showDocument('terms'),
+                              child: Text('Terms & Conditions',
+                                  style: FlutterFlowTheme.of(context)
+                                      .labelSmall
+                                      .override(
+                                        color: primaryTextColor,
+                                        decoration: TextDecoration.underline,
+                                      )),
                             ),
                           ].divide(const SizedBox(width: 4.0)),
                         ),

@@ -1,21 +1,22 @@
-# FARM Privacy Policy
+FARM PRIVACY POLICY
 
-**Effective Date:** 8/3/2026
+=====================
 
-## 1. Introduction
+Effective Date: 8/3/2026
+
+1. INTRODUCTION
+-----------------
 
 Welcome to FARM. We are committed to protecting your privacy and safeguarding your personal information. This Privacy Policy explains how FARM collects, uses, stores, shares, and protects your information when you use the FARM mobile application, website, and related services.
 
 By creating an account or using FARM, you agree to this Privacy Policy.
 
----
-
-## 2. Information We Collect
+2. INFORMATION WE COLLECT
+--------------------------
 
 Depending on the services you use, FARM may collect:
 
-### Personal Information
-
+Personal Information
 - Full name
 - Phone number
 - Email address (if provided)
@@ -23,16 +24,14 @@ Depending on the services you use, FARM may collect:
 - Government-issued identification (for verification)
 - Selfie or identity verification images
 
-### Financial Information
-
+Financial Information
 - Wallet balances
 - Transaction history
 - Deposit and withdrawal records
 - Merchant payment records
 - Escrow transaction information
 
-### Device Information
-
+Device Information
 - Device model
 - Operating system
 - Device identifiers
@@ -40,16 +39,14 @@ Depending on the services you use, FARM may collect:
 - Login activity
 - Security logs
 
-### Usage Information
-
+Usage Information
 - Features used
 - App interactions
 - Error reports
 - Performance analytics
 
----
-
-## 3. How We Use Your Information
+3. HOW WE USE YOUR INFORMATION
+-----------------------------
 
 We use your information to:
 
@@ -63,9 +60,8 @@ We use your information to:
 - Comply with applicable legal and regulatory obligations
 - Send important service notifications
 
----
-
-## 4. Security
+4. SECURITY
+-----------
 
 FARM uses appropriate technical and organizational measures designed to protect your information from unauthorized access, disclosure, alteration, or destruction.
 
@@ -78,9 +74,8 @@ These measures may include:
 - Access controls
 - Activity monitoring
 
----
-
-## 5. Information Sharing
+5. INFORMATION SHARING
+----------------------
 
 FARM does not sell your personal information.
 
@@ -92,9 +87,8 @@ We may share information only when necessary with:
 - Service providers supporting FARM's operations
 - Law enforcement where legally required
 
----
-
-## 6. Data Retention
+6. DATA RETENTION
+-----------------
 
 We retain your information only for as long as necessary to:
 
@@ -104,9 +98,8 @@ We retain your information only for as long as necessary to:
 - Prevent fraud
 - Enforce our agreements
 
----
-
-## 7. Your Rights
+7. YOUR RIGHTS
+--------------
 
 Subject to applicable law, you may have the right to:
 
@@ -116,29 +109,24 @@ Subject to applicable law, you may have the right to:
 - Update your account details
 - Contact us regarding your privacy
 
----
-
-## 8. Children's Privacy
+8. CHILDREN'S PRIVACY
+---------------------
 
 FARM is not intended for individuals who are below the minimum legal age required to use our financial services under applicable law.
 
----
-
-## 9. Changes to this Privacy Policy
+9. CHANGES TO THIS PRIVACY POLICY
+---------------------------------
 
 We may update this Privacy Policy from time to time.
 
 Where significant changes are made, we will notify users through the FARM application or other appropriate communication channels.
 
----
-
-## 10. Contact Us
+10. CONTACT US
+--------------
 
 If you have questions regarding this Privacy Policy, you may contact us at:
 
-**Email:** [support@farmapp.africa](mailto:support@farmapp.africa)
-
----
+Email: support@farmapp.africa
 
 FARM
 

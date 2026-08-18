@@ -1,16 +1,18 @@
-# FARM Terms and Conditions
+FARM TERMS AND CONDITIONS
 
-**Effective Date:** 8/3/2026
+=========================
 
-## 1. Introduction
+Effective Date: 8/3/2026
+
+1. INTRODUCTION
+----------------
 
 Welcome to FARM. These Terms and Conditions govern your access to and use of the FARM mobile application, website, and related services. By creating an account or using FARM, you agree to comply with these Terms and Conditions.
 
 If you do not agree with these Terms, you should not use the platform.
 
----
-
-## 2. Eligibility
+2. ELIGIBILITY
+--------------
 
 To use FARM, you must:
 
@@ -21,9 +23,8 @@ To use FARM, you must:
 
 FARM may refuse, suspend, or terminate accounts that do not meet these requirements.
 
----
-
-## 3. User Accounts
+3. USER ACCOUNTS
+-----------------
 
 You are responsible for:
 
@@ -34,9 +35,8 @@ You are responsible for:
 
 You are responsible for all activity that occurs through your account unless otherwise required by law.
 
----
-
-## 4. Wallet Services
+4. WALLET SERVICES
+------------------
 
 FARM provides a digital wallet that enables eligible users to:
 
@@ -48,9 +48,8 @@ FARM provides a digital wallet that enables eligible users to:
 
 Wallet balances do not represent a bank deposit unless expressly stated by FARM or an authorized financial institution.
 
----
-
-## 5. Deposits and Withdrawals
+5. DEPOSITS AND WITHDRAWALS
+---------------------------
 
 Users may deposit or withdraw funds using supported payment methods.
 
@@ -62,9 +61,8 @@ FARM reserves the right to:
 
 Certain deposits may remain pending until verification is completed.
 
----
-
-## 6. Merchant Accounts
+6. MERCHANT ACCOUNTS
+--------------------
 
 Users may activate Merchant Mode within their FARM account.
 
@@ -77,9 +75,8 @@ Merchants are responsible for:
 
 FARM may suspend or revoke merchant access for violations of these Terms.
 
----
-
-## 7. Escrow Services
+7. ESCROW SERVICES
+------------------
 
 FARM provides escrow services to help facilitate transactions between buyers and sellers.
 
@@ -91,9 +88,8 @@ Funds may remain securely held until:
 
 FARM may review disputes and make decisions in accordance with its dispute resolution procedures.
 
----
-
-## 8. Fees
+8. FEES
+--------
 
 Certain services may include applicable fees.
 
@@ -101,9 +97,8 @@ Where applicable, FARM will disclose fees before the transaction is completed.
 
 Fees may change from time to time with reasonable notice where required by law.
 
----
-
-## 9. Prohibited Activities
+9. PROHIBITED ACTIVITIES
+-----------------------
 
 Users must not:
 
@@ -117,9 +112,8 @@ Users must not:
 
 Violations may result in suspension, termination, or reporting to relevant authorities.
 
----
-
-## 10. Account Suspension
+10. ACCOUNT SUSPENSION
+---------------------
 
 FARM may suspend or permanently terminate accounts where necessary to:
 
@@ -129,25 +123,22 @@ FARM may suspend or permanently terminate accounts where necessary to:
 - Investigate suspicious activity.
 - Enforce these Terms.
 
----
-
-## 11. Intellectual Property
+11. INTELLECTUAL PROPERTY
+------------------------
 
 All trademarks, logos, software, designs, and content relating to FARM remain the property of FARM or its licensors.
 
 Users may not reproduce, modify, distribute, or exploit FARM intellectual property without written permission.
 
----
-
-## 12. Limitation of Liability
+12. LIMITATION OF LIABILITY
+-------------------------
 
 To the extent permitted by applicable law, FARM shall not be liable for indirect, incidental, special, or consequential damages arising from the use of the platform.
 
 Nothing in these Terms limits liability where such limitation is prohibited by law.
 
----
-
-## 13. Changes to These Terms
+13. CHANGES TO THESE TERMS
+-------------------------
 
 FARM may update these Terms and Conditions periodically.
 
@@ -155,21 +146,17 @@ Material changes will be communicated through the application, website, or other
 
 Continued use of FARM after updates take effect constitutes acceptance of the revised Terms.
 
----
-
-## 14. Governing Law
+14. GOVERNING LAW
+-----------------
 
 These Terms shall be governed by and interpreted in accordance with the laws applicable to FARM's operating jurisdiction, unless otherwise required by mandatory local consumer protection laws.
 
----
-
-## 15. Contact Information
+15. CONTACT INFORMATION
+-----------------------
 
 For questions regarding these Terms and Conditions, contact:
 
-**Email:** [support@farmapp.africa](mailto:support@farmapp.africa)
-
----
+Email: support@farmapp.africa
 
 FARM
 
