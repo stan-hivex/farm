@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import '/app_state.dart';
 import '/services/auth/session_store_service.dart';
+import '/services/auth/refresh_manager.dart';
 import '../core/admin_config.dart';
 
 class AdminApiService {
@@ -60,51 +61,18 @@ class AdminApiService {
     if (token.isEmpty) {
       return false;
     }
-    if (!force && !tokenNeedsRefresh(token)) {
-      return true;
-    }
-    // Serialize refresh attempts to avoid concurrent refreshes which can
-    // trigger server-side refresh-token reuse detection and revoke sessions.
-    if (_refreshCompleter != null) {
-      await _refreshCompleter!.future;
-      final newToken = await _getToken();
-      return newToken.isNotEmpty && !tokenNeedsRefresh(newToken);
-    }
-
-    _refreshCompleter = Completer<bool>();
-    try {
-      // Backoff guard
-      final nextAllowed = _nextAllowedRefreshTime;
-      if (nextAllowed != null && DateTime.now().isBefore(nextAllowed)) {
-        debugPrint('[AdminApiService] Refresh backoff active until $_nextAllowedRefreshTime. Skipping refresh.');
-        _refreshCompleter!.complete(false);
-        return false;
-      }
-
-      final refreshed = await refreshSession();
-      if (refreshed) {
-        _consecutiveFailures = 0;
-        _nextAllowedRefreshTime = null;
-        _refreshCompleter!.complete(true);
-        return true;
-      }
-
-      _consecutiveFailures++;
-      final backoffSeconds = (_initialBackoffSeconds * (1 << (_consecutiveFailures - 1))).clamp(_initialBackoffSeconds, _maxBackoffSeconds);
-      _nextAllowedRefreshTime = DateTime.now().add(Duration(seconds: backoffSeconds));
-      debugPrint('[AdminApiService] Refresh failed. Applying backoff for $backoffSeconds seconds.');
-      _refreshCompleter!.complete(false);
+    // Delegate refresh logic to the centralized RefreshManager to avoid
+    // duplicate refresh attempts that can trigger server-side refresh-token
+    // reuse detection and revoke sessions.
+    final refreshed = await RefreshManager().refreshIfNeeded(force: force);
+    if (!refreshed) {
+      debugPrint('[AdminApiService] centralized refresh failed for role-based admin session');
       return false;
-    } catch (e) {
-      _consecutiveFailures++;
-      final backoffSeconds = (_initialBackoffSeconds * (1 << (_consecutiveFailures - 1))).clamp(_initialBackoffSeconds, _maxBackoffSeconds);
-      _nextAllowedRefreshTime = DateTime.now().add(Duration(seconds: backoffSeconds));
-      debugPrint('[AdminApiService] Exception during refresh: $e. Backoff $backoffSeconds seconds.');
-      if (!_refreshCompleter!.isCompleted) _refreshCompleter!.complete(false);
-      return false;
-    } finally {
-      _refreshCompleter = null;
     }
+
+    // After centralized refresh, ensure we have a valid token persisted.
+    final newToken = await _getToken();
+    return newToken.isNotEmpty && !tokenNeedsRefresh(newToken);
   }
 
   static Future<bool> refreshSession() async {
@@ -202,7 +170,7 @@ class AdminApiService {
     if (token.isEmpty) throw Exception('Not authenticated');
 
     if (!isRetry && tokenNeedsRefresh(token)) {
-      final refreshed = await refreshSession();
+      final refreshed = await RefreshManager().refreshIfNeeded(force: true);
       if (refreshed) {
         token = await _getToken();
       }
@@ -239,7 +207,7 @@ class AdminApiService {
     }
 
     if (res.statusCode == 401 && !isRetry) {
-      final refreshed = await refreshSession();
+      final refreshed = await RefreshManager().refreshIfNeeded(force: true);
       if (refreshed) {
         return _req(method: method, path: path, body: body, isRetry: true);
       }

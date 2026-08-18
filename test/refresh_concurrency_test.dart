@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,6 +16,8 @@ void main() {
 
   group('RefreshManager concurrency', () {
     setUp(() async {
+      // Initialize dotenv for Env.api resolution used by RefreshManager.
+      await dotenv.testLoad(fileInput: 'API_URL=http://127.0.0.1:3000');
       // Ensure clean app state and empty SharedPreferences
       SharedPreferences.setMockInitialValues({});
       FFAppState.reset();

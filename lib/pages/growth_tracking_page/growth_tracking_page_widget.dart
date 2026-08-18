@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '/backend/services/api_service.dart';
 import '/flutter_flow/flutter_flow_charts.dart';
-import 'package:intl/intl.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/utils/refresh_loading_state.dart';

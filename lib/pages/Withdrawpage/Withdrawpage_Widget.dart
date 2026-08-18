@@ -113,8 +113,8 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
 
   final Map<String, Map<String, double?>> _withdrawLimits = {
     'BANK': {'min': 4999, 'max': 999999},
-    // Allow mobile money withdrawals as low as 10 FARM per product requirement.
-    'MOBILE_MONEY': {'min': 10, 'max': 249999},
+    // Enforce mobile money minimum withdrawal per product requirement.
+    'MOBILE_MONEY': {'min': 1499, 'max': 249999},
     'CRYPTO': {'min': 100, 'max': null},
   };
 

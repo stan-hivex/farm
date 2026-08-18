@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import '../../app_state.dart';
 import 'session_store_service.dart';
 import 'refresh_manager.dart';
-import '../secure_storage_service.dart';
 
 /// Restores persisted sessions at app startup.
 ///

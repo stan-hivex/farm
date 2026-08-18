@@ -104,8 +104,8 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage>
 
   final Map<String, Map<String, double?>> _withdrawLimits = {
     'BANK': {'min': 4999, 'max': 999999},
-    // Superadmin UI uses same limits; allow mobile money min = 10
-    'MOBILE_MONEY': {'min': 10, 'max': 249999},
+    // Superadmin UI uses same limits; enforce mobile money min = 1499
+    'MOBILE_MONEY': {'min': 1499, 'max': 249999},
     'CRYPTO': {'min': 100, 'max': null},
   };
 
