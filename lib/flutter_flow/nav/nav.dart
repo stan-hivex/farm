@@ -9,6 +9,7 @@ import '/pages/change_pin_page/change_pin_page_widget.dart';
 import '/pages/forgot_pin_page/forgot_pin_page_widget.dart';
 import '/pages/splash_page.dart';
 import '/flutter_flow/flutter_flow_util.dart';
+import '/services/auth/route_guard_service.dart';
 import '/pages/support/faq_page_widget.dart';
 import '/pages/support/live_chat_page_widget.dart';
 import '/pages/support/email_support_page_widget.dart';
@@ -48,10 +49,40 @@ GoRouter createRouter(
     GoRouter(
       initialLocation: initialLocation ?? OnboardingWidget.routePath,
       debugLogDiagnostics: true,
-      refreshListenable: appStateNotifier,
+      refreshListenable: Listenable.merge([appStateNotifier, FFAppState()]),
       navigatorKey: appNavigatorKey,
       observers: [RouteLogger()],
       errorBuilder: (context, state) => LoginpageWidget(),
+      redirect: (context, state) {
+        final authState = FFAppState();
+        final path = state.uri.path;
+        final publicRoute = RouteGuardService().isPublicRoute(path);
+
+        if (authState.authStartupState == AuthStartupState.initializing) {
+          return path == OnboardingWidget.routePath || path == '/splash'
+              ? null
+              : OnboardingWidget.routePath;
+        }
+
+        if (!authState.isLoggedIn || authState.accessToken.isEmpty) {
+          return publicRoute ? null : LoginpageWidget.routePath;
+        }
+
+        final role = authState.role.toLowerCase();
+        if (path.startsWith('/superadmin') && role != 'super_admin') {
+          return role == 'admin' ? '/admin' : DashboardWidget.routePath;
+        }
+        if (path.startsWith('/admin') && role != 'admin' && role != 'super_admin') {
+          return DashboardWidget.routePath;
+        }
+        if (role == 'super_admin' && path == DashboardWidget.routePath) {
+          return SuperadminDashboardPage.routePath;
+        }
+        if (role == 'admin' && path == DashboardWidget.routePath) {
+          return '/admin';
+        }
+        return null;
+      },
       routes: [
         FFRoute(
           name: SplashPage.routeName,

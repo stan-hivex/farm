@@ -45,6 +45,12 @@ class AuthSessionStore {
   static const _userSessionKey = 'user_session';
   static const _adminSessionKey = 'admin_session';
   static const _superAdminSessionKey = 'super_admin_session';
+  static const _activeRoleKey = 'active_auth_role';
+
+  static Future<String?> readActiveRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_activeRoleKey);
+  }
 
   static Future<AuthSession?> readUserSession() async =>
       _readSession(_userSessionKey);
@@ -177,6 +183,16 @@ class AuthSessionStore {
     }
   }
 
+  static Future<void> clearAllSessions() async {
+    await Future.wait([
+      clearUserSession(),
+      clearAdminSession(),
+      clearSuperAdminSession(),
+    ]);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_activeRoleKey);
+  }
+
   static Future<AuthSession?> readRoleSession(String role) async {
     final normalizedRole = role.toLowerCase();
     if (normalizedRole == 'admin') {
@@ -199,6 +215,7 @@ class AuthSessionStore {
     debugPrint(
         '[AuthSessionStore] Saving session key=$key accessTokenPresent=${session.accessToken.isNotEmpty} refreshTokenPresent=${session.refreshToken.isNotEmpty} role=${session.role}');
     await prefs.setString(key, jsonPayload);
+    await prefs.setString(_activeRoleKey, session.role.toLowerCase());
   }
 
   static Future<AuthSession?> _readSession(String key) async {

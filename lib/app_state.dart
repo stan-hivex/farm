@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'flutter_flow/flutter_flow_theme.dart';
+import 'backend/services/api_service.dart';
 import 'services/auth/session_store_service.dart';
 import 'services/secure_storage_service.dart';
 
@@ -31,8 +32,8 @@ class FFAppState extends ChangeNotifier {
 
   Future<void> initializePersistedState() async {
     final prefs = await SharedPreferences.getInstance();
-    final storedRole = prefs.getString('role') ?? '';
-    final normalizedStoredRole = storedRole.toLowerCase();
+    final normalizedStoredRole =
+      (await AuthSessionStore.readActiveRole() ?? '').toLowerCase();
 
     final adminSession = await AuthSessionStore.readAdminSession();
     final superAdminSession = await AuthSessionStore.readSuperAdminSession();
@@ -57,37 +58,12 @@ class FFAppState extends ChangeNotifier {
       _userId = userSession.userId;
       _role = userSession.role;
       _isLoggedIn = userSession.accessToken.isNotEmpty;
-    } else if (adminSession != null && adminSession.accessToken.isNotEmpty) {
-      _accessToken = adminSession.accessToken;
-      _refreshToken = adminSession.refreshToken;
-      _userId = adminSession.userId;
-      _role = adminSession.role;
-      _isLoggedIn = true;
-    } else if (superAdminSession != null &&
-        superAdminSession.accessToken.isNotEmpty) {
-      _accessToken = superAdminSession.accessToken;
-      _refreshToken = superAdminSession.refreshToken;
-      _userId = superAdminSession.userId;
-      _role = superAdminSession.role;
-      _isLoggedIn = true;
-    } else if (userSession != null && userSession.accessToken.isNotEmpty) {
-      _accessToken = userSession.accessToken;
-      _refreshToken = userSession.refreshToken;
-      _userId = userSession.userId;
-      _role = userSession.role;
-      _isLoggedIn = userSession.accessToken.isNotEmpty;
     } else {
-      _accessToken = prefs.getString('accessToken') ?? '';
-      if (_accessToken.isEmpty) {
-        _accessToken = await SecureStorageService.readAccessToken() ?? '';
-      }
-      _refreshToken = prefs.getString('refreshToken') ?? '';
-      if (_refreshToken.isEmpty) {
-        _refreshToken = await SecureStorageService.readRefreshToken() ?? '';
-      }
-      _userId = prefs.getString('userId') ?? '';
-      _role = normalizedStoredRole;
-      _isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+      _accessToken = '';
+      _refreshToken = '';
+      _userId = '';
+      _role = '';
+      _isLoggedIn = false;
     }
 
     _firstName = prefs.getString('firstName') ?? '';
@@ -95,14 +71,8 @@ class FFAppState extends ChangeNotifier {
     _phone = prefs.getString('phone') ?? '';
     _email = prefs.getString('email') ?? '';
     _kycStatus = prefs.getString('kycStatus') ?? '';
-    // A persisted role session is the source of truth on cold start. The
-    // access token may be expired, but the refresh session still authenticates
-    // the user while RefreshManager obtains a new access token.
-    if (_accessToken.isNotEmpty || _refreshToken.isNotEmpty) {
-      _isLoggedIn = true;
-    } else {
-      _isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
-    }
+    // Authentication is restored only from the selected role session. Legacy
+    // SharedPreferences auth keys must never resurrect a different session.
     _biometricsEnabled = prefs.getBool('biometricsEnabled') ?? false;
     _hasPin = prefs.getBool('hasPin') ?? false;
     _pushNotifications = prefs.getBool('pushNotifications') ?? true;
@@ -113,9 +83,6 @@ class FFAppState extends ChangeNotifier {
         prefs.getBool('notificationSoundEnabled') ?? true;
     _notificationVibrationEnabled =
         prefs.getBool('notificationVibrationEnabled') ?? true;
-    if (_role.isEmpty) {
-      _role = prefs.getString('role') ?? '';
-    }
     _walletBalance = prefs.getDouble('walletBalance') ?? 0.0;
     _kesEquivalent = prefs.getDouble('kesEquivalent') ?? 0.0;
     _profileImageUrl = prefs.getString('profileImageUrl') ?? '';
@@ -142,9 +109,14 @@ class FFAppState extends ChangeNotifier {
     if (themeModeString != null) {
       _themeMode = ThemeMode.values.firstWhere(
         (mode) => mode.name == themeModeString,
-        orElse: () => ThemeMode.system,
+        orElse: () => ThemeMode.light,
       );
     }
+    if (_role.isEmpty || !_isLoggedIn) {
+      _biometricsEnabled = false;
+      _themeMode = ThemeMode.light;
+    }
+
     // Diagnostic auth restore log
     debugPrint(
         '[AUTH] initializePersistedState: role=$_role userId=$_userId accessTokenPresent=${_accessToken.isNotEmpty} refreshTokenPresent=${_refreshToken.isNotEmpty} isLoggedIn=$_isLoggedIn');
@@ -527,6 +499,7 @@ class FFAppState extends ChangeNotifier {
     biometricsEnabled = false;
     hasPin = false;
     role = '';
+    themeMode = ThemeMode.light;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('accessToken');
     await prefs.remove('refreshToken');
@@ -538,10 +511,17 @@ class FFAppState extends ChangeNotifier {
     await prefs.remove('isLoggedIn');
     await prefs.remove('biometricsEnabled');
     await prefs.remove('role');
+    await prefs.remove('themeMode');
     await prefs.remove('lastAuthenticatedRoute');
     await prefs.remove('biometric_last_verified');
     await SecureStorageService.clearAuthData();
     await SecureStorageService.deleteBiometricLastVerified();
+    await AuthSessionStore.clearAllSessions();
+    // Cached API responses can contain another user's profile or role.
+    // Discard them together with the authenticated session.
+    try {
+      ApiService.invalidateCache();
+    } catch (_) {}
   }
 
   Future<void> clearRoleSession(String role) async {

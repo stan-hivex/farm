@@ -105,7 +105,7 @@ void main() {
     expect(state.refreshToken, 'refresh-token');
   });
 
-  test('initializePersistedState does not restore auth without an install marker', () async {
+  test('initializePersistedState does not restore auth without an active session marker', () async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('authInstallId');
     await prefs.setString('role', 'admin');
@@ -120,6 +120,7 @@ void main() {
       role: 'admin',
       userId: 'legacy-user',
     );
+    await prefs.remove('active_auth_role');
 
     final state = FFAppState();
     await state.initializePersistedState();
@@ -187,7 +188,7 @@ void main() {
     expect(resolvedToken, superAdminToken);
   });
 
-  test('RouteGuardService keeps a persisted super-admin session authenticated when the role is still empty', () async {
+  test('RouteGuardService rejects a persisted super-admin session when the role is still empty', () async {
     final state = FFAppState();
     state.role = '';
     state.accessToken = '';
@@ -205,6 +206,6 @@ void main() {
     final guard = RouteGuardService();
     final authenticated = await guard.isUserAuthenticated();
 
-    expect(authenticated, isTrue);
+    expect(authenticated, isFalse);
   });
 }

@@ -164,8 +164,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
     try {
       final resp = await ApiService.request(method: 'GET', path: '/security/settings');
       final data = Map<String, dynamic>.from(resp['data'] ?? resp);
-      final remoteBiometricsEnabled = data['biometrics_enabled'] ?? false;
-      final resolvedBiometricsEnabled = FFAppState().biometricsEnabled || remoteBiometricsEnabled;
+      final resolvedBiometricsEnabled = FFAppState().biometricsEnabled;
       final remoteHasPin = data['has_pin'] ?? false;
 
       if (FFAppState().biometricsEnabled != resolvedBiometricsEnabled) {

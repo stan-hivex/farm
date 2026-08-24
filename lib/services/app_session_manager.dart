@@ -110,7 +110,6 @@ class AppSessionManager {
               FFAppState().email = profileData['email']?.toString() ?? FFAppState().email;
               FFAppState().kycStatus = profileData['kyc_status']?.toString() ?? FFAppState().kycStatus;
               FFAppState().emailVerified = profileData['email_verified'] == true;
-              FFAppState().role = profileData['role']?.toString() ?? FFAppState().role;
               if (profileData['profile_image'] != null) {
                 FFAppState().profileImageUrl = profileData['profile_image']?.toString() ?? FFAppState().profileImageUrl;
               }

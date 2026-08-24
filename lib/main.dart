@@ -26,27 +26,6 @@ Widget buildSafeErrorWidget(FlutterErrorDetails details) {
   return const SizedBox.shrink();
 }
 
-Future<String?> _getRestoredRoute() async {
-  final state = FFAppState();
-  if (!state.isLoggedIn) return null;
-
-  final prefs = await SharedPreferences.getInstance();
-  final saved = prefs.getString('lastAuthenticatedRoute');
-  final role = state.role.toLowerCase();
-  final isAdminRoute = saved?.startsWith('/admin') ?? false;
-  final isSuperAdminRoute = saved?.startsWith('/superadmin') ?? false;
-
-  if (role == 'super_admin') {
-    return isSuperAdminRoute ? saved : '/superadmin/dashboard';
-  }
-  if (role == 'admin') {
-    return isAdminRoute && !isSuperAdminRoute ? saved : '/admin';
-  }
-  return saved != null && !isAdminRoute && !isSuperAdminRoute
-      ? saved
-      : '/dashboard';
-}
-
 void main() async {
   print('APP START');
   WidgetsFlutterBinding.ensureInitialized();
@@ -85,7 +64,6 @@ void main() async {
   // Attempt to restore persisted session and perform a silent refresh before
   // the app is started so routing decisions can use restored auth state.
   await StartupAuthenticator().restoreSession();
-  final restoredRoute = await _getRestoredRoute();
   await NotificationService.initialize();
   await SocketService.initialize();
   await FlutterFlowTheme.initialize();
@@ -119,7 +97,7 @@ void main() async {
           providers: [
             ChangeNotifierProvider(create: (_) => FFAppState()),
           ],
-          child: MyApp(initialLocation: restoredRoute),
+          child: const MyApp(),
         ),
       ),
     );
@@ -158,7 +136,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   Timer? _refreshTimer;
 
   ThemeMode _effectiveThemeMode(String currentLocation) {
-    return context.watch<FFAppState>().themeMode;
+    try {
+      return context.watch<FFAppState>().themeMode;
+    } on ProviderNotFoundException {
+      return FFAppState().themeMode;
+    }
   }
 
   // =========================================
@@ -299,13 +281,21 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final effectiveThemeMode = _effectiveThemeMode(getRoute());
+    Locale locale = const Locale('en');
+    Iterable<Locale> supportedLocales = const [Locale('en')];
+    List<LocalizationsDelegate<dynamic>> localizationDelegates = const [];
+    try {
+      locale = context.locale;
+      supportedLocales = context.supportedLocales;
+      localizationDelegates = context.localizationDelegates;
+    } catch (_) {}
 
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: 'FARM',
-      locale: context.locale,
-      supportedLocales: context.supportedLocales,
-      localizationsDelegates: context.localizationDelegates,
+      locale: locale,
+      supportedLocales: supportedLocales,
+      localizationsDelegates: localizationDelegates,
       theme: AppTheme.lightTheme(),
       darkTheme: AppTheme.darkTheme(),
       themeMode: effectiveThemeMode,

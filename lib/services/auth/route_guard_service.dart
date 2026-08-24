@@ -82,10 +82,7 @@ class RouteGuardService {
       }
     }
 
-    if (role.isEmpty) {
-      debugPrint('[RouteGuardService] hasValidBackendJwt role empty and no valid in-memory token');
-      return false;
-    }
+    if (role.isEmpty) return false;
 
     final persistedSession = await AuthSessionStore.readRoleSession(role);
     final persistedToken = persistedSession?.accessToken ?? '';
