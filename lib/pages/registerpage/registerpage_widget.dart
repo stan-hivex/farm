@@ -456,8 +456,6 @@ class _RegisterpageWidgetState extends State<RegisterpageWidget> {
     );
   }
 
- 
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -998,7 +996,17 @@ class _RegisterpageWidgetState extends State<RegisterpageWidget> {
                     ],
                   ),
                   const SizedBox(height: 32.0),
-                  const SizedBox(height: 16.0),
+                  Align(
+                    alignment: const AlignmentDirectional(0.0, 0.0),
+                    child: Container(
+                      width: 40.0,
+                      height: 4.0,
+                      decoration: BoxDecoration(
+                        color: FlutterFlowTheme.of(context).alternate,
+                        borderRadius: BorderRadius.circular(9999.0),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),

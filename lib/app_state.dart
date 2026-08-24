@@ -4,6 +4,8 @@ import 'flutter_flow/flutter_flow_theme.dart';
 import 'services/auth/session_store_service.dart';
 import 'services/secure_storage_service.dart';
 
+enum AuthStartupState { initializing, authenticated, unauthenticated }
+
 class FFAppState extends ChangeNotifier {
   static FFAppState _instance = FFAppState._internal();
 
@@ -12,6 +14,16 @@ class FFAppState extends ChangeNotifier {
   }
 
   FFAppState._internal();
+
+  AuthStartupState _authStartupState = AuthStartupState.initializing;
+  AuthStartupState get authStartupState => _authStartupState;
+  bool get isAuthInitializing => _authStartupState == AuthStartupState.initializing;
+
+  void setAuthStartupState(AuthStartupState value) {
+    if (_authStartupState == value) return;
+    _authStartupState = value;
+    notifyListeners();
+  }
 
   static void reset() {
     _instance = FFAppState._internal();
@@ -32,7 +44,8 @@ class FFAppState extends ChangeNotifier {
       _userId = adminSession.userId;
       _role = adminSession.role;
       _isLoggedIn = adminSession.accessToken.isNotEmpty;
-    } else if (normalizedStoredRole == 'super_admin' && superAdminSession != null) {
+    } else if (normalizedStoredRole == 'super_admin' &&
+        superAdminSession != null) {
       _accessToken = superAdminSession.accessToken;
       _refreshToken = superAdminSession.refreshToken;
       _userId = superAdminSession.userId;
@@ -49,13 +62,14 @@ class FFAppState extends ChangeNotifier {
       _refreshToken = adminSession.refreshToken;
       _userId = adminSession.userId;
       _role = adminSession.role;
-      _isLoggedIn = false;
-    } else if (superAdminSession != null && superAdminSession.accessToken.isNotEmpty) {
+      _isLoggedIn = true;
+    } else if (superAdminSession != null &&
+        superAdminSession.accessToken.isNotEmpty) {
       _accessToken = superAdminSession.accessToken;
       _refreshToken = superAdminSession.refreshToken;
       _userId = superAdminSession.userId;
       _role = superAdminSession.role;
-      _isLoggedIn = false;
+      _isLoggedIn = true;
     } else if (userSession != null && userSession.accessToken.isNotEmpty) {
       _accessToken = userSession.accessToken;
       _refreshToken = userSession.refreshToken;
@@ -81,8 +95,11 @@ class FFAppState extends ChangeNotifier {
     _phone = prefs.getString('phone') ?? '';
     _email = prefs.getString('email') ?? '';
     _kycStatus = prefs.getString('kycStatus') ?? '';
-    if (_role.toLowerCase() == 'admin' || _role.toLowerCase() == 'super_admin') {
-      _isLoggedIn = false;
+    // A persisted role session is the source of truth on cold start. The
+    // access token may be expired, but the refresh session still authenticates
+    // the user while RefreshManager obtains a new access token.
+    if (_accessToken.isNotEmpty || _refreshToken.isNotEmpty) {
+      _isLoggedIn = true;
     } else {
       _isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
     }
@@ -112,8 +129,7 @@ class FFAppState extends ChangeNotifier {
     } else {
       _biometricLockTimeoutSeconds = 600;
     }
-    final storedBiometricVerified =
-        prefs.getString('biometric_last_verified');
+    final storedBiometricVerified = prefs.getString('biometric_last_verified');
     if (storedBiometricVerified != null) {
       _biometricLastVerified = DateTime.tryParse(storedBiometricVerified);
     } else {
@@ -130,7 +146,8 @@ class FFAppState extends ChangeNotifier {
       );
     }
     // Diagnostic auth restore log
-    debugPrint('[AUTH] initializePersistedState: role=$_role userId=$_userId accessTokenPresent=${_accessToken.isNotEmpty} refreshTokenPresent=${_refreshToken.isNotEmpty} isLoggedIn=$_isLoggedIn');
+    debugPrint(
+        '[AUTH] initializePersistedState: role=$_role userId=$_userId accessTokenPresent=${_accessToken.isNotEmpty} refreshTokenPresent=${_refreshToken.isNotEmpty} isLoggedIn=$_isLoggedIn');
   }
 
   bool _suspendNotifications = false;
@@ -173,7 +190,8 @@ class FFAppState extends ChangeNotifier {
     }
 
     final normalizedRole = _role.toLowerCase();
-    final persistedSession = await AuthSessionStore.readRoleSession(normalizedRole);
+    final persistedSession =
+        await AuthSessionStore.readRoleSession(normalizedRole);
     final persistedToken = persistedSession?.accessToken ?? '';
     if (persistedToken.isNotEmpty) {
       // Lazily restore in-memory token from persisted role session without
@@ -314,7 +332,8 @@ class FFAppState extends ChangeNotifier {
     } else {
       SecureStorageService.writeBiometricLastVerified(value.toIso8601String());
       SharedPreferences.getInstance().then(
-        (prefs) => prefs.setString('biometric_last_verified', value.toIso8601String()),
+        (prefs) =>
+            prefs.setString('biometric_last_verified', value.toIso8601String()),
       );
     }
   }
@@ -492,7 +511,8 @@ class FFAppState extends ChangeNotifier {
   }
 
   Future<void> clearAuthCredentials([String? reason]) async {
-    final msg = '[FFAppState] clearAuthCredentials called' + (reason != null ? ' reason=$reason' : '');
+    final msg = '[FFAppState] clearAuthCredentials called' +
+        (reason != null ? ' reason=$reason' : '');
     debugPrint(msg);
     debugPrint(StackTrace.current.toString());
     accessToken = '';
@@ -503,6 +523,7 @@ class FFAppState extends ChangeNotifier {
     phone = '';
     kycStatus = '';
     isLoggedIn = false;
+    setAuthStartupState(AuthStartupState.unauthenticated);
     biometricsEnabled = false;
     hasPin = false;
     role = '';
@@ -517,6 +538,7 @@ class FFAppState extends ChangeNotifier {
     await prefs.remove('isLoggedIn');
     await prefs.remove('biometricsEnabled');
     await prefs.remove('role');
+    await prefs.remove('lastAuthenticatedRoute');
     await prefs.remove('biometric_last_verified');
     await SecureStorageService.clearAuthData();
     await SecureStorageService.deleteBiometricLastVerified();

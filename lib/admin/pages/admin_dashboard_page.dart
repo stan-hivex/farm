@@ -41,7 +41,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     setState(() {
       _loading = true;
       _error = null;
-      _stats = <String, dynamic>{};
     });
 
     debugPrint('Loading admin profile...');
@@ -108,7 +107,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
+    if (_loading && _stats.isEmpty) {
       return Scaffold(
         backgroundColor: Colors.white,
         body: Center(
@@ -130,7 +129,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       );
     }
 
-    if (_error != null) {
+    if (_error != null && _stats.isEmpty) {
       return _errorView(_error ?? 'Unable to load dashboard data.');
     }
 

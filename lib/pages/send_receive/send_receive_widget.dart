@@ -1,5 +1,6 @@
 import '/backend/services/api_service.dart';
 import '/backend/api_requests/user_api_service.dart';
+import '/backend/api_requests/payment_request_api_service.dart';
 import '/services/transaction_authentication_service.dart';
 import '/services/transaction_authorization_service.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
@@ -112,6 +113,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
   bool showReceive = false;
   bool isRequesting = false;
   List<dynamic> pendingRequests = [];
+  final Set<String> selectedIncomingRequestIds = <String>{};
   List<dynamic> myTransferRequests = [];
 
   double balance = 0;
@@ -542,6 +544,9 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
         setState(() {
           pendingRequests =
               requests.where((req) => !shouldHideTransferRequest(req)).toList();
+          selectedIncomingRequestIds.removeWhere(
+            (id) => !pendingRequests.any((req) => req['id']?.toString() == id),
+          );
         });
       }
     } catch (e) {
@@ -640,6 +645,65 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
           ),
         );
       }
+    }
+  }
+
+  double get selectedIncomingTotal => pendingRequests
+      .where((req) => selectedIncomingRequestIds.contains(req['id']?.toString()))
+      .fold(0.0, (total, req) => total + _parseAmount(req['amount']));
+
+  Future<void> _approveSelectedIncomingRequests() async {
+    final requestIds = selectedIncomingRequestIds.toList();
+    if (requestIds.isEmpty) return;
+
+    final authResult = await TransactionAuthorizationService()
+        .authorizeTransaction(localizedReason: 'Approve selected money requests')
+        .then((result) => result.toTransactionAuthenticationResult());
+    String? pin;
+    if (!authResult.biometricUsed) {
+      final controller = TextEditingController();
+      final confirmed = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Approve selected requests'),
+          content: TextField(
+            controller: controller,
+            obscureText: true,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'Transaction PIN'),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+            ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Approve')),
+          ],
+        ),
+      );
+      pin = controller.text.trim();
+      controller.dispose();
+      if (confirmed != true || pin.isEmpty) return;
+    }
+
+    setState(() => isSending = true);
+    try {
+      final response = await PaymentRequestApiService.acceptPaymentRequestsBatch(
+        requestIds: requestIds,
+        pin: pin,
+        biometricAuth: authResult.biometricUsed,
+        deviceFingerprint: authResult.deviceFingerprint,
+      );
+      if (!mounted) return;
+      setState(() => selectedIncomingRequestIds.clear());
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(response['message'] ?? 'Selected requests completed'), backgroundColor: Colors.green),
+      );
+      await AppSessionManager().syncNow(profileTimeoutSeconds: 5, walletTimeoutSeconds: 5, transactionsTimeoutSeconds: 5);
+      await fetchWallet();
+      await fetchPendingRequests();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => isSending = false);
     }
   }
 
@@ -901,6 +965,8 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
     final requesterUsername =
         requester != null ? requester['username'] : 'unknown';
     final amount = _parseAmount(req['amount']);
+    final requestId = req['id']?.toString() ?? '';
+    final isSelected = selectedIncomingRequestIds.contains(requestId);
 
     return GestureDetector(
       onTap: () => _showRequestDetailSheet(req, incoming: true),
@@ -917,6 +983,16 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
           children: [
             Row(
               children: [
+                Checkbox(
+                  value: isSelected,
+                  onChanged: requestId.isEmpty ? null : (checked) => setState(() {
+                    if (checked == true) {
+                      selectedIncomingRequestIds.add(requestId);
+                    } else {
+                      selectedIncomingRequestIds.remove(requestId);
+                    }
+                  }),
+                ),
                 Container(
                   width: 48,
                   height: 48,
@@ -2123,6 +2199,32 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                                             ),
                                       ),
                                       const SizedBox(height: 16),
+                                      if (selectedIncomingRequestIds.isNotEmpty)
+                                        Container(
+                                          padding: const EdgeInsets.all(12),
+                                          margin: const EdgeInsets.only(bottom: 12),
+                                          color: Colors.green.withValues(alpha: 0.08),
+                                          child: Row(
+                                            children: [
+                                              Expanded(child: Text('${selectedIncomingRequestIds.length} selected • ${selectedIncomingTotal.toStringAsFixed(2)} FARM')),
+                                              TextButton(onPressed: () => setState(() => selectedIncomingRequestIds.clear()), child: const Text('Clear')),
+                                              ElevatedButton(onPressed: isSending ? null : _approveSelectedIncomingRequests, child: const Text('Approve all')),
+                                            ],
+                                          ),
+                                        ),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.end,
+                                        children: [
+                                          TextButton(
+                                            onPressed: () => setState(() {
+                                              selectedIncomingRequestIds
+                                                ..clear()
+                                                ..addAll(pendingRequests.map((req) => req['id'].toString()));
+                                            }),
+                                            child: const Text('Select all'),
+                                          ),
+                                        ],
+                                      ),
                                       Column(
                                         children: pendingRequests
                                             .map(

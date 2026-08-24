@@ -184,7 +184,7 @@ class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
           onRefresh: _load,
           color: _accent,
           backgroundColor: _bgColor,
-          child: _loading
+          child: _loading && _merchants.isEmpty
               ? ListView(children: const [
                   SizedBox(height: 120),
                   Center(child: CircularProgressIndicator())

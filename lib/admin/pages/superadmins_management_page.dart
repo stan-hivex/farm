@@ -56,7 +56,7 @@ class _SuperadminsManagementPageState extends State<SuperadminsManagementPage> {
           IconButton(onPressed: _load, icon: const Icon(Icons.refresh_rounded)),
         ],
       ),
-      body: _loading
+      body: _loading && _superadmins.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : _error != null
               ? Center(child: Text(_error!))

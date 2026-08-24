@@ -6,13 +6,14 @@ import 'package:http/http.dart' as http;
 import '/app_state.dart';
 import 'session_store_service.dart';
 import '/core/app_config.dart';
+import '/services/secure_storage_service.dart';
 
 class RefreshManager {
   static final RefreshManager _instance = RefreshManager._internal();
   factory RefreshManager() => _instance;
   RefreshManager._internal();
 
-  static const int _expiryThresholdSeconds = 60;
+  static const int _expiryThresholdSeconds = 5 * 60;
   http.Client _client = http.Client();
   static const int _initialBackoffSeconds = 1;
   static const int _maxBackoffSeconds = 30;
@@ -20,6 +21,9 @@ class RefreshManager {
   Completer<bool>? _refreshCompleter;
   int _consecutiveFailures = 0;
   DateTime? _nextAllowedRefreshTime;
+  bool _lastFailureWasRevocation = false;
+
+  bool get lastFailureWasRevocation => _lastFailureWasRevocation;
 
   static set client(http.Client value) => _instance._client = value;
 
@@ -35,12 +39,14 @@ class RefreshManager {
 
   Future<bool> refreshIfNeeded({bool force = false}) async {
     if (!_hasRefreshToken) {
-      debugPrint('[RefreshManager] No refresh token available. Skipping refresh.');
+      debugPrint(
+          '[RefreshManager] No refresh token available. Skipping refresh.');
       return false;
     }
 
     if (isRefreshing) {
-      debugPrint('[RefreshManager] Refresh already in progress. Waiting for existing refresh.');
+      debugPrint(
+          '[RefreshManager] Refresh already in progress. Waiting for existing refresh.');
       await _refreshCompleter!.future;
       return _hasAccessToken;
     }
@@ -51,7 +57,8 @@ class RefreshManager {
     }
 
     if (_isBackoffActive) {
-      debugPrint('[RefreshManager] Refresh backoff active until $_nextAllowedRefreshTime. Skipping refresh.');
+      debugPrint(
+          '[RefreshManager] Refresh backoff active until $_nextAllowedRefreshTime. Skipping refresh.');
       return false;
     }
 
@@ -77,6 +84,7 @@ class RefreshManager {
   }
 
   Future<bool> _doRefresh() async {
+    _lastFailureWasRevocation = false;
     final refreshToken = FFAppState().refreshToken.trim();
     if (refreshToken.isEmpty) {
       debugPrint('[RefreshManager] refresh token empty, cannot refresh.');
@@ -110,16 +118,19 @@ class RefreshManager {
         final newRefreshToken = payload['refresh_token'] as String? ?? '';
 
         if (newAccessToken.isEmpty) {
-          debugPrint('[RefreshManager] Refresh succeeded but returned no access token.');
+          debugPrint(
+              '[RefreshManager] Refresh succeeded but returned no access token.');
           _registerFailure();
           return false;
         }
 
         FFAppState().accessToken = newAccessToken;
         FFAppState().isLoggedIn = true;
-        if (newRefreshToken.isNotEmpty) {
-          FFAppState().refreshToken = newRefreshToken;
-        }
+        final effectiveRefreshToken =
+            newRefreshToken.isNotEmpty ? newRefreshToken : refreshToken;
+        FFAppState().refreshToken = effectiveRefreshToken;
+        await SecureStorageService.writeAccessToken(newAccessToken);
+        await SecureStorageService.writeRefreshToken(effectiveRefreshToken);
 
         // Persist refreshed tokens into role-specific session store so that
         // admin/superadmin sessions and other persisted sessions are kept
@@ -130,7 +141,7 @@ class RefreshManager {
             await AuthSessionStore.saveRoleSession(
               role: role,
               accessToken: newAccessToken,
-              refreshToken: newRefreshToken,
+              refreshToken: effectiveRefreshToken,
               userId: FFAppState().userId,
             );
           }
@@ -145,7 +156,9 @@ class RefreshManager {
       }
 
       if (response.statusCode == 401 || response.statusCode == 403) {
-        debugPrint('[RefreshManager] Refresh token invalid or expired. Preserving existing auth state for now.');
+        _lastFailureWasRevocation = true;
+        debugPrint(
+            '[AUTH REFRESH] Persistent refresh session rejected by backend.');
         _registerFailure();
         return false;
       }
@@ -156,7 +169,8 @@ class RefreshManager {
       _registerFailure();
       return false;
     } catch (e) {
-      debugPrint('[RefreshManager] Refresh request failed: $e. Preserving existing auth state.');
+      debugPrint(
+          '[RefreshManager] Refresh request failed: $e. Preserving existing auth state.');
       _registerFailure();
       return false;
     }
@@ -166,6 +180,7 @@ class RefreshManager {
     _consecutiveFailures = 0;
     _nextAllowedRefreshTime = null;
     _refreshCompleter = null;
+    _lastFailureWasRevocation = false;
   }
 
   void _registerFailure() {
@@ -174,8 +189,10 @@ class RefreshManager {
       _initialBackoffSeconds * pow(2, _consecutiveFailures - 1).toInt(),
       _maxBackoffSeconds,
     );
-    _nextAllowedRefreshTime = DateTime.now().add(Duration(seconds: backoffSeconds));
-    debugPrint('[RefreshManager] Next refresh allowed after $_nextAllowedRefreshTime.');
+    _nextAllowedRefreshTime =
+        DateTime.now().add(Duration(seconds: backoffSeconds));
+    debugPrint(
+        '[RefreshManager] Next refresh allowed after $_nextAllowedRefreshTime.');
   }
 
   bool _tokenNeedsRefresh() {
@@ -189,7 +206,8 @@ class RefreshManager {
       return true;
     }
 
-    return expiry.isBefore(DateTime.now().add(const Duration(seconds: _expiryThresholdSeconds)));
+    return expiry.isBefore(
+        DateTime.now().add(const Duration(seconds: _expiryThresholdSeconds)));
   }
 
   DateTime? _getJwtExpiry(String token) {
@@ -205,12 +223,14 @@ class RefreshManager {
       final map = jsonDecode(decoded) as Map<String, dynamic>;
       final exp = map['exp'];
       if (exp is int) {
-        return DateTime.fromMillisecondsSinceEpoch(exp * 1000, isUtc: true).toLocal();
+        return DateTime.fromMillisecondsSinceEpoch(exp * 1000, isUtc: true)
+            .toLocal();
       }
       if (exp is String) {
         final expInt = int.tryParse(exp);
         if (expInt != null) {
-          return DateTime.fromMillisecondsSinceEpoch(expInt * 1000, isUtc: true).toLocal();
+          return DateTime.fromMillisecondsSinceEpoch(expInt * 1000, isUtc: true)
+              .toLocal();
         }
       }
     } catch (e) {

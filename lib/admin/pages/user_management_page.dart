@@ -255,7 +255,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
               ),
             ),
             Expanded(
-              child: _loading
+              child: _loading && _users.isEmpty
                   ? Center(child: CircularProgressIndicator())
                   : _error != null
                       ? Center(

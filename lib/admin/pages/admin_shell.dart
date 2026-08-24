@@ -40,10 +40,8 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final ok = await AdminGuard.isAuthenticated();
       if (!ok && mounted) {
-        AuthNavigation.replaceAllWithBuilder(
-          context,
-          (_) => LoginpageWidget(),
-        );
+        debugPrint(
+            '[AUTH] Admin session check unavailable; preserving session.');
         return;
       }
       unawaited(_refreshAdminSession());
@@ -63,7 +61,8 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       _startPeriodicRefresh();
       unawaited(_refreshAdminSession());
-    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
       _refreshTimer?.cancel();
     }
   }
@@ -80,12 +79,7 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
     if (!mounted) return;
     final ok = await AdminGuard.isAuthenticated();
     if (!ok) {
-      if (mounted) {
-            AuthNavigation.replaceAllWithBuilder(
-              context,
-              (_) => LoginpageWidget(),
-            );
-      }
+      debugPrint('[AUTH] Admin refresh unavailable; preserving session.');
       return;
     }
 

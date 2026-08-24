@@ -112,7 +112,7 @@ class _WithdrawalsManagementPageState extends State<WithdrawalsManagementPage> {
         child: Column(
           children: [
             _filterRow(accent),
-            if (_loading)
+            if (_loading && _withdrawals.isEmpty)
               const Expanded(
                   child: Center(
                       child:

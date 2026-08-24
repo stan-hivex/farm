@@ -287,6 +287,74 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
     );
   }
 
+  String _depositMethodLabel(
+    Map<String, dynamic> deposit,
+    Map<String, dynamic> metadata,
+  ) {
+    final rawMethod = metadata['method'] ??
+        deposit['paymentMethod'] ??
+        deposit['payment_method'] ??
+        metadata['payment_method'] ??
+        deposit['payment_channel'] ??
+        deposit['payment_provider'] ??
+        metadata['provider'] ??
+        deposit['provider'];
+    final method = rawMethod?.toString().toLowerCase() ?? '';
+
+    if (method.contains('crypto') || method.contains('ivory')) {
+      return 'CRYPTO';
+    }
+    if (method.contains('mobile')) return 'MOBILE MONEY';
+    if (method.contains('bank') && method.contains('transfer')) {
+      return 'BANK TRANSFER';
+    }
+    if (method.contains('card') || method.contains('paystack')) {
+      return 'BANK CARD';
+    }
+    return method.isEmpty ? 'METHOD UNAVAILABLE' : method.toUpperCase();
+  }
+
+  String _depositDateLabel(Map<String, dynamic> deposit) {
+    final rawDate = deposit['created_at'] ??
+        deposit['createdAt'] ??
+        deposit['deposited_at'] ??
+        deposit['timestamp'] ??
+        deposit['date'];
+    final parsedDate = DateTime.tryParse(rawDate?.toString() ?? '');
+    if (parsedDate == null) return 'Date unavailable';
+    return DateFormat('dd MMM yyyy, h:mm a').format(parsedDate.toLocal());
+  }
+
+  String _depositAmountLabel(
+    Map<String, dynamic> deposit,
+    Map<String, dynamic> metadata,
+  ) {
+    final method = _depositMethodLabel(deposit, metadata);
+    final farmAmount = deposit['amount_farm'] ?? metadata['amount_farm'];
+    final usdAmount = deposit['amount_usd'] ?? metadata['amount_usd'];
+    final usdToFarmRate =
+      deposit['usd_to_farm_rate'] ?? metadata['usd_to_farm_rate'];
+
+    if (method == 'CRYPTO' && farmAmount != null && usdAmount != null) {
+      final rateText = usdToFarmRate == null
+        ? ''
+        : ' (1 USD = ${_formatDepositNumber(usdToFarmRate)} FARM)';
+      return 'USD ${_formatDepositNumber(usdAmount)} = '
+        '${_formatDepositNumber(farmAmount)} FARM$rateText';
+    }
+
+    final currency = metadata['currency_fiat'] ?? deposit['currency'] ?? 'KES';
+    final fiatAmount = metadata['amount_fiat'] ?? deposit['amount'];
+    return '$currency ${_formatDepositNumber(fiatAmount)} ≈ '
+        '${_formatDepositNumber(farmAmount ?? deposit['amount'])} FARM';
+  }
+
+  String _formatDepositNumber(Object? value) {
+    final number = double.tryParse(value?.toString() ?? '');
+    if (number == null) return value?.toString() ?? '0';
+    return number.toStringAsFixed(number == number.roundToDouble() ? 0 : 2);
+  }
+
   // ── Payment method card ──────────────────────────────────────────────────
   Widget _methodCard(
     BuildContext context, {
@@ -562,9 +630,12 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                 )
               else
                 ...recentDeposits.map((d) {
+                  final deposit = Map<String, dynamic>.from(d as Map);
                   final status = (d['status'] ?? 'pending') as String;
                   final isComplete = status == 'completed';
-                  final meta = d['metadata'] as Map<String, dynamic>? ?? {};
+                  final meta = deposit['metadata'] is Map
+                      ? Map<String, dynamic>.from(deposit['metadata'] as Map)
+                      : <String, dynamic>{};
                   return Container(
                     margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.all(16),
@@ -599,7 +670,15 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '${meta['currency_fiat'] ?? 'KES'} ${meta['amount_fiat'] ?? d['amount']}',
+                                _depositDateLabel(deposit),
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 11,
+                                  color: theme.secondaryText,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _depositAmountLabel(deposit, meta),
                                 style: GoogleFonts.plusJakartaSans(
                                     fontWeight: FontWeight.bold,
                                     color: theme.primaryText),
@@ -613,12 +692,12 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                           ),
                         ),
                         Text(
-                          d['description']?.toString().contains('CRYPTO') ==
-                                  true
-                              ? 'CRYPTO'
-                              : 'FIAT',
+                          _depositMethodLabel(deposit, meta),
                           style: GoogleFonts.plusJakartaSans(
-                              fontSize: 11, color: theme.secondaryText),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: theme.secondaryText,
+                          ),
                         ),
                       ],
                     ),

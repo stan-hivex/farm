@@ -18,14 +18,15 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 class NotificationService {
   NotificationService._();
 
+  // Notifier to signal when a new notification arrives or a pending tap is available.
+  // Widgets can add/remove listeners via `NotificationService.notificationReceived.addListener(...)`.
+  static final ValueNotifier<int> notificationReceived = ValueNotifier<int>(0);
+
   static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   static final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
   static Map<String, dynamic>? _pendingTapPayload;
-  // Notifier for in-app listeners to react to incoming notifications.
-  // Using an int ValueNotifier so listeners can simply call addListener/removeListener.
-  static final ValueNotifier<int> notificationReceived = ValueNotifier<int>(0);
 
   static Future<void> initialize() async {
     if (_initialized) return;
@@ -127,7 +128,7 @@ class NotificationService {
     FFAppState().unreadNotificationCount =
         FFAppState().unreadNotificationCount + 1;
 
-    // Notify UI listeners that a new notification arrived.
+    // Notify listeners that a new notification has been received.
     try {
       notificationReceived.value = notificationReceived.value + 1;
     } catch (_) {}
@@ -191,6 +192,10 @@ class NotificationService {
   static void _handlePayload(Map<String, dynamic> payload) {
     _pendingTapPayload = payload;
     _navigatePendingTap();
+    // Notify listeners that a pending payload/tap is available.
+    try {
+      notificationReceived.value = notificationReceived.value + 1;
+    } catch (_) {}
   }
 
   static void _navigatePendingTap() {

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '/services/transaction_authorization_service.dart';
 import '/services/transaction_authentication_service.dart';
 
 typedef BiometricAuthorizedCallback = Future<void> Function(TransactionAuthenticationResult authResult);
@@ -68,6 +67,12 @@ class _BiometricPinFieldState extends State<BiometricPinField> {
       final authResult = await TransactionAuthorizationService().authorizeTransaction(
         localizedReason: widget.localizedReason,
       ).then((r) => r.toTransactionAuthenticationResult());
+
+      if (authResult == null) {
+        setState(() => _pinEntryEnabled = true);
+        widget.focusNode.requestFocus();
+        return const TransactionAuthenticationResult(outcome: TransactionAuthenticationOutcome.pinRequired);
+      }
 
       if (authResult.biometricUsed) {
         await widget.onAuthorized(authResult);

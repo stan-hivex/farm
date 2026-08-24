@@ -10,7 +10,7 @@ import 'refresh_manager.dart';
 /// - Restores in-memory `FFAppState()` fields if missing.
 /// - Attempts a forced refresh using `RefreshManager().refreshIfNeeded(force: true)`
 ///   when a persisted session exists.
-/// - If refresh fails, clears local persisted auth to avoid inconsistent state.
+/// - If refresh is temporarily unavailable, keeps the persisted session intact.
 class StartupAuthenticator {
   static final StartupAuthenticator _instance = StartupAuthenticator._internal();
   factory StartupAuthenticator() => _instance;
@@ -19,16 +19,19 @@ class StartupAuthenticator {
   /// Restore persisted session and attempt silent token refresh.
   /// Call this before `runApp()` so routing decisions can rely on restored state.
   Future<void> restoreSession() async {
+    final state = FFAppState();
+    state.setAuthStartupState(AuthStartupState.initializing);
+    debugPrint('[AUTH STARTUP] Beginning session restoration');
     try {
-      final state = FFAppState();
       final role = state.role.toLowerCase();
       final persisted = await AuthSessionStore.readRoleSession(role);
       if (persisted == null) {
-        debugPrint('[StartupAuthenticator] no persisted session for role=$role');
+        state.setAuthStartupState(AuthStartupState.unauthenticated);
+        debugPrint('[AUTH STARTUP] No persisted session found');
         return;
       }
 
-      debugPrint('[StartupAuthenticator] restoring persisted session for role=$role');
+      debugPrint('[AUTH STARTUP] Persisted session found; restoring role=$role');
 
       // Populate in-memory state conservatively if missing
       if (state.accessToken.isEmpty && (persisted.accessToken).isNotEmpty) {
@@ -43,26 +46,26 @@ class StartupAuthenticator {
       if (state.role.isEmpty && (persisted.role).isNotEmpty) {
         state.role = persisted.role;
       }
-      // Consider the user logged in when an access token exists
-      state.isLoggedIn = (state.accessToken.isNotEmpty);
+      // A refresh token keeps the session authenticated while access is renewed.
+      state.isLoggedIn = state.accessToken.isNotEmpty || state.refreshToken.isNotEmpty;
 
       // Try a forced refresh to ensure tokens are valid. If refresh succeeds,
       // the RefreshManager will update persisted session tokens as needed.
       bool refreshed = false;
       try {
         refreshed = await RefreshManager().refreshIfNeeded(force: true);
-        debugPrint('[StartupAuthenticator] forced refresh result=$refreshed');
+        debugPrint('[AUTH STARTUP] Refresh result=$refreshed');
       } catch (e) {
-        debugPrint('[StartupAuthenticator] refresh attempt failed: $e');
+        debugPrint('[AUTH STARTUP] Refresh temporarily unavailable: $e');
       }
 
       if (!refreshed) {
-        // Refresh failed at startup — do NOT clear persisted session here.
-        // Keep persisted tokens and allow runtime flow (RouteGuard/RefreshManager)
-        // to attempt refresh again and only clear on explicit backend revocation.
-        debugPrint('[StartupAuthenticator] forced refresh failed at startup — preserving persisted session for role=$role');
+        debugPrint('[AUTH STARTUP] Preserving persisted session after temporary refresh failure');
       }
+      state.setAuthStartupState(AuthStartupState.authenticated);
+      debugPrint('[AUTH STARTUP] Authenticated state restored');
     } catch (e) {
+      state.setAuthStartupState(AuthStartupState.unauthenticated);
       debugPrint('[StartupAuthenticator] restoreSession error: $e');
     }
   }

@@ -121,7 +121,7 @@ class _EscrowManagementPageState extends State<EscrowManagementPage> {
         child: Column(
           children: [
             _filterRow(accent),
-            if (_loading)
+            if (_loading && _escrows.isEmpty)
               const Expanded(
                   child: Center(
                       child:

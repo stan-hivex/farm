@@ -32,10 +32,13 @@ class _UserNotificationsPageWidgetState extends State<UserNotificationsPageWidge
   }
 
   Future<void> loadNotifications() async {
-    setState(() {
-      isLoading = true;
-      errorMessage = null;
-    });
+    final shouldShowInitialLoader = notifications.isEmpty && !_hasLoadedNotificationsBefore;
+    if (shouldShowInitialLoader) {
+      setState(() {
+        isLoading = true;
+        errorMessage = null;
+      });
+    }
 
     try {
       final items = <Map<String, dynamic>>[];
@@ -623,9 +626,9 @@ class _UserNotificationsPageWidgetState extends State<UserNotificationsPageWidge
       ),
       body: Padding(
         padding: const EdgeInsets.all(12.0),
-        child: isLoading
+        child: isLoading && notifications.isEmpty
             ? Center(child: CircularProgressIndicator())
-            : errorMessage != null
+          : errorMessage != null && notifications.isEmpty
                 ? Center(
                     child: Text(
                       errorMessage!,

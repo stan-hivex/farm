@@ -968,6 +968,18 @@
       "languageVersion": "3.9"
     },
     {
+      "name": "socket_io_client",
+      "rootUri": "file:///C:/Users/u/AppData/Local/Pub/Cache/hosted/pub.dev/socket_io_client-3.1.6",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
+      "name": "socket_io_common",
+      "rootUri": "file:///C:/Users/u/AppData/Local/Pub/Cache/hosted/pub.dev/socket_io_common-3.1.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
       "name": "source_span",
       "rootUri": "file:///C:/Users/u/AppData/Local/Pub/Cache/hosted/pub.dev/source_span-1.10.2",
       "packageUri": "lib/",

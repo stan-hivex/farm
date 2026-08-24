@@ -14,7 +14,6 @@ import '/services/auth/auth_service.dart';
 import '/services/auth/biometric_login_service.dart';
 import '/pages/forgot_password_page/forgot_password_page_widget.dart';
 
-
 /// Create a premium black and white fintech login page for FARM App.
 ///
 /// Include:  * FARM logo at the top * Phone number input field * Password
@@ -151,10 +150,8 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
             ? Map<String, dynamic>.from(response['data'] as Map)
             : <String, dynamic>{};
 
-    final accessToken = (payload['access_token'] as String? ?? '')
-        .trim();
-    final refreshToken = (payload['refresh_token'] as String? ?? '')
-        .trim();
+    final accessToken = (payload['access_token'] as String? ?? '').trim();
+    final refreshToken = (payload['refresh_token'] as String? ?? '').trim();
     final data = payload['user'] is Map<String, dynamic>
         ? payload['user'] as Map<String, dynamic>
         : payload['user'] is Map
@@ -192,25 +189,18 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
         await prefs.remove('adminRole');
         await prefs.remove('adminName');
       } else {
-        FFAppState().accessToken = '';
-        FFAppState().refreshToken = '';
-        FFAppState().isLoggedIn = false;
-        FFAppState().userId = '';
-        FFAppState().firstName = '';
-        FFAppState().userName = '';
-        FFAppState().phone = '';
-        FFAppState().email = '';
-        FFAppState().kycStatus = '';
-        FFAppState().emailVerified = false;
+        FFAppState().accessToken = accessToken;
+        FFAppState().refreshToken = refreshToken;
+        FFAppState().userId = data['id'] ?? '';
+        FFAppState().firstName = data['first_name'] ?? '';
+        FFAppState().userName = data['username'] ?? '';
+        FFAppState().phone = data['phone'] ?? '';
+        FFAppState().isLoggedIn = true;
 
-        await prefs.remove('accessToken');
-        await prefs.remove('refreshToken');
-        await prefs.remove('userId');
-        await prefs.remove('firstName');
-        await prefs.remove('userName');
-        await prefs.remove('phone');
-        await prefs.remove('isLoggedIn');
-
+        await prefs.setString('accessToken', accessToken);
+        await prefs.setString('refreshToken', refreshToken);
+        await prefs.setString('userId', data['id'] ?? '');
+        await prefs.setBool('isLoggedIn', true);
         await prefs.setString('adminToken', accessToken);
         await prefs.setString('adminRefreshToken', refreshToken);
         await prefs.setString('adminRole', role);
@@ -258,7 +248,9 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
     final digitsOnly = raw.replaceAll(RegExp(r'[^0-9]'), '');
     final normalizedDigits = digitsOnly.replaceFirst(RegExp(r'^0+'), '');
     final countryCode = _selectedCountry['code']?.replaceAll('+', '') ?? '';
-    final identifier = countryCode.isNotEmpty ? '+$countryCode$normalizedDigits' : '+$normalizedDigits';
+    final identifier = countryCode.isNotEmpty
+        ? '+$countryCode$normalizedDigits'
+        : '+$normalizedDigits';
     final password = passwordController.text.trim();
 
     if (identifier.isEmpty || password.isEmpty) {
@@ -552,7 +544,8 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                           children: [
                             GestureDetector(
                               onTap: () async {
-                                final selected = await showModalBottomSheet<Map<String, String>>( 
+                                final selected = await showModalBottomSheet<
+                                    Map<String, String>>(
                                   context: context,
                                   builder: (_) {
                                     return SizedBox(
@@ -563,22 +556,30 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                                             padding: const EdgeInsets.all(12.0),
                                             child: Text(
                                               'Select country',
-                                              style: FlutterFlowTheme.of(context).titleMedium,
+                                              style:
+                                                  FlutterFlowTheme.of(context)
+                                                      .titleMedium,
                                             ),
                                           ),
                                           Expanded(
                                             child: ListView.builder(
-                                              itemCount: _africanCountries.length,
+                                              itemCount:
+                                                  _africanCountries.length,
                                               itemBuilder: (ctx, i) {
                                                 final c = _africanCountries[i];
                                                 return ListTile(
-                                                  leading: Text(c['flag'] ?? ''),
+                                                  leading:
+                                                      Text(c['flag'] ?? ''),
                                                   title: Text(
                                                     c['name'] ?? '',
-                                                    style: FlutterFlowTheme.of(context).bodyMedium,
+                                                    style: FlutterFlowTheme.of(
+                                                            context)
+                                                        .bodyMedium,
                                                   ),
-                                                  trailing: Text(c['code'] ?? ''),
-                                                  onTap: () => Navigator.of(ctx).pop(c),
+                                                  trailing:
+                                                      Text(c['code'] ?? ''),
+                                                  onTap: () =>
+                                                      Navigator.of(ctx).pop(c),
                                                 );
                                               },
                                             ),
@@ -596,11 +597,15 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                                 }
                               },
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 14),
                                 decoration: BoxDecoration(
-                                  color: FlutterFlowTheme.of(context).secondaryBackground,
+                                  color: FlutterFlowTheme.of(context)
+                                      .secondaryBackground,
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: FlutterFlowTheme.of(context).alternate),
+                                  border: Border.all(
+                                      color: FlutterFlowTheme.of(context)
+                                          .alternate),
                                 ),
                                 child: Row(
                                   children: [
@@ -609,7 +614,8 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                                     Flexible(
                                       child: Text(
                                         '${_selectedCountry['name'] ?? ''} ${_selectedCountry['code'] ?? ''}',
-                                        style: FlutterFlowTheme.of(context).bodyMedium,
+                                        style: FlutterFlowTheme.of(context)
+                                            .bodyMedium,
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
@@ -623,7 +629,8 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                             Expanded(
                               child: TextFormField(
                                 controller: phoneController,
-                                decoration: inputDecoration(context, 'Enter phone number (without country code)'),
+                                decoration: inputDecoration(context,
+                                    'Enter phone number (without country code)'),
                                 keyboardType: TextInputType.phone,
                               ),
                             ),

@@ -86,7 +86,7 @@ class _SettingsManagementPageState extends State<SettingsManagementPage> {
           onRefresh: _load,
           color: _accent,
           backgroundColor: _bgColor,
-          child: _loading
+          child: _loading && _settings.isEmpty
               ? ListView(
                   children: const [
                     SizedBox(height: 120),

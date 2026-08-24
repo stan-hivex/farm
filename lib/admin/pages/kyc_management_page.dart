@@ -90,8 +90,8 @@ class _KycManagementPageState extends State<KycManagementPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return Center(child: CircularProgressIndicator());
-    if (_error != null)
+    if (_loading && _queue.isEmpty) return Center(child: CircularProgressIndicator());
+    if (_error != null && _queue.isEmpty)
       return Center(
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         Text(_error!),

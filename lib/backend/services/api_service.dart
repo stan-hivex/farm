@@ -38,7 +38,6 @@ class ApiService {
     final uri = Uri.parse('${AppConfig.api}$path');
     // Ensure we resolve a valid access token from persisted/session state.
     String token = await FFAppState().getActiveAccessToken();
-    debugPrint('[ApiService] resolved token present=${token.isNotEmpty} role=${FFAppState().role}');
     // If this request requires auth and we don't have a token in memory,
     // attempt a refresh (serialized inside RefreshManager) before proceeding.
     if (requiresAuth && token.isEmpty && FFAppState().refreshToken.isNotEmpty) {
@@ -109,17 +108,16 @@ class ApiService {
     debugPrint(
         '[ApiService] END $method $path status=${response.statusCode} duration=${duration.inMilliseconds}ms');
     if (duration.inMilliseconds > 1000) {
-      debugPrint('[ApiService] SLOW_ENDPOINT $method $path took ${duration.inMilliseconds}ms');
+      debugPrint(
+          '[ApiService] SLOW_ENDPOINT $method $path took ${duration.inMilliseconds}ms');
     }
 
-    if ((response.statusCode == 401 || response.statusCode == 403) &&
+    if (response.statusCode == 401 &&
         requiresAuth &&
         !isRetry &&
         FFAppState().refreshToken.isNotEmpty) {
-      debugPrint('[ApiService] 401/403 detected for $path — attempting refresh');
       final refreshed = await RefreshManager().refreshIfNeeded(force: true);
       if (refreshed) {
-        debugPrint('[ApiService] Token refreshed — retrying original request for $path');
         await Future.delayed(const Duration(milliseconds: 250));
         return _request(
           method: method,
@@ -130,22 +128,6 @@ class ApiService {
           timeoutSeconds: timeoutSeconds,
         );
       }
-
-      // If refresh did not yield a new token, attempt one more retry with
-      // whatever token is currently available (fallback) before failing.
-      if (FFAppState().accessToken.isNotEmpty) {
-        debugPrint('[ApiService] No refreshed token but accessToken present — retrying once for $path');
-        await Future.delayed(const Duration(milliseconds: 400));
-        return _request(
-          method: method,
-          path: path,
-          body: body,
-          requiresAuth: requiresAuth,
-          isRetry: true,
-          timeoutSeconds: timeoutSeconds,
-        );
-      }
-      debugPrint('[ApiService] Refresh failed — throwing unauthorized for $path');
     }
 
     Map<String, dynamic> decoded = {};
@@ -162,7 +144,11 @@ class ApiService {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       // store in simple in-memory cache keyed by path
       try {
-        _cache[path] = decoded;
+        if (method.toUpperCase() == 'GET') {
+          _cache[path] = decoded;
+        } else {
+          _cache.clear();
+        }
       } catch (_) {}
       return decoded;
     }
@@ -174,7 +160,6 @@ class ApiService {
         ? message
         : 'Request failed (${response.statusCode})');
   }
-
 
   // ── Auth ──────────────────────────────────────────────────────────────────
   static Future<Map<String, dynamic>> login({
@@ -427,11 +412,19 @@ class ApiService {
       _request(method: 'DELETE', path: '/auth/delete-account', body: body);
 
   // ── Wallet ────────────────────────────────────────────────────────────────
-    static Future<Map<String, dynamic>> getWallet({int timeoutSeconds = 20}) =>
+  static Future<Map<String, dynamic>> getWallet({int timeoutSeconds = 20}) =>
       _request(method: 'GET', path: '/wallet', timeoutSeconds: timeoutSeconds);
 
-    /// Return last cached response for a given path, if any.
-    static Map<String, dynamic>? getCached(String path) => _cache[path];
+  /// Return last cached response for a given path, if any.
+  static Map<String, dynamic>? getCached(String path) => _cache[path];
+
+  static void invalidateCache([String? path]) {
+    if (path == null) {
+      _cache.clear();
+    } else {
+      _cache.remove(path);
+    }
+  }
 
   static Future<Map<String, dynamic>> sendFunds({
     required String recipientIdentifier,
@@ -620,7 +613,8 @@ class ApiService {
           'amount': amount,
           if (pin != null) 'pin': pin,
           if (biometricAuth == true) 'biometric_auth': true,
-          if (deviceFingerprint != null) 'device_fingerprint': deviceFingerprint,
+          if (deviceFingerprint != null)
+            'device_fingerprint': deviceFingerprint,
         },
       );
 
@@ -678,8 +672,9 @@ class ApiService {
       _request(method: 'GET', path: '/kyc/my');
 
   // ── Profile ───────────────────────────────────────────────────────────────
-    static Future<Map<String, dynamic>> getProfile({int timeoutSeconds = 20}) =>
-      _request(method: 'GET', path: '/users/me', timeoutSeconds: timeoutSeconds);
+  static Future<Map<String, dynamic>> getProfile({int timeoutSeconds = 20}) =>
+      _request(
+          method: 'GET', path: '/users/me', timeoutSeconds: timeoutSeconds);
 
   static Future<Map<String, dynamic>> updateProfile({
     String? firstName,
@@ -756,8 +751,7 @@ class ApiService {
         path: '/notifications/$notificationId/read',
       );
 
-  static Future<Map<String, dynamic>> markAllNotificationsRead() =>
-      _request(
+  static Future<Map<String, dynamic>> markAllNotificationsRead() => _request(
         method: 'PATCH',
         path: '/notifications/read-all',
       );
@@ -770,8 +764,7 @@ class ApiService {
         path: '/notifications/$notificationId',
       );
 
-  static Future<Map<String, dynamic>> deleteAllNotifications() =>
-      _request(
+  static Future<Map<String, dynamic>> deleteAllNotifications() => _request(
         method: 'DELETE',
         path: '/notifications',
       );

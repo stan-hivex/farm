@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import '/app_state.dart';
 import '/services/auth/session_store_service.dart';
-import '/services/auth/refresh_manager.dart';
 import '../core/admin_config.dart';
 
 class AdminApiService {
@@ -23,7 +22,8 @@ class AdminApiService {
     final session = superAdminSession ?? adminSession;
     final token = session?.accessToken ?? '';
     final role = session?.role ?? '';
-    debugPrint('Resolved session role=$role tokenPresent=${token.isNotEmpty} tokenLength=${token.length}');
+    debugPrint(
+        'Resolved session role=$role tokenPresent=${token.isNotEmpty} tokenLength=${token.length}');
     return token;
   }
 
@@ -53,7 +53,8 @@ class AdminApiService {
     if (expiry == null) {
       return true;
     }
-    return expiry.isBefore(DateTime.now().add(const Duration(seconds: _expiryThresholdSeconds)));
+    return expiry.isBefore(
+        DateTime.now().add(const Duration(seconds: _expiryThresholdSeconds)));
   }
 
   static Future<bool> ensureValidSession({bool force = false}) async {
@@ -61,18 +62,60 @@ class AdminApiService {
     if (token.isEmpty) {
       return false;
     }
-    // Delegate refresh logic to the centralized RefreshManager to avoid
-    // duplicate refresh attempts that can trigger server-side refresh-token
-    // reuse detection and revoke sessions.
-    final refreshed = await RefreshManager().refreshIfNeeded(force: force);
-    if (!refreshed) {
-      debugPrint('[AdminApiService] centralized refresh failed for role-based admin session');
-      return false;
+    if (!force && !tokenNeedsRefresh(token)) {
+      return true;
+    }
+    // Serialize refresh attempts to avoid concurrent refreshes which can
+    // trigger server-side refresh-token reuse detection and revoke sessions.
+    if (_refreshCompleter != null) {
+      await _refreshCompleter!.future;
+      final newToken = await _getToken();
+      return newToken.isNotEmpty && !tokenNeedsRefresh(newToken);
     }
 
-    // After centralized refresh, ensure we have a valid token persisted.
-    final newToken = await _getToken();
-    return newToken.isNotEmpty && !tokenNeedsRefresh(newToken);
+    _refreshCompleter = Completer<bool>();
+    try {
+      // Backoff guard
+      final nextAllowed = _nextAllowedRefreshTime;
+      if (nextAllowed != null && DateTime.now().isBefore(nextAllowed)) {
+        debugPrint(
+            '[AdminApiService] Refresh backoff active until $_nextAllowedRefreshTime. Skipping refresh.');
+        _refreshCompleter!.complete(false);
+        return false;
+      }
+
+      final refreshed = await refreshSession();
+      if (refreshed) {
+        _consecutiveFailures = 0;
+        _nextAllowedRefreshTime = null;
+        _refreshCompleter!.complete(true);
+        return true;
+      }
+
+      _consecutiveFailures++;
+      final backoffSeconds =
+          (_initialBackoffSeconds * (1 << (_consecutiveFailures - 1)))
+              .clamp(_initialBackoffSeconds, _maxBackoffSeconds);
+      _nextAllowedRefreshTime =
+          DateTime.now().add(Duration(seconds: backoffSeconds));
+      debugPrint(
+          '[AdminApiService] Refresh failed. Applying backoff for $backoffSeconds seconds.');
+      _refreshCompleter!.complete(false);
+      return false;
+    } catch (e) {
+      _consecutiveFailures++;
+      final backoffSeconds =
+          (_initialBackoffSeconds * (1 << (_consecutiveFailures - 1)))
+              .clamp(_initialBackoffSeconds, _maxBackoffSeconds);
+      _nextAllowedRefreshTime =
+          DateTime.now().add(Duration(seconds: backoffSeconds));
+      debugPrint(
+          '[AdminApiService] Exception during refresh: $e. Backoff $backoffSeconds seconds.');
+      if (!_refreshCompleter!.isCompleted) _refreshCompleter!.complete(false);
+      return false;
+    } finally {
+      _refreshCompleter = null;
+    }
   }
 
   static Future<bool> refreshSession() async {
@@ -94,7 +137,8 @@ class AdminApiService {
           .timeout(const Duration(seconds: 10));
 
       if (resp.statusCode < 200 || resp.statusCode >= 300) {
-        debugPrint('[AdminApiService] refresh failed with ${resp.statusCode}: ${resp.body}');
+        debugPrint(
+            '[AdminApiService] refresh failed with ${resp.statusCode}: ${resp.body}');
         return false;
       }
 
@@ -105,7 +149,8 @@ class AdminApiService {
           ? body['data'] as Map<String, dynamic>
           : body;
       final newAccessToken = payload['access_token']?.toString() ?? '';
-      final newRefreshToken = payload['refresh_token']?.toString() ?? refreshToken;
+      final newRefreshToken =
+          payload['refresh_token']?.toString() ?? refreshToken;
       final role = await _getStoredRole();
       if (newAccessToken.isEmpty) {
         return false;
@@ -124,7 +169,7 @@ class AdminApiService {
       FFAppState().accessToken = newAccessToken;
       FFAppState().refreshToken = newRefreshToken;
       FFAppState().role = role;
-      FFAppState().isLoggedIn = false;
+      FFAppState().isLoggedIn = true;
       debugPrint('[AdminApiService] admin session refreshed successfully');
       return true;
     } catch (e) {
@@ -146,12 +191,14 @@ class AdminApiService {
       final map = jsonDecode(decoded) as Map<String, dynamic>;
       final exp = map['exp'];
       if (exp is int) {
-        return DateTime.fromMillisecondsSinceEpoch(exp * 1000, isUtc: true).toLocal();
+        return DateTime.fromMillisecondsSinceEpoch(exp * 1000, isUtc: true)
+            .toLocal();
       }
       if (exp is String) {
         final expInt = int.tryParse(exp);
         if (expInt != null) {
-          return DateTime.fromMillisecondsSinceEpoch(expInt * 1000, isUtc: true).toLocal();
+          return DateTime.fromMillisecondsSinceEpoch(expInt * 1000, isUtc: true)
+              .toLocal();
         }
       }
     } catch (e) {
@@ -170,7 +217,7 @@ class AdminApiService {
     if (token.isEmpty) throw Exception('Not authenticated');
 
     if (!isRetry && tokenNeedsRefresh(token)) {
-      final refreshed = await RefreshManager().refreshIfNeeded(force: true);
+      final refreshed = await ensureValidSession(force: true);
       if (refreshed) {
         token = await _getToken();
       }
@@ -207,17 +254,11 @@ class AdminApiService {
     }
 
     if (res.statusCode == 401 && !isRetry) {
-      final refreshed = await RefreshManager().refreshIfNeeded(force: true);
+      final refreshed = await ensureValidSession(force: true);
       if (refreshed) {
         return _req(method: method, path: path, body: body, isRetry: true);
       }
 
-      final prefs = await SharedPreferences.getInstance();
-      debugPrint('[AdminApiService] 401 Unauthorized — clearing persisted admin session keys (reason=unauthorized)');
-      await prefs.remove('adminToken');
-      await prefs.remove('adminRefreshToken');
-      await prefs.remove('adminRole');
-      await prefs.remove('adminName');
       final decoded = res.body.isNotEmpty
           ? jsonDecode(res.body) as Map<String, dynamic>
           : <String, dynamic>{};
@@ -253,13 +294,19 @@ class AdminApiService {
       await prefs.setString('adminToken', accessToken);
       await prefs.setString('adminRefreshToken', refreshToken);
       await prefs.setString('adminRole', role);
-      await prefs.setString('adminName', decoded['data']['user']['first_name']?.toString() ?? 'Admin');
+      await prefs.setString('adminName',
+          decoded['data']['user']['first_name']?.toString() ?? 'Admin');
       await AuthSessionStore.saveRoleSession(
         role: role,
         accessToken: accessToken,
         refreshToken: refreshToken,
         userId: userId,
       );
+      FFAppState().accessToken = accessToken;
+      FFAppState().refreshToken = refreshToken;
+      FFAppState().userId = userId;
+      FFAppState().role = role.toLowerCase();
+      FFAppState().isLoggedIn = true;
       debugPrint('Admin session saved.');
       debugPrint('Access token length: ${accessToken.length}');
       debugPrint('Refresh token length: ${refreshToken.length}');
@@ -275,7 +322,8 @@ class AdminApiService {
     try {
       await _req(method: 'POST', path: '/auth/logout');
     } finally {
-      debugPrint('[AdminApiService] explicit logout — clearing persisted admin session keys (reason=explicit logout)');
+      debugPrint(
+          '[AdminApiService] explicit logout — clearing persisted admin session keys (reason=explicit logout)');
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('adminToken');
       await prefs.remove('adminRefreshToken');
@@ -316,8 +364,8 @@ class AdminApiService {
   static Future<Map<String, dynamic>> getKycQueue({int page = 1}) =>
       _req(method: 'GET', path: '/kyc/queue?page=$page');
 
-  static Future<Map<String, dynamic>> reviewKyc(
-          String docId, String status, {String? rejectionReason}) =>
+  static Future<Map<String, dynamic>> reviewKyc(String docId, String status,
+          {String? rejectionReason}) =>
       _req(
         method: 'POST',
         path: '/kyc/$docId/review',
@@ -405,7 +453,7 @@ class AdminApiService {
   static Future<Map<String, dynamic>> getMerchant(String merchantId) =>
       _req(method: 'GET', path: '/admin/merchants/$merchantId');
 
-    static Future<Map<String, dynamic>> getKycDoc(String kycDocId) =>
+  static Future<Map<String, dynamic>> getKycDoc(String kycDocId) =>
       _req(method: 'GET', path: '/admin/kyc/$kycDocId');
 
   // ── Notifications ─────────────────────────────────────────────────────────
@@ -417,16 +465,14 @@ class AdminApiService {
   static Future<Map<String, dynamic>> getSettings() =>
       _req(method: 'GET', path: '/admin/settings');
 
-  static Future<Map<String, dynamic>> updateSetting(
-          String key, String value) =>
+  static Future<Map<String, dynamic>> updateSetting(String key, String value) =>
       _req(method: 'PUT', path: '/admin/settings/$key', body: {'value': value});
 
   // ── Fees ───────────────────────────────────────────────────────────────────
   static Future<Map<String, dynamic>> getFees() =>
       _req(method: 'GET', path: '/admin/fees');
 
-  static Future<Map<String, dynamic>> updateFee(
-          String feeId, String value) =>
+  static Future<Map<String, dynamic>> updateFee(String feeId, String value) =>
       _req(method: 'PUT', path: '/admin/fees/$feeId', body: {'value': value});
 
   // ── Audit logs ────────────────────────────────────────────────────────────
@@ -434,7 +480,6 @@ class AdminApiService {
       _req(method: 'GET', path: '/admin/audit-logs?page=$page');
 
   // ── Analytics ─────────────────────────────────────────────────────────────
-  static Future<Map<String, dynamic>> getAnalytics(
-          {String period = 'month'}) =>
+  static Future<Map<String, dynamic>> getAnalytics({String period = 'month'}) =>
       _req(method: 'GET', path: '/admin/system/stats?period=$period');
 }

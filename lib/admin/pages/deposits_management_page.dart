@@ -87,7 +87,7 @@ class _DepositsManagementPageState extends State<DepositsManagementPage> {
         child: Column(
           children: [
             _filterRow(accent),
-            if (_loading)
+            if (_loading && _deposits.isEmpty)
               const Expanded(
                   child: Center(
                       child:

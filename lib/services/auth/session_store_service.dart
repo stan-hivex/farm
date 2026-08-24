@@ -26,7 +26,8 @@ class AuthSession {
       role: json['role']?.toString() ?? '',
       userId: json['userId']?.toString() ?? '',
       expiresAt: json['expiresAt']?.toString() ?? '',
-      loggedInAt: json['loggedInAt']?.toString() ?? json['expiresAt']?.toString() ?? '',
+      loggedInAt:
+          json['loggedInAt']?.toString() ?? json['expiresAt']?.toString() ?? '',
     );
   }
 
@@ -156,9 +157,11 @@ class AuthSessionStore {
     }
   }
 
-  static Future<void> clearUserSession() async => _clearSession(_userSessionKey);
+  static Future<void> clearUserSession() async =>
+      _clearSession(_userSessionKey);
 
-  static Future<void> clearAdminSession() async => _clearSession(_adminSessionKey);
+  static Future<void> clearAdminSession() async =>
+      _clearSession(_adminSessionKey);
 
   static Future<void> clearSuperAdminSession() async =>
       _clearSession(_superAdminSessionKey);
@@ -193,14 +196,16 @@ class AuthSessionStore {
   static Future<void> _saveSession(String key, AuthSession session) async {
     final prefs = await SharedPreferences.getInstance();
     final jsonPayload = jsonEncode(session.toJson());
-    debugPrint('[AuthSessionStore] Saving session key=$key payload=${session.toJson()}');
+    debugPrint(
+        '[AuthSessionStore] Saving session key=$key accessTokenPresent=${session.accessToken.isNotEmpty} refreshTokenPresent=${session.refreshToken.isNotEmpty} role=${session.role}');
     await prefs.setString(key, jsonPayload);
   }
 
   static Future<AuthSession?> _readSession(String key) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(key);
-    debugPrint('[AuthSessionStore] Reading session key=$key raw=${raw ?? 'null'}');
+    debugPrint(
+        '[AuthSessionStore] Reading session key=$key present=${raw != null && raw.isNotEmpty}');
     if (raw == null || raw.isEmpty) return null;
     try {
       final decoded = jsonDecode(raw);
@@ -211,7 +216,8 @@ class AuthSessionStore {
         return AuthSession.fromJson(Map<String, dynamic>.from(decoded));
       }
     } catch (e) {
-      debugPrint('[AuthSessionStore] Failed to decode session key=$key error=$e');
+      debugPrint(
+          '[AuthSessionStore] Failed to decode session key=$key error=$e');
       return null;
     }
     return null;
@@ -228,6 +234,9 @@ class AuthSessionStore {
   }
 
   static String get _defaultExpiry {
-    return DateTime.now().toUtc().add(const Duration(hours: 24)).toIso8601String();
+    return DateTime.now()
+        .toUtc()
+        .add(const Duration(days: 365))
+        .toIso8601String();
   }
 }

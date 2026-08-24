@@ -48,6 +48,25 @@ class PaymentRequestApiService {
     return resp;
   }
 
+  static Future<Map<String, dynamic>> acceptPaymentRequestsBatch({
+    required List<String> requestIds,
+    String? pin,
+    bool? biometricAuth,
+    String? deviceFingerprint,
+  }) async {
+    return ApiService.request(
+      method: 'POST',
+      path: '/payment-requests/accept-batch',
+      body: {
+        'request_ids': requestIds,
+        if (pin != null) 'pin': pin,
+        if (biometricAuth == true) 'biometric_auth': true,
+        if (deviceFingerprint != null) 'device_fingerprint': deviceFingerprint,
+      },
+      requiresAuth: true,
+    );
+  }
+
   static Future<Map<String, dynamic>> rejectPaymentRequest({
     required String requestId,
   }) async {

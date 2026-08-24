@@ -969,6 +969,36 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                 ),
                               ),
 
+// PRIVACY POLICY
+                              GestureDetector(
+                                onTap: () {
+                                  context.pushNamed('PrivacyPolicyPage');
+                                },
+                                child: SettingsActionTileWidget(
+                                  icon: Icon(
+                                    Icons.privacy_tip_outlined,
+                                    color: FlutterFlowTheme.of(context)
+                                        .primaryText,
+                                  ),
+                                  label: 'Privacy Policy',
+                                ),
+                              ),
+
+// TERMS OF SERVICE
+                              GestureDetector(
+                                onTap: () {
+                                  context.pushNamed('TermsOfServicePage');
+                                },
+                                child: SettingsActionTileWidget(
+                                  icon: Icon(
+                                    Icons.description_outlined,
+                                    color: FlutterFlowTheme.of(context)
+                                        .primaryText,
+                                  ),
+                                  label: 'Terms of Service',
+                                ),
+                              ),
+
 // SUPPORT / HELP CENTER
                               GestureDetector(
                                 onTap: () {

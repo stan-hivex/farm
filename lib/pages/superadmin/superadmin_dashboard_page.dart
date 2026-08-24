@@ -131,10 +131,9 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
 
   Future<void> _loadDashboardData() async {
     debugPrint('[SuperadminDashboardPage] _loadDashboardData started');
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    if (mounted) {
+      setState(() => _error = null);
+    }
     try {
       final token = await FFAppState().getActiveAccessToken();
       debugPrint('[SuperadminDashboardPage] _loadDashboardData token length=${token.length}');

@@ -73,7 +73,7 @@ class _TransactionsManagementPageState
         child: Column(
           children: [
             _filters(accent),
-            if (_loading)
+            if (_loading && _txns.isEmpty)
               const Expanded(
                   child: Center(
                       child:

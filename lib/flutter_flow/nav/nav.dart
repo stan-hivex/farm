@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -13,6 +14,7 @@ import '/pages/support/live_chat_page_widget.dart';
 import '/pages/support/email_support_page_widget.dart';
 import '/pages/notifications/user_notifications_page_widget.dart';
 import '/pages/growth_tracking_page/growth_tracking_page_widget.dart';
+import '/pages/settings/legal_document_page.dart';
 import '/pages/payment_requests/request_money_widget.dart';
 import '/admin/pages/admin_shell.dart';
 import '/pages/payment_requests/incoming_requests_widget.dart';
@@ -39,8 +41,12 @@ class AppStateNotifier extends ChangeNotifier {
   }
 }
 
-GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
-      initialLocation: OnboardingWidget.routePath,
+GoRouter createRouter(
+  AppStateNotifier appStateNotifier, {
+  String? initialLocation,
+}) =>
+    GoRouter(
+      initialLocation: initialLocation ?? OnboardingWidget.routePath,
       debugLogDiagnostics: true,
       refreshListenable: appStateNotifier,
       navigatorKey: appNavigatorKey,
@@ -133,7 +139,8 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           path: '/merchantPayment',
           builder: (context, params) => MerchantPaymentWidget(
             merchantId: params.getParam('merchantId', ParamType.String) ?? '',
-            businessName: params.getParam('businessName', ParamType.String) ?? '',
+            businessName:
+                params.getParam('businessName', ParamType.String) ?? '',
             qrPayload: params.getParam('qrPayload', ParamType.String) ?? '',
           ),
         ),
@@ -235,6 +242,22 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           builder: (context, params) => const LanguageSettingsPageWidget(),
         ),
         FFRoute(
+          name: LegalDocumentPageWidget.privacyPolicyRouteName,
+          path: LegalDocumentPageWidget.privacyPolicyRoutePath,
+          builder: (context, params) => const LegalDocumentPageWidget(
+            title: 'Privacy Policy',
+            assetPath: 'assets/docs/privacy_policy.md',
+          ),
+        ),
+        FFRoute(
+          name: LegalDocumentPageWidget.termsRouteName,
+          path: LegalDocumentPageWidget.termsRoutePath,
+          builder: (context, params) => const LegalDocumentPageWidget(
+            title: 'Terms of Service',
+            assetPath: 'assets/docs/terms_and_conditions.md',
+          ),
+        ),
+        FFRoute(
           name: SupportHelpCenterPageWidget.routeName,
           path: SupportHelpCenterPageWidget.routePath,
           builder: (context, params) => const SupportHelpCenterPageWidget(),
@@ -300,9 +323,12 @@ extension NavigationExtensions on BuildContext {
       // devices/configurations.
       try {
         if (!kIsWeb) {
-          final loc = GoRouter.of(appNavigatorKey.currentContext!).getCurrentLocation();
+          final loc =
+              GoRouter.of(appNavigatorKey.currentContext!).getCurrentLocation();
           // If we're on a top-level dashboard/admin route, exit the app.
-          if (loc.startsWith(DashboardWidget.routePath) || loc.startsWith('/admin') || loc.startsWith(SuperadminDashboardPage.routePath)) {
+          if (loc.startsWith(DashboardWidget.routePath) ||
+              loc.startsWith('/admin') ||
+              loc.startsWith(SuperadminDashboardPage.routePath)) {
             SystemNavigator.pop();
             return;
           }
@@ -326,14 +352,37 @@ extension _GoRouterStateExtensions on GoRouterState {
 }
 
 class RouteLogger extends NavigatorObserver {
-  void _logRouteChange(String event, Route<dynamic>? route, Route<dynamic>? previousRoute) {
-    final routeName = route?.settings.name ?? route?.runtimeType.toString() ?? 'unknown';
-    final previousName = previousRoute?.settings.name ?? previousRoute?.runtimeType.toString() ?? 'none';
+  void _logRouteChange(
+      String event, Route<dynamic>? route, Route<dynamic>? previousRoute) {
+    final routeName =
+        route?.settings.name ?? route?.runtimeType.toString() ?? 'unknown';
+    final previousName = previousRoute?.settings.name ??
+        previousRoute?.runtimeType.toString() ??
+        'none';
     final role = FFAppState().role;
     final accessTokenLength = FFAppState().accessToken.length;
     final refreshTokenLength = FFAppState().refreshToken.length;
-    final sessionExists = FFAppState().accessToken.isNotEmpty || FFAppState().refreshToken.isNotEmpty;
-    print('ROUTE CHANGE: event=$event route=$routeName previous=$previousName role=$role accessTokenLength=$accessTokenLength refreshTokenLength=$refreshTokenLength sessionExists=$sessionExists');
+    final sessionExists = FFAppState().accessToken.isNotEmpty ||
+        FFAppState().refreshToken.isNotEmpty;
+    print(
+        'ROUTE CHANGE: event=$event route=$routeName previous=$previousName role=$role accessTokenLength=$accessTokenLength refreshTokenLength=$refreshTokenLength sessionExists=$sessionExists');
+    if (event == 'didPush') {
+      String? location;
+      try {
+        location =
+            GoRouter.of(appNavigatorKey.currentContext!).getCurrentLocation();
+      } catch (_) {}
+      final publicRoute = location == null ||
+          location == '/' ||
+          location.startsWith('/login') ||
+          location.startsWith('/onboarding') ||
+          location.startsWith('/register');
+      if (!publicRoute && sessionExists) {
+        SharedPreferences.getInstance().then(
+          (prefs) => prefs.setString('lastAuthenticatedRoute', location!),
+        );
+      }
+    }
   }
 
   @override

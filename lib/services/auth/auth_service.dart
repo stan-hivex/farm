@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import '/core/config/supabase_config.dart';
 import '/core/config/env.dart';
 import '/flutter_flow/flutter_flow_util.dart';
@@ -116,7 +115,7 @@ class AuthService {
 
       // Backend handles all authentication directly - no intermediate verification needed
       if (farmJwt.isNotEmpty) {
-        _persistSessionTokens(
+        await _persistSessionTokens(
           farmJwt: farmJwt,
           refreshToken: refreshToken,
           backendUser: backendUser,
@@ -161,7 +160,7 @@ class AuthService {
       final backendUser = responseData['user'] as Map<String, dynamic>?;
 
       if (farmJwt.isNotEmpty) {
-        _persistSessionTokens(
+        await _persistSessionTokens(
           farmJwt: farmJwt,
           refreshToken: refreshToken,
           backendUser: backendUser,
@@ -198,7 +197,7 @@ class AuthService {
       final backendUser = responseData['user'] as Map<String, dynamic>?;
 
       if (farmJwt.isNotEmpty) {
-        _persistSessionTokens(
+        await _persistSessionTokens(
           farmJwt: farmJwt,
           refreshToken: refreshToken,
           backendUser: backendUser,
@@ -221,29 +220,21 @@ class AuthService {
     await NotificationService.registerForCurrentUser();
   }
 
-  void _persistSessionTokens({
+  Future<void> _persistSessionTokens({
     required String farmJwt,
     required String refreshToken,
     required Map<String, dynamic>? backendUser,
-  }) {
+  }) async {
     final role = backendUser is Map<String, dynamic>
         ? backendUser['role']?.toString().toLowerCase() ?? ''
         : '';
     final normalizedRole = role.isEmpty ? 'user' : role;
 
     if (normalizedRole == 'admin') {
-      // Persist admin session tokens and restore them into FFAppState so
-      // the app-wide RefreshManager and ApiService can detect and refresh
-      // admin tokens when needed. Keep biometric setup skipped for admin.
       FFAppState().accessToken = farmJwt;
       FFAppState().refreshToken = refreshToken;
       FFAppState().isLoggedIn = true;
-      FFAppState().userId = '';
-      FFAppState().firstName = '';
-      FFAppState().userName = '';
-      FFAppState().phone = '';
-      FFAppState().kycStatus = '';
-      FFAppState().emailVerified = false;
+      FFAppState().userId = backendUser?['id']?.toString() ?? '';
       FFAppState().role = normalizedRole;
 
       debugPrint('Admin login detected.');
@@ -251,31 +242,21 @@ class AuthService {
       debugPrint('Access token length: ${farmJwt.length}');
       debugPrint('Refresh token length: ${refreshToken.length}');
       debugPrint('Role: ADMIN');
-      AuthSessionStore.saveAdminSession(
+      await AuthSessionStore.saveAdminSession(
         accessToken: farmJwt,
         refreshToken: refreshToken,
         role: normalizedRole,
         userId: backendUser?['id']?.toString() ?? '',
       );
-      // Also persist into secure storage for cross-layer retrieval.
-      SecureStorageService.writeAccessToken(farmJwt);
-      SecureStorageService.writeRefreshToken(refreshToken);
       debugPrint('Skipping biometric setup.');
       return;
     }
 
     if (normalizedRole == 'super_admin') {
-      // Persist super admin session tokens and restore them into FFAppState
-      // so centralized refresh logic can manage tokens.
       FFAppState().accessToken = farmJwt;
       FFAppState().refreshToken = refreshToken;
       FFAppState().isLoggedIn = true;
-      FFAppState().userId = '';
-      FFAppState().firstName = '';
-      FFAppState().userName = '';
-      FFAppState().phone = '';
-      FFAppState().kycStatus = '';
-      FFAppState().emailVerified = false;
+      FFAppState().userId = backendUser?['id']?.toString() ?? '';
       FFAppState().role = normalizedRole;
 
       debugPrint('Super admin login detected.');
@@ -283,15 +264,12 @@ class AuthService {
       debugPrint('Access token length: ${farmJwt.length}');
       debugPrint('Refresh token length: ${refreshToken.length}');
       debugPrint('Role: SUPER_ADMIN');
-      AuthSessionStore.saveSuperAdminSession(
+      await AuthSessionStore.saveSuperAdminSession(
         accessToken: farmJwt,
         refreshToken: refreshToken,
         role: normalizedRole,
         userId: backendUser?['id']?.toString() ?? '',
       );
-      // Persist securely as well.
-      SecureStorageService.writeAccessToken(farmJwt);
-      SecureStorageService.writeRefreshToken(refreshToken);
       debugPrint('Skipping biometric setup.');
       return;
     }
@@ -307,14 +285,15 @@ class AuthService {
     FFAppState().kycStatus = backendData['kyc_status']?.toString() ?? '';
     FFAppState().emailVerified = backendData['email_verified'] == true;
     FFAppState().role = normalizedRole;
-    AuthSessionStore.saveUserSession(
+    await AuthSessionStore.saveUserSession(
       accessToken: farmJwt,
       refreshToken: refreshToken,
       role: normalizedRole,
       userId: backendData['id']?.toString() ?? '',
     );
 
-    debugPrint('[AuthService] Login completed. Starting background user syncNow.');
+    debugPrint(
+        '[AuthService] Login completed. Starting background user syncNow.');
     Future.microtask(() {
       return AppSessionManager().syncNow().catchError((e) {
         debugPrint('[AuthService] syncNow background refresh failed: $e');
@@ -369,7 +348,7 @@ class AuthService {
 
   /// Log out the user from Supabase and FARM backend, and clear all local auth data.
   Future<void> logout() async {
-    debugPrint('[AUTH] logout explicitly requested');
+    print('LOGOUT CALLED');
     print(StackTrace.current);
     Exception? logoutError;
 
@@ -395,19 +374,7 @@ class AuthService {
     try {
       final activeRole = FFAppState().role;
       await SecureStorageService.clearAuthData();
-      // Clear admin-specific SharedPreferences keys if applicable
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        if (activeRole == 'admin' || activeRole == 'super_admin') {
-          await prefs.remove('adminToken');
-          await prefs.remove('adminRefreshToken');
-          await prefs.remove('adminRole');
-          await prefs.remove('adminName');
-        }
-      } catch (e) {
-        debugPrint('[AuthService] Failed to clear admin prefs: $e');
-      }
-      await FFAppState().clearAuthCredentials('explicit logout');
+      await FFAppState().clearAuthCredentials();
       await FFAppState().clearRoleSession(activeRole);
     } catch (e) {
       debugPrint('Local clear auth data error: $e');
@@ -424,14 +391,16 @@ class AuthService {
     required bool acknowledged,
     required bool confirmDelete,
   }) async {
-    print('DELETE ACCOUNT CALLED');
+    print('LOGOUT CALLED');
     print(StackTrace.current);
     try {
-      await ApiService.deleteAccount(body: {
-        'password': password,
-        'acknowledged': acknowledged,
-        'confirm_delete': confirmDelete,
-      });
+      await ApiService.deleteAccount(
+        body: {
+          'password': password,
+          'acknowledged': acknowledged,
+          'confirm_delete': confirmDelete,
+        },
+      );
     } catch (e) {
       throw Exception('Account deletion failed: $e');
     }
@@ -444,7 +413,7 @@ class AuthService {
 
     try {
       await SecureStorageService.clearAuthData();
-      await FFAppState().clearAuthCredentials('logout cleanup');
+      await FFAppState().clearAuthCredentials();
     } catch (e) {
       debugPrint('Local cleanup error during account deletion: $e');
     }
@@ -575,10 +544,4 @@ class AuthService {
   /// Listen to auth state changes.
   /// Returns a stream that emits AuthState when authentication changes.
   Stream<AuthState> get authStateChanges => _supabase.auth.onAuthStateChange;
-
-  /// Helper to normalize various backend login responses for tests and callers.
-  /// Returns the response map as-is by default; override if normalization required.
-  static Map<String, dynamic> normalizeLoginResponse(Map<String, dynamic> resp) {
-    return resp;
-  }
 }

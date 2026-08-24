@@ -235,12 +235,12 @@ class _AllTransactionsWidgetState extends State<AllTransactionsWidget> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                if (_loading)
+                if (_loading && _transactions.isEmpty)
                   const Center(
                       child: Padding(
                           padding: EdgeInsets.symmetric(vertical: 24),
                           child: CircularProgressIndicator()))
-                else if (_error.isNotEmpty)
+                else if (_error.isNotEmpty && _transactions.isEmpty)
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16),

@@ -134,11 +134,6 @@ class _DashboardWidgetState extends State<DashboardWidget>
       return;
     }
 
-    setState(() {
-      isBalanceLoading = true;
-      isTransactionsLoading = true;
-    });
-
     try {
       await AppSessionManager().syncNow(
         profileTimeoutSeconds: 5,
@@ -182,6 +177,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
     try {
       final response = await ApiService.getWallet();
       final data = response['data'] as Map<String, dynamic>? ?? response;
+      if (!mounted) return;
       setState(() {
         walletBalance = double.tryParse((data['balance'] ?? data['available_balance'] ?? 0).toString()) ?? 0.0;
         kesEquivalent = double.tryParse((data['kes_equivalent'] ?? 0).toString()) ?? 0.0;
@@ -189,10 +185,6 @@ class _DashboardWidgetState extends State<DashboardWidget>
       });
     } catch (e) {
       print('BALANCE ERROR: $e');
-
-      setState(() {
-        isBalanceLoading = false;
-      });
     }
   }
 
@@ -224,13 +216,10 @@ class _DashboardWidgetState extends State<DashboardWidget>
     try {
       final response = await ApiService.getTransactions(page: 1, limit: 5, timeoutSeconds: 10);
       final items = response['data'] as List? ?? [];
+      if (!mounted) return;
       setState(() { transactions = items; isTransactionsLoading = false; });
     } catch (e) {
       print('TRANSACTIONS ERROR: $e');
-
-      setState(() {
-        isTransactionsLoading = false;
-      });
     }
   }
 
@@ -238,7 +227,6 @@ class _DashboardWidgetState extends State<DashboardWidget>
     if (!mounted) return;
 
     setState(() {
-      isNotificationsLoading = true;
       notificationsError = null;
     });
 
@@ -287,7 +275,6 @@ class _DashboardWidgetState extends State<DashboardWidget>
       if (!mounted) return;
       setState(() {
         notificationsError = e.toString();
-        isNotificationsLoading = false;
       });
     }
   }
@@ -384,9 +371,12 @@ class _DashboardWidgetState extends State<DashboardWidget>
   Future<void> fetchGrowthHistory() async {
     if (!mounted) return;
 
-    setState(() {
-      isGrowthLoading = true;
-    });
+    final hasExistingGrowth = growthYValues.isNotEmpty;
+    if (!hasExistingGrowth) {
+      setState(() {
+        isGrowthLoading = true;
+      });
+    }
 
     try {
       final response = await ApiService.getGrowthHistory(days: 7);
@@ -444,10 +434,6 @@ class _DashboardWidgetState extends State<DashboardWidget>
       if (!mounted) return;
 
       setState(() {
-        growthYValues = [];
-        growthXLabels = [];
-        growthPercentage = 0.0;
-        growthChartMaxY = 72.0;
         isGrowthLoading = false;
       });
     }
