@@ -1,2 +1,10 @@
 build/
 .env
+.dart_tool/
+build/
+android/.kotlin/
+*.log
+replay_pid*
+hs_err_pid*
+.flutter-plugins
+.flutter-plugins-dependencies
