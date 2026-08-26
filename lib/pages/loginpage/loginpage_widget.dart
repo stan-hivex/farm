@@ -13,6 +13,7 @@ import '/services/secure_storage_service.dart';
 import '/services/auth/auth_service.dart';
 import '/services/auth/biometric_login_service.dart';
 import '/pages/forgot_password_page/forgot_password_page_widget.dart';
+import '/pages/otppage/otppage_widget.dart';
 
 /// Create a premium black and white fintech login page for FARM App.
 ///
@@ -148,10 +149,14 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
         ? response['data'] as Map<String, dynamic>
         : response['data'] is Map
             ? Map<String, dynamic>.from(response['data'] as Map)
-            : <String, dynamic>{};
+          : response;
 
-    final accessToken = (payload['access_token'] as String? ?? '').trim();
-    final refreshToken = (payload['refresh_token'] as String? ?? '').trim();
+      final accessToken = (payload['access_token'] as String? ??
+          payload['farmJwt'] as String? ?? '')
+        .trim();
+      final refreshToken = (payload['refresh_token'] as String? ??
+          payload['refreshToken'] as String? ?? '')
+        .trim();
     final data = payload['user'] is Map<String, dynamic>
         ? payload['user'] as Map<String, dynamic>
         : payload['user'] is Map
@@ -272,8 +277,19 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
         countryCode: _selectedCountry['code'],
       );
 
-      // Backend handles all authentication - no OTP verification needed
-      // Mobile and web flows are now unified
+      if (response['requiresPhoneVerification'] == true) {
+        final pendingLoginId = response['pendingLoginId']?.toString() ?? '';
+        final verifiedPhone = response['phone']?.toString() ?? identifier;
+        if (pendingLoginId.isEmpty) {
+          throw Exception('Unable to start phone verification. Please try again.');
+        }
+        if (!mounted) return;
+        context.go(
+          '${OtppageWidget.routePath}?pendingLoginId=${Uri.encodeComponent(pendingLoginId)}&phone=${Uri.encodeComponent(verifiedPhone)}',
+        );
+        return;
+      }
+
       await _finalizeSuccessfulLogin(response);
     } catch (e) {
       if (mounted) {

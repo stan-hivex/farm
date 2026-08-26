@@ -213,6 +213,15 @@ GoRouter createRouter(
           builder: (context, params) => LoginpageWidget(),
         ),
         FFRoute(
+          name: OtppageWidget.routeName,
+          path: OtppageWidget.routePath,
+          builder: (context, params) => OtppageWidget(
+            pendingLoginId:
+                params.getParam('pendingLoginId', ParamType.String) ?? '',
+            phone: params.getParam('phone', ParamType.String) ?? '',
+          ),
+        ),
+        FFRoute(
           name: 'AdminShell',
           path: '/admin',
           builder: (context, params) => const AdminShell(),

@@ -211,6 +211,7 @@ class RouteGuardService {
       '/reset-password',
       '/verify-email',
       '/otp',
+      '/otppage',
     ];
 
     return publicPaths.contains(path) ||

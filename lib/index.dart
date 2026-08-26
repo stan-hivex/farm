@@ -18,6 +18,7 @@ export '/pages/kyc/kycpage_widget.dart' show KycpageWidget;
 export '/pages/profile_settings/profile_settings_widget.dart'
     show ProfileSettingsWidget;
 export '/pages/loginpage/loginpage_widget.dart' show LoginpageWidget;
+export '/pages/otppage/otppage_widget.dart' show OtppageWidget;
 export '/pages/registerpage/registerpage_widget.dart' show RegisterpageWidget;
 export '/pages/depositpage/depositpage_widget.dart' show DepositpageWidget;
 export '/pages/withdrawpage/withdrawpage_widget.dart' show WithdrawpageWidget;

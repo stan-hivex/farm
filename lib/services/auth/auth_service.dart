@@ -113,7 +113,7 @@ class AuthService {
       final refreshToken = responseData['refresh_token'] as String? ?? '';
       final backendUser = responseData['user'] as Map<String, dynamic>?;
 
-      // Backend handles all authentication directly - no intermediate verification needed
+      // The backend decides whether this account needs phone verification.
       if (farmJwt.isNotEmpty) {
         await _persistSessionTokens(
           farmJwt: farmJwt,
@@ -130,6 +130,9 @@ class AuthService {
         'success': true,
         'farmJwt': farmJwt,
         'refreshToken': refreshToken,
+        'requiresPhoneVerification': responseData['requiresPhoneVerification'] == true,
+        'pendingLoginId': responseData['pendingLoginId']?.toString() ?? '',
+        'phone': responseData['phone']?.toString() ?? '',
         'user': backendUser,
         'loginMethod': 'backend',
       };
@@ -183,11 +186,13 @@ class AuthService {
   /// Verify phone with backend using the Firebase ID token.
   Future<Map<String, dynamic>> verifyPhone({
     required String firebaseIdToken,
+    required String pendingLoginId,
     String? turnstileToken,
   }) async {
     try {
       final response = await ApiService.verifyPhone(
         firebaseIdToken: firebaseIdToken,
+        pendingLoginId: pendingLoginId,
         turnstileToken: turnstileToken,
       );
 

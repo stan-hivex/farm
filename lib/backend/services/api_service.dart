@@ -207,16 +207,16 @@ class ApiService {
 
   static Future<Map<String, dynamic>> verifyPhone({
     required String firebaseIdToken,
+    required String pendingLoginId,
     String? turnstileToken,
   }) {
     final body = attachTurnstileToken(
       {
         'firebaseIdToken': firebaseIdToken,
+        'pendingLoginId': pendingLoginId,
       },
       turnstileToken: turnstileToken,
     );
-
-    debugPrint(jsonEncode(body));
 
     return _request(
       method: 'POST',

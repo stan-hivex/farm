@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth_platform_interface/firebase_auth_platform_interface.dart' as auth_platform;
 import 'package:flutter/foundation.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
@@ -10,6 +11,7 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/core/theme_extensions.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import '/services/auth/auth_service.dart';
+import '/pages/superadmin/superadmin_dashboard_page.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -23,14 +25,12 @@ class OtppageWidget extends StatefulWidget {
   const OtppageWidget({
     super.key,
     required this.phone,
-    this.identifier = '',
-    this.password = '',
+    required this.pendingLoginId,
     this.countryCode,
   });
 
   final String phone;
-  final String identifier;
-  final String password;
+  final String pendingLoginId;
   final String? countryCode;
 
   static String routeName = 'otppage';
@@ -54,6 +54,7 @@ class _OtppageWidgetState extends State<OtppageWidget> {
   static bool _sharedVerifierRendered = false;
   bool _otpRequestInProgress = false;
   bool _verificationStarted = false;
+  bool _isCompletingVerification = false;
 
   Timer? _fallbackTimer;
   String _statusTitle = 'Verifying your phone number...';
@@ -61,24 +62,14 @@ class _OtppageWidgetState extends State<OtppageWidget> {
   bool _showManualOtpField = false;
   bool _isVerifying = true;
   String? _verificationId;
+  int? _resendToken;
   int _secondsRemaining = 30;
 
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => OtppageModel());
-
-    if (kIsWeb) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        if (FFAppState().isLoggedIn) {
-          context.goNamed('Dashboard');
-        } else {
-          context.goNamed('loginpage');
-        }
-      });
-      return;
-    }
+    otpController.addListener(_onOtpChanged);
 
     _startFallbackTimer();
 
@@ -128,9 +119,16 @@ class _OtppageWidgetState extends State<OtppageWidget> {
       // clear any local reference only
       _recaptchaVerifier = null;
     } catch (_) {}
+    otpController.removeListener(_onOtpChanged);
     otpController.dispose();
     _model.dispose();
     super.dispose();
+  }
+
+  void _onOtpChanged() {
+    if (otpController.text.trim().length == 6 && !_isCompletingVerification) {
+      _verifyManualCode();
+    }
   }
 
   void _startFallbackTimer() {
@@ -161,20 +159,13 @@ class _OtppageWidgetState extends State<OtppageWidget> {
   Future<void> _startPhoneVerification() async {
     if (!mounted) return;
 
-    if (kIsWeb) {
-      debugPrint('[OTP] Web route opened; skipping Firebase OTP flow');
-      if (mounted) {
-        if (FFAppState().isLoggedIn) {
-          context.goNamed('Dashboard');
-        } else {
-          context.goNamed('loginpage');
-        }
-      }
-      return;
-    }
-
-    debugPrint('[OTP] platform=${getBrowserPlatformLabel()} hostname=${getBrowserHostname()} phone=${widget.phone}');
-    debugPrint('[OTP] Starting Firebase phone verification');
+    final firebaseInitialized = Firebase.apps.isNotEmpty;
+    final normalizedPhone = _normalizePhoneNumberForFirebase(widget.phone);
+    debugPrint('[PHONE AUTH] Starting Firebase phone verification');
+    debugPrint('[PHONE AUTH] platform = ${kIsWeb ? 'Web' : defaultTargetPlatform.name}');
+    debugPrint('[PHONE AUTH] Firebase initialized = $firebaseInitialized');
+    debugPrint('[PHONE AUTH] phone = ${_maskedPhone(normalizedPhone)}');
+    debugPrint('[PHONE AUTH] pendingLoginId exists = ${widget.pendingLoginId.isNotEmpty}');
 
     setState(() {
       _isVerifying = true;
@@ -195,7 +186,7 @@ class _OtppageWidgetState extends State<OtppageWidget> {
         _webConfirmationResult = null;
 
         final firebasePhone = _normalizePhoneNumberForFirebase(
-          widget.identifier.isNotEmpty ? widget.identifier : widget.phone,
+          widget.phone,
           fallbackCountryCode: widget.countryCode,
         );
 
@@ -204,7 +195,7 @@ class _OtppageWidgetState extends State<OtppageWidget> {
           throw Exception('Phone number was empty after normalization');
         }
 
-        debugPrint('[OTP] web phone auth using RecaptchaVerifier');
+        debugPrint('[PHONE AUTH] Web phone auth using RecaptchaVerifier');
         debugPrint('[OTP] normalized phone for Firebase=$firebasePhone');
         debugPrint('[OTP] hostname=${getBrowserHostname()} platform=${getBrowserPlatformLabel()}');
 
@@ -240,18 +231,12 @@ class _OtppageWidgetState extends State<OtppageWidget> {
         }
 
         try {
-          // prevent accidental duplicate API calls
-          if (_otpRequestInProgress) {
-            debugPrint('[OTP] signInWithPhoneNumber skipped: already in progress');
-          } else {
-            _otpRequestInProgress = true;
-            debugPrint('[OTP] Calling Firebase signInWithPhoneNumber');
-            _webConfirmationResult = await FirebaseAuth.instance.signInWithPhoneNumber(
-              firebasePhone,
-              _recaptchaVerifier!,
-            );
-            debugPrint('[OTP] Firebase SMS request finished confirmationResult=${_webConfirmationResult != null}');
-          }
+          debugPrint('[OTP] Calling Firebase signInWithPhoneNumber');
+          _webConfirmationResult = await FirebaseAuth.instance.signInWithPhoneNumber(
+            firebasePhone,
+            _recaptchaVerifier!,
+          );
+          debugPrint('[OTP] Firebase SMS request finished confirmationResult=${_webConfirmationResult != null}');
         } on FirebaseAuthException catch (e, st) {
           debugPrint('[FirebaseAuthException] code=${e.code} message=${e.message}');
           debugPrintStack(label: '[FirebaseAuthException] stackTrace', stackTrace: st);
@@ -301,15 +286,18 @@ class _OtppageWidgetState extends State<OtppageWidget> {
 
       // Mobile platforms
       await FirebaseAuth.instance.verifyPhoneNumber(
-        phoneNumber: widget.phone,
+        phoneNumber: normalizedPhone,
+        forceResendingToken: _resendToken,
         verificationCompleted: (PhoneAuthCredential credential) async {
-          debugPrint('[OTP] mobile verificationCompleted with credential');
+          debugPrint('[PHONE AUTH] verificationCompleted');
+          debugPrint('[PHONE AUTH] credential received = ${credential.smsCode != null || credential.providerId.isNotEmpty}');
           if (!mounted) return;
           await _completeFirebaseVerification(credential);
         },
         verificationFailed: (FirebaseAuthException error) async {
-          debugPrint('[FirebaseAuthException] code=${error.code} message=${error.message}');
-          debugPrintStack(label: '[FirebaseAuthException] stackTrace', stackTrace: StackTrace.current);
+          debugPrint('[PHONE AUTH] verificationFailed');
+          debugPrint('[PHONE AUTH] code = ${error.code}');
+          debugPrint('[PHONE AUTH] message = ${error.message}');
           if (!mounted) return;
           setState(() {
             _isVerifying = false;
@@ -319,16 +307,22 @@ class _OtppageWidgetState extends State<OtppageWidget> {
           });
         },
         codeSent: (String verificationId, int? resendToken) async {
-          debugPrint('[OTP] mobile codeSent verificationId=$verificationId resendToken=$resendToken');
+          debugPrint('[PHONE AUTH] codeSent');
+          debugPrint('[PHONE AUTH] verificationId received = ${verificationId.isNotEmpty}');
+          debugPrint('[PHONE AUTH] resendToken received = ${resendToken != null}');
+          debugPrint('[PHONE AUTH] codeSent SUCCESS - Firebase accepted SMS request');
           if (!mounted) return;
           setState(() {
             _verificationId = verificationId;
+            _resendToken = resendToken;
             _statusTitle = 'SMS sent';
             _statusMessage = 'We are waiting for the code to arrive automatically.';
+            _showManualOtpField = true;
           });
         },
         codeAutoRetrievalTimeout: (String verificationId) {
-          debugPrint('[OTP] mobile codeAutoRetrievalTimeout verificationId=$verificationId');
+          debugPrint('[PHONE AUTH] codeAutoRetrievalTimeout');
+          debugPrint('[PHONE AUTH] verificationId received = ${verificationId.isNotEmpty}');
           if (!mounted) return;
           setState(() {
             _verificationId = verificationId;
@@ -341,8 +335,8 @@ class _OtppageWidgetState extends State<OtppageWidget> {
       );
     } catch (e) {
       if (e is FirebaseAuthException) {
-        debugPrint('[FirebaseAuthException] code=${e.code} message=${e.message}');
-        debugPrintStack(label: '[FirebaseAuthException] stackTrace', stackTrace: StackTrace.current);
+        debugPrint('[PHONE AUTH] exception code = ${e.code}');
+        debugPrint('[PHONE AUTH] exception message = ${e.message}');
       } else {
         debugPrint('[OTP] startPhoneVerification failed: $e');
       }
@@ -357,7 +351,9 @@ class _OtppageWidgetState extends State<OtppageWidget> {
   }
 
   Future<void> _completeFirebaseVerification(PhoneAuthCredential credential) async {
-    if (!mounted) return;
+    if (!mounted || _isCompletingVerification) return;
+
+    _isCompletingVerification = true;
 
     setState(() {
       _isVerifying = true;
@@ -378,8 +374,9 @@ class _OtppageWidgetState extends State<OtppageWidget> {
       // Use authorized backend verify endpoint (password was already used)
       final response = await AuthService().verifyPhone(
         firebaseIdToken: firebaseToken,
+        pendingLoginId: widget.pendingLoginId,
       );
-      debugPrint('[OTP] completeFirebaseVerification backend verifyPhone response=${response.toString()}');
+      debugPrint('[PHONE AUTH] /api/auth/verify-phone reached = true');
 
       if (!mounted) return;
 
@@ -394,15 +391,18 @@ class _OtppageWidgetState extends State<OtppageWidget> {
 
         Future.delayed(const Duration(milliseconds: 800), () {
           if (!mounted) return;
-          context.goNamed('Dashboard');
+          _navigateAfterLogin(response);
         });
       } else {
-        debugPrint('[OTP] completeFirebaseVerification failed response=${response.toString()}');
         throw Exception(response['message'] ?? 'Unable to complete login.');
       }
     } catch (e) {
+      try {
+        await FirebaseAuth.instance.signOut();
+      } catch (_) {}
       if (!mounted) return;
       setState(() {
+        _isCompletingVerification = false;
         _isVerifying = false;
         _statusTitle = 'Verification failed';
         _statusMessage = e.toString();
@@ -415,6 +415,8 @@ class _OtppageWidgetState extends State<OtppageWidget> {
   }
 
   Future<void> _verifyManualCode() async {
+    if (_isCompletingVerification) return;
+
     final otp = otpController.text.trim();
 
     if (otp.length != 6) {
@@ -425,12 +427,14 @@ class _OtppageWidgetState extends State<OtppageWidget> {
     }
 
     if (kIsWeb) {
+      _isCompletingVerification = true;
       debugPrint('[OTP] Starting Firebase phone verification via confirmation.confirm');
       debugPrint('[OTP] verifyManualCode web otp=$otp');
       try {
         final confirmation = _webConfirmationResult;
         if (confirmation == null) {
           debugPrint('[OTP] verifyManualCode missing confirmation result');
+          _isCompletingVerification = false;
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Confirmation result missing. Please resend code.')));
           return;
         }
@@ -442,6 +446,7 @@ class _OtppageWidgetState extends State<OtppageWidget> {
 
         final response = await AuthService().verifyPhone(
           firebaseIdToken: firebaseToken,
+          pendingLoginId: widget.pendingLoginId,
         );
 
         if (!mounted) return;
@@ -449,17 +454,21 @@ class _OtppageWidgetState extends State<OtppageWidget> {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Phone verified. Logging you in...'), backgroundColor: Colors.green));
           Future.delayed(const Duration(milliseconds: 800), () {
             if (!mounted) return;
-            context.goNamed('Dashboard');
+            _navigateAfterLogin(response);
           });
           return;
         }
         throw Exception(response['message'] ?? 'Unable to complete login.');
       } catch (e) {
+        try {
+          await FirebaseAuth.instance.signOut();
+        } catch (_) {}
         if (e is FirebaseAuthException) {
           debugPrint('[Firebase ERROR] verifyManualCode code=${e.code} message=${e.message}');
         }
         if (!mounted) return;
         setState(() {
+          _isCompletingVerification = false;
           _isVerifying = false;
           _statusTitle = 'Verification failed';
           _statusMessage = _friendlyError(e);
@@ -470,12 +479,31 @@ class _OtppageWidgetState extends State<OtppageWidget> {
     }
 
     // Mobile fallback
+    if (_verificationId == null || _verificationId!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Verification session expired. Request a new code.')),
+      );
+      return;
+    }
     final credential = PhoneAuthProvider.credential(
       verificationId: _verificationId!,
       smsCode: otp,
     );
 
     await _completeFirebaseVerification(credential);
+  }
+
+  void _navigateAfterLogin(Map<String, dynamic> response) {
+    final payload = response['data'] is Map ? response['data'] as Map : response;
+    final user = payload['user'] is Map ? payload['user'] as Map : const {};
+    final role = user['role']?.toString().toLowerCase() ?? 'user';
+    if (role == 'super_admin') {
+      context.go(SuperadminDashboardPage.routePath);
+    } else if (role == 'admin') {
+      context.go('/admin');
+    } else {
+      context.goNamed('Dashboard');
+    }
   }
 
   String _friendlyError(Object e) {
@@ -512,10 +540,6 @@ class _OtppageWidgetState extends State<OtppageWidget> {
 
   @override
   Widget build(BuildContext context) {
-    if (kIsWeb) {
-      return const SizedBox.shrink();
-    }
-
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
@@ -583,7 +607,7 @@ class _OtppageWidgetState extends State<OtppageWidget> {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  widget.phone,
+                  _maskedPhone(widget.phone),
                   style: FlutterFlowTheme.of(context).bodyLarge.override(
                         fontWeight: FontWeight.bold,
                       ),
@@ -598,6 +622,7 @@ class _OtppageWidgetState extends State<OtppageWidget> {
                   TextField(
                     controller: otpController,
                     keyboardType: TextInputType.number,
+                    autofillHints: const [AutofillHints.oneTimeCode],
                     textAlign: TextAlign.center,
                     maxLength: 6,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -650,5 +675,11 @@ class _OtppageWidgetState extends State<OtppageWidget> {
         ),
       ),
     );
+  }
+
+  String _maskedPhone(String value) {
+    final phone = value.trim();
+    if (phone.length <= 5) return phone;
+    return '${phone.substring(0, 4)}${'*' * (phone.length - 7)}${phone.substring(phone.length - 3)}';
   }
 }
