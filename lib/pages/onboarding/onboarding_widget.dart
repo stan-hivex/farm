@@ -32,6 +32,7 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
   bool _isCheckingAuth = true;
+  bool _showMarketing = false;
   bool _showAuthActions = false;
 
   @override
@@ -63,12 +64,18 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
 
     setState(() {
       _isCheckingAuth = true;
+      _showMarketing = false;
       _showAuthActions = false;
     });
 
-    // Always show onboarding for a short duration (2-4s) before proceeding.
-    const onboardingDisplay = Duration(milliseconds: 3000);
-    await Future.delayed(onboardingDisplay);
+    const logoDisplay = Duration(seconds: 3);
+    const marketingDisplay = Duration(seconds: 5);
+    await Future.delayed(logoDisplay);
+
+    if (!mounted) return;
+    setState(() => _showMarketing = true);
+
+    await Future.delayed(marketingDisplay);
 
     if (!mounted) return;
 
@@ -132,8 +139,36 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
         : DashboardWidget.routePath;
   }
 
+  Widget _buildLogoSplash(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Center(
+        child: Container(
+          width: 96.0,
+          height: 96.0,
+          decoration: BoxDecoration(
+            color: theme.primary,
+            borderRadius: BorderRadius.circular(24.0),
+          ),
+          alignment: Alignment.center,
+          child: Image.asset(
+            'assets/images/app_logo.png',
+            width: 68.0,
+            height: 68.0,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isCheckingAuth && !_showMarketing) {
+      return _buildLogoSplash(context);
+    }
+
     final theme = FlutterFlowTheme.of(context);
     final primaryTextColor = const Color(0xFF111111);
     final secondaryTextColor = const Color(0xFF4B5563);

@@ -11,6 +11,7 @@ import '/utils/merchant_qr_utils.dart';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:ui' as ui;
 
 import 'merchant_dashboard_model.dart';
 
@@ -132,10 +133,9 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
           });
           return;
         }
-        setState(() {
-          loading = false;
-        });
-        showError(message);
+        if (message.isNotEmpty) {
+          showError(message);
+        }
       }
     } catch (e) {
       setState(() {
@@ -347,9 +347,14 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
         throw Exception('QR payload could not be decoded');
       }
 
-      final fileName = 'farm_merchant_qr_${DateTime.now().millisecondsSinceEpoch}.png';
+      final merchantName = (merchant?['business_name'] ?? 'merchant')
+          .toString()
+          .trim();
+      final labeledBytes = await _addMerchantNameToQr(bytes, merchantName);
+      final fileName =
+          'farm_${_safeFileName(merchantName)}_qr_${DateTime.now().millisecondsSinceEpoch}.png';
       final result = await QrDownloadService.instance.downloadQr(
-        Uint8List.fromList(bytes),
+        labeledBytes,
         fileName: fileName,
       );
 
@@ -387,10 +392,69 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
         throw Exception('QR payload could not be decoded');
       }
 
-      await QrDownloadService.instance.shareQr(Uint8List.fromList(bytes));
+        final merchantName = (merchant?['business_name'] ?? 'merchant')
+          .toString()
+          .trim();
+        final labeledBytes = await _addMerchantNameToQr(bytes, merchantName);
+        await QrDownloadService.instance.shareQr(labeledBytes);
     } catch (e) {
       showError('Failed to share QR code: ${e.toString()}');
     }
+  }
+
+  Future<Uint8List> _addMerchantNameToQr(
+    List<int> qrBytes,
+    String merchantName,
+  ) async {
+    final codec = await ui.instantiateImageCodec(Uint8List.fromList(qrBytes));
+    final frame = await codec.getNextFrame();
+    final source = frame.image;
+    const bannerHeight = 96.0;
+    final output = ui.PictureRecorder();
+    final canvas = Canvas(output);
+    final width = source.width.toDouble();
+    final height = source.height.toDouble() + bannerHeight;
+
+    canvas.drawColor(Colors.white, BlendMode.src);
+    canvas.drawImageRect(
+      source,
+      Rect.fromLTWH(0, 0, source.width.toDouble(), source.height.toDouble()),
+      Rect.fromLTWH(0, bannerHeight, width, source.height.toDouble()),
+      Paint(),
+    );
+
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: merchantName.isEmpty ? 'Merchant' : merchantName,
+        style: const TextStyle(
+          color: Colors.black,
+          fontSize: 30,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      textAlign: TextAlign.center,
+      maxLines: 2,
+      ellipsis: '...',
+      textDirection: ui.TextDirection.ltr,
+    )..layout(maxWidth: width - 32);
+    textPainter.paint(
+      canvas,
+      Offset((width - textPainter.width) / 2, (bannerHeight - textPainter.height) / 2),
+    );
+
+    final image = await output.endRecording().toImage(width.ceil(), height.ceil());
+    final data = await image.toByteData(format: ui.ImageByteFormat.png);
+    source.dispose();
+    image.dispose();
+    if (data == null) throw Exception('Unable to encode labeled QR code');
+    return data.buffer.asUint8List();
+  }
+
+  String _safeFileName(String value) {
+    final sanitized = value
+        .replaceAll(RegExp(r'[^A-Za-z0-9]+'), '_')
+        .replaceAll(RegExp(r'^_+|_+$'), '');
+    return sanitized.isEmpty ? 'merchant' : sanitized;
   }
 
   Future<void> _openQrKit() async {

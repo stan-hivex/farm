@@ -95,6 +95,16 @@ class _MerchantSalesWidgetState extends State<MerchantSalesWidget> {
                   Column(
                     children: sales.map((tx) {
                       final amount = tx['amount']?.toString() ?? '0';
+                      final isOutgoing = tx['is_outgoing'] == true;
+                      final isDark = Theme.of(context).brightness == Brightness.dark;
+                      final bubbleColor = isDark
+                        ? const Color(0xFF4A4A4A)
+                        : isOutgoing
+                          ? Colors.black
+                          : Colors.white;
+                      final textColor = isDark || isOutgoing
+                        ? Colors.white
+                        : Colors.black;
                       final payerUsername = tx['sender_username']?.toString().trim().isNotEmpty == true
                           ? '@${tx['sender_username']}'
                           : tx['customer_name']?.toString().trim().isNotEmpty == true
@@ -108,21 +118,53 @@ class _MerchantSalesWidgetState extends State<MerchantSalesWidget> {
                           : payerUsername;
                       final status = tx['status']?.toString() ?? 'Unknown';
                       final date = _formatDate(tx['created_at'] ?? tx['createdAt'] ?? tx['timestamp']);
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        child: Padding(
+                      return Align(
+                        alignment: isOutgoing
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
+                        child: Container(
+                          width: MediaQuery.sizeOf(context).width * 0.82,
+                          margin: const EdgeInsets.only(bottom: 12),
                           padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: bubbleColor,
+                            borderRadius: BorderRadius.circular(16),
+                            border: isDark || isOutgoing
+                                ? null
+                                : Border.all(color: Colors.black12),
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(title, style: theme.titleSmall.copyWith(fontWeight: FontWeight.bold)),
+                              Text(
+                                title,
+                                style: theme.titleSmall.copyWith(
+                                  color: textColor,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                               const SizedBox(height: 8),
-                              Text('Amount: $amount FARM', style: theme.bodyMedium),
+                              Text(
+                                'Amount: $amount FARM',
+                                style: theme.bodyMedium.copyWith(color: textColor),
+                              ),
                               const SizedBox(height: 4),
-                              Text('Status: $status', style: theme.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
+                              Text(
+                                'Status: $status',
+                                style: theme.bodyMedium.copyWith(
+                                  color: textColor,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                               const SizedBox(height: 4),
-                              Text(date, style: theme.bodySmall.copyWith(color: theme.secondaryText)),
+                              Text(
+                                date,
+                                style: theme.bodySmall.copyWith(
+                                  color: isDark || isOutgoing
+                                      ? Colors.white70
+                                      : Colors.black54,
+                                ),
+                              ),
                             ],
                           ),
                         ),
