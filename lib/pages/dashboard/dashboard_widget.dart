@@ -231,28 +231,15 @@ class _DashboardWidgetState extends State<DashboardWidget>
     });
 
     try {
-      final items = <Map<String, dynamic>>[];
-      var page = 1;
-      while (true) {
-        final response = await ApiService.getNotifications(
-          page: page,
-          limit: 100,
-        );
-        final rawNotifications = response['data'];
-        if (rawNotifications is! List) break;
-        items.addAll(
-          rawNotifications.map((item) => item is Map<String, dynamic>
-              ? item
-              : Map<String, dynamic>.from(item as Map)),
-        );
-        final meta = response['meta'];
-        final lastPage = meta is Map
-            ? int.tryParse(meta['last_page']?.toString() ?? '') ?? page
-            : page;
-        if (page >= lastPage || rawNotifications.isEmpty) break;
-        page++;
-      }
-      final parsed = items;
+      final response = await ApiService.getNotifications(page: 1, limit: 20);
+      final rawNotifications = response['data'];
+      final parsed = rawNotifications is List
+          ? rawNotifications
+              .map((item) => item is Map<String, dynamic>
+                  ? item
+                  : Map<String, dynamic>.from(item as Map))
+              .toList()
+          : <Map<String, dynamic>>[];
       final unread = parsed.where((item) {
         final read = item['read'] is bool
             ? item['read'] as bool
