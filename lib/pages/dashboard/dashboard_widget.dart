@@ -1,5 +1,6 @@
 import 'dart:async';
 // Removed unused import
+import 'package:easy_localization/easy_localization.dart';
 import '/backend/services/api_service.dart';
 import '/components/quick_action/quick_action_widget.dart';
 import '/components/transaction_item/transaction_item_widget.dart';
@@ -298,14 +299,14 @@ class _DashboardWidgetState extends State<DashboardWidget>
           );
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Transaction successful")),
+              SnackBar(content: Text('dashboard.transaction_successful'.tr())),
             );
           }
           return true;
         } catch (e) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text("Transaction failed: ${e.toString().replaceFirst('Exception: ', '')}")),
+              SnackBar(content: Text('dashboard.transaction_failed'.tr() + ': ${e.toString().replaceFirst('Exception: ', '')}' )),
             );
           }
         }
@@ -314,7 +315,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
       if (pin.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("PIN is required to authorize transaction")),
+            SnackBar(content: Text('dashboard.pin_required'.tr())),
           );
         }
         return false;

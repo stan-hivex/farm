@@ -1,8 +1,320 @@
 {
-  "settings": "Configuración",
-  "language": "Idioma",
-  "notifications": "Notificaciones",
-  "support": "Soporte",
-  "save": "Guardar",
-  "welcome": "Bienvenido"
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "close": "Cerrar",
+    "confirm": "Confirmar",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "skip": "Omitir",
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito",
+    "warning": "Advertencia",
+    "info": "Información",
+    "yes": "Sí",
+    "no": "No",
+    "logout": "Cerrar sesión",
+    "signin": "Iniciar sesión",
+    "signup": "Registrarse",
+    "register": "Registrarse"
+  },
+  "language": {
+    "label": "Idioma",
+    "select": "Seleccionar idioma",
+    "english": "English",
+    "swahili": "Kiswahili",
+    "french": "Français",
+    "spanish": "Español",
+    "arabic": "العربية",
+    "change_success": "Idioma cambiado exitosamente"
+  },
+  "settings": {
+    "title": "Configuración",
+    "personal_information": "Información Personal",
+    "preferences": "Preferencias",
+    "security": "Seguridad",
+    "privacy": "Privacidad",
+    "about": "Acerca de",
+    "email": "Dirección de Correo Electrónico",
+    "phone": "Número de Teléfono",
+    "kyc_status": "Estado KYC",
+    "dark_mode": "Modo Oscuro",
+    "light_theme": "Tema claro habilitado",
+    "dark_theme": "Tema oscuro habilitado",
+    "biometrics": "Habilitar Biometría",
+    "biometrics_enabled": "Face ID / Huella digital activa",
+    "biometrics_disabled": "Autenticación biométrica deshabilitada",
+    "biometric_lock_timeout": "Tiempo de espera de bloqueo biométrico",
+    "unlock_after": "Desbloquear después de",
+    "notifications": "Configuración de Notificaciones",
+    "privacy_policy": "Política de Privacidad",
+    "terms_of_service": "Términos de Servicio",
+    "support": "Soporte y Centro de Ayuda"
+  },
+  "security": {
+    "title": "Seguridad y PIN",
+    "loading": "Cargando estado de seguridad...",
+    "locked": "Cuenta Bloqueada",
+    "pin_configured": "PIN ya configurado",
+    "no_pin": "Sin PIN Configurado",
+    "change_pin": "Cambiar PIN",
+    "forgot_pin": "PIN Olvidado",
+    "biometric_enabled": "Biometría habilitada",
+    "biometric_disabled": "Biometría deshabilitada"
+  },
+  "auth": {
+    "login": {
+      "title": "Iniciar sesión",
+      "phone": "Número de Teléfono",
+      "password": "Contraseña",
+      "button": "Iniciar sesión",
+      "no_account": "¿No tiene una cuenta?",
+      "forgot_password": "¿Olvidó la contraseña?"
+    },
+    "register": {
+      "title": "Registrarse",
+      "first_name": "Nombre",
+      "last_name": "Apellido",
+      "email": "Dirección de Correo Electrónico",
+      "phone": "Número de Teléfono",
+      "password": "Contraseña",
+      "confirm_password": "Confirmar Contraseña",
+      "terms": "Acepto los Términos de Servicio",
+      "button": "Registrarse",
+      "have_account": "¿Ya tiene una cuenta?"
+    },
+    "otp": {
+      "title": "Verificar OTP",
+      "message": "Ingrese el OTP enviado a su teléfono",
+      "code": "Código OTP",
+      "verify": "Verificar",
+      "resend": "Reenviar OTP"
+    },
+    "invalid_pin": "PIN inválido",
+    "invalid_password": "Contraseña inválida",
+    "account_locked": "Cuenta bloqueada por demasiados intentos"
+  },
+  "wallet": {
+    "title": "Billetera",
+    "balance": "Saldo",
+    "available_balance": "Saldo Disponible",
+    "total_balance": "Saldo Total",
+    "send": "Enviar",
+    "receive": "Recibir",
+    "transactions": "Transacciones",
+    "deposit": "Depósito",
+    "withdraw": "Retirada"
+  },
+  "dashboard": {
+    "title": "Panel de Control",
+    "welcome": "Bienvenido",
+    "quick_actions": "Acciones Rápidas",
+    "recent_transactions": "Transacciones Recientes",
+    "portfolio": "Cartera"
+  },
+  "transactions": {
+    "title": "Transacciones",
+    "status": "Estado",
+    "amount": "Cantidad",
+    "date": "Fecha",
+    "pending": "Pendiente",
+    "completed": "Completado",
+    "failed": "Fallido",
+    "cancelled": "Cancelado",
+    "processing": "Procesando",
+    "sent": "Enviado",
+    "received": "Recibido",
+    "deposit": "Depósito",
+    "withdrawal": "Retirada",
+    "transfer": "Transferencia"
+  },
+  "validation": {
+    "required": "Este campo es obligatorio",
+    "invalid_email": "Ingrese una dirección de correo válida",
+    "invalid_phone": "Ingrese un número de teléfono válido",
+    "password_mismatch": "Las contraseñas no coinciden",
+    "weak_password": "La contraseña es demasiado débil",
+    "invalid_amount": "Ingrese una cantidad válida"
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "enable": "Habilitar Notificaciones",
+    "settings": "Configuración de Notificaciones",
+    "push": "Notificaciones Push",
+    "email": "Notificaciones por Correo",
+    "sms": "Notificaciones por SMS"
+  },
+  "onboarding": {
+    "title": "Tokenize Your Future",
+    "subtitle": "The first integrated blockchain ecosystem for fast payments and escrow services.",
+    "app_name": "FARM",
+    "tagline": "a loop of growth"
+  },
+  "profile": {
+    "title": "Perfil",
+    "loading": "Cargando...",
+    "edit": "Editar",
+    "view": "Ver",
+    "username": "Nombre de usuario",
+    "email": "Correo",
+    "phone": "Teléfono",
+    "kyc": "Estado KYC",
+    "verified": "Verificado",
+    "not_available": "No disponible",
+    "update": "Actualizar"
+  },
+  "errors": {
+    "something_wrong": "Algo salió mal",
+    "try_again": "Por favor, inténtelo de nuevo",
+    "network_error": "Error de red. Verifique su conexión",
+    "unauthorized": "No autorizado. Inicie sesión nuevamente",
+    "not_found": "No encontrado",
+    "server_error": "Error del servidor. Inténtelo más tarde"
+  },
+  "success": {
+    "saved": "Guardado exitosamente",
+    "updated": "Actualizado exitosamente",
+    "deleted": "Eliminado exitosamente",
+    "created": "Creado exitosamente",
+    "transaction_successful": "Transacción exitosa",
+    "login_successful": "Inicio de sesión exitoso",
+    "phone_verified": "Teléfono verificado. Iniciando sesión...",
+    "password_updated": "Contraseña actualizada exitosamente. Por favor inicia sesión con tu nueva contraseña.",
+    "account_deleted": "Cuenta eliminada exitosamente",
+    "preferences_updated": "Preferencias de notificaciones actualizadas",
+    "pin_set": "PIN establecido exitosamente",
+    "transfer_successful": "Transferencia exitosa",
+    "release_cancelled": "Liberación cancelada",
+    "withdrawal_submitted": "Solicitud de retiro enviada exitosamente"
+  },
+  "dashboard": {
+    "transaction_failed": "Transacción fallida",
+    "pin_required": "PIN requerido para autorizar la transacción"
+  },
+  "transactions": {
+    "all_transactions": "Todas las Transacciones",
+    "no_transactions": "Aún no hay transacciones que coincidan con tus filtros."
+  },
+  "wallet": {
+    "deposit_funds": "Depositar Fondos",
+    "payment_method": "Método de Pago"
+  },
+  "biometric": {
+    "title": "Autenticación Biométrica",
+    "face_id": "Face ID",
+    "fingerprint": "Huella Dactilar",
+    "try_again": "Intentar de Nuevo",
+    "use_password": "Usar contraseña en su lugar"
+  },
+  "kyc": {
+    "title": "Verificación KYC",
+    "take_photo": "Tomar Foto",
+    "capture_camera": "Capturar con tu cámara",
+    "choose_gallery": "Elegir de la Galería",
+    "verified": "Verificado",
+    "not_available": "No disponible"
+  },
+  "deposit": {
+    "title": "Depósito",
+    "deposit_funds": "Depositar Fondos",
+    "wallet_balance": "Saldo de Billetera",
+    "payment_method": "Método de Pago"
+  },
+  "withdraw": {
+    "title": "Retiro",
+    "confirm_withdrawal": "Confirmar Retiro",
+    "select_bank": "Seleccionar Banco",
+    "select_crypto": "Seleccionar Cripto",
+    "select_network": "Seleccionar Red",
+    "bank_required": "Banco y número de cuenta requeridos para transferencia bancaria",
+    "phone_required": "Número de teléfono requerido para dinero móvil",
+    "fields_required": "Por favor completa todos los campos requeridos",
+    "pin_required": "PIN requerido para autorizar el retiro"
+  },
+  "auth": {
+    "register": {
+      "valid_email": "Por favor ingresa una dirección de correo válida."
+    },
+    "otp": {
+      "title": "Verificar Tu Teléfono",
+      "message": "Ingresa el código de 6 dígitos enviado a tu teléfono",
+      "code": "Código de Verificación",
+      "verify": "Verificar",
+      "resend": "Reenviar Código",
+      "full_code": "Ingresa el código completo de 6 dígitos."
+    }
+  },
+  "notifications": {
+    "push_desc": "Recibe alertas en tu dispositivo",
+    "email_desc": "Envía actualizaciones a tu bandeja de entrada",
+    "sms": "Notificaciones SMS",
+    "no_message": "Por favor ingresa un mensaje",
+    "mark_all_read": "Marcar todo como leído",
+    "delete_all": "Eliminar todas las notificaciones",
+    "unable_update": "No se pueden actualizar las preferencias",
+    "unable_update_now": "No se pueden actualizar las preferencias en este momento"
+  },
+  "validation": {
+    "valid_recipient": "Ingresa destinatario y monto válidos",
+    "enter_amount": "Ingresa una cantidad válida",
+    "enter_pin": "Ingresa tu PIN"
+  },
+  "payment": {
+    "title": "Pago",
+    "payment_requests": "Solicitudes de Pago",
+    "confirm_pin": "Ingresa PIN para confirmar",
+    "approve": "Aprobar",
+    "approve_message": "Ingresa tu PIN para aprobar",
+    "enter_pin": "Ingresa tu PIN de transacción",
+    "merchant_payment": "Pago de Comerciante",
+    "merchant_id": "ID de Comerciante"
+  },
+  "escrow": {
+    "title": "Depósito en Garantía",
+    "confirm_release": "Confirmar Liberación",
+    "release_breakdown": "Desglose de liberación:",
+    "escrow_amount": "Cantidad en Garantía:",
+    "platform_fee": "Tarifa de Plataforma (1.5%):",
+    "cancel": "Cancelar",
+    "confirm_release_btn": "Confirmar Liberación",
+    "enter_pin": "Ingresa PIN de transacción"
+  },
+  "support": {
+    "title": "Centro de Soporte y Ayuda",
+    "email_support": "Soporte por Correo",
+    "faq": "Preguntas Frecuentes",
+    "live_chat": "Chat en Vivo",
+    "unable_load": "No se puede cargar",
+    "retrying": "Reintentando automáticamente. Por favor espera."
+  },
+  "admin": {
+    "title": "Panel de Administrador",
+    "add_admin": "Agregar Administrador",
+    "exchange_rates": "Tasas de Cambio",
+    "fill_rates": "Por favor completa ambas tasas KES→FARM y FARM→KES",
+    "exchange_rate_error": "Error al guardar tasas de cambio",
+    "load_rates_error": "Error al cargar tasas de cambio"
+  },
+  "errors": {
+    "unable_load": "No se puede cargar",
+    "unable_determine": "No se puede determinar destinatario del código QR",
+    "failed": "Fallido"
+  },
+  "misc": {
+    "loading_experience": "Cargando tu experiencia…",
+    "farm": "FARM",
+    "growth_tracking": "Seguimiento de Crecimiento",
+    "growth_overview": "Tu resumen de crecimiento",
+    "no_projects": "No se encontraron proyectos",
+    "project_not_found": "Proyecto no encontrado",
+    "payment_requests": "Solicitudes de Pago",
+    "incoming_requests": "Solicitudes Entrantes",
+    "money_request": "Solicitud de Dinero",
+    "request_money": "Solicitar Dinero",
+    "all_requests": "Todas las Solicitudes",
+    "pending_requests": "Solicitudes Pendientes",
+    "your_requests": "Tus Solicitudes"
+  }
 }

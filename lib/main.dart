@@ -19,6 +19,7 @@ import 'services/notification_service.dart';
 import 'services/socket_service.dart';
 import 'services/auth/startup_authenticator.dart';
 import 'services/auth/route_guard_service.dart';
+import 'services/localization_service.dart';
 import 'pages/biometric_unlock_page/biometric_unlock_page_widget.dart';
 
 Widget buildSafeErrorWidget(FlutterErrorDetails details) {
@@ -47,6 +48,10 @@ void main() async {
       (FlutterErrorDetails details) => buildSafeErrorWidget(details);
 
   await EasyLocalization.ensureInitialized();
+  
+  // Get saved locale before Firebase initialization
+  final savedLocale = await LocalizationService.getSavedLocale();
+  
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -93,6 +98,7 @@ void main() async {
         ],
         path: 'assets/translations',
         fallbackLocale: const Locale('en'),
+        startLocale: savedLocale,
         child: MultiProvider(
           providers: [
             ChangeNotifierProvider(create: (_) => FFAppState()),

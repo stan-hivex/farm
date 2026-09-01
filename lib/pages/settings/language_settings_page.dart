@@ -5,6 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '/backend/services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import '/services/localization_service.dart';
 
 class LanguageSettingsPageWidget extends StatefulWidget {
   const LanguageSettingsPageWidget({super.key});
@@ -22,7 +24,7 @@ class _LanguageSettingsPageWidgetState
 
   bool loading = true;
 
-  String selectedLanguage = 'English';
+  late Locale _currentLocale;
 
   final List<Map<String, dynamic>> languages = [
 
@@ -60,57 +62,33 @@ class _LanguageSettingsPageWidgetState
   @override
   void initState() {
     super.initState();
+    _currentLocale = context.locale;
     loadLanguage();
   }
 
   // =====================================
-  // LOAD SAVED LANGUAGE
+  // LOAD CURRENT LANGUAGE
   // =====================================
   Future<void> loadLanguage() async {
-
-    final prefs =
-        await SharedPreferences.getInstance();
-
-    final saved =
-        prefs.getString('language') ?? 'English';
-
     if (!mounted) return;
 
     setState(() {
-
-      selectedLanguage = saved;
-
       loading = false;
     });
   }
 
   // =====================================
-  // SAVE TO LOCAL STORAGE
-  // =====================================
-  Future<void> saveLanguage(
-      String language) async {
-
-    final prefs =
-        await SharedPreferences.getInstance();
-
-    await prefs.setString(
-      'language',
-      language,
-    );
-  }
-
-  // =====================================
-  // SAVE TO BACKEND
+  // SAVE TO BACKEND (OPTIONAL)
   // =====================================
   Future<void> saveLanguageBackend(
-      String language) async {
+      String languageCode) async {
 
     try {
 
       await ApiService.request(
         method: 'PUT',
         path: '/settings/language',
-        body: {'language': language},
+        body: {'language': languageCode},
       );
 
     } catch (e) {
@@ -118,6 +96,7 @@ class _LanguageSettingsPageWidgetState
       debugPrint(
         'LANGUAGE BACKEND ERROR: $e',
       );
+      // Don't block UI if backend sync fails
     }
   }
 
@@ -128,40 +107,43 @@ class _LanguageSettingsPageWidgetState
     Map<String, dynamic> lang,
   ) async {
 
-    final Locale locale =
-        lang['locale'];
+    final Locale locale = lang['locale'];
 
-    final String languageName =
-        lang['name'];
+    try {
+      // Change app language immediately
+      await LocalizationService.changeLocale(context, locale);
 
-    // SAVE LOCAL
-    await saveLanguage(languageName);
+      // Sync with backend asynchronously (don't wait)
+      Future.microtask(() => saveLanguageBackend(locale.languageCode));
 
-    // SAVE BACKEND
-    await saveLanguageBackend(
-      locale.languageCode,
-    );
+      if (!mounted) return;
 
-    // CHANGE APP LANGUAGE
-    await context.setLocale(locale);
+      setState(() {
+        _currentLocale = locale;
+      });
 
-    if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
 
-    setState(() {
-
-      selectedLanguage =
-          languageName;
-    });
-
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
-
-      SnackBar(
-        content: Text(
-          '$languageName selected',
+        SnackBar(
+          content: Text(
+            'language.change_success'.tr(),
+            style: const TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      debugPrint('Error changing language: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to change language: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -176,7 +158,7 @@ class _LanguageSettingsPageWidgetState
       appBar: AppBar(
 
         title: Text(
-          'language'.tr(),
+          'language.label'.tr(),
         ),
 
         elevation: 0,
@@ -184,6 +166,14 @@ class _LanguageSettingsPageWidgetState
         backgroundColor:
             FlutterFlowTheme.of(context)
                 .primaryBackground,
+        
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back_ios_rounded,
+            color: FlutterFlowTheme.of(context).primaryText,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
 
       body: loading
@@ -193,17 +183,13 @@ class _LanguageSettingsPageWidgetState
                   CircularProgressIndicator(),
             )
 
-          : ListView.separated(
+          : ListView.builder(
 
               padding:
                   const EdgeInsets.all(16),
 
               itemCount:
                   languages.length,
-
-              separatorBuilder:
-                  (_, __) =>
-                      const Divider(),
 
               itemBuilder:
                   (context, index) {
@@ -212,44 +198,73 @@ class _LanguageSettingsPageWidgetState
                     languages[index];
 
                 final isSelected =
-                    selectedLanguage ==
-                        lang['name'];
+                    _currentLocale.languageCode ==
+                        lang['locale'].languageCode;
 
-                return ListTile(
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12.0),
+                  child: GestureDetector(
+                    onTap: () async {
+                      await changeLanguage(lang);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(16.0),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? FlutterFlowTheme.of(context).primary.withOpacity(0.1)
+                            : FlutterFlowTheme.of(context).secondaryBackground,
+                        borderRadius: BorderRadius.circular(16.0),
+                        border: Border.all(
+                          color: isSelected
+                              ? FlutterFlowTheme.of(context).primary
+                              : FlutterFlowTheme.of(context).alternate,
+                          width: isSelected ? 2.0 : 1.0,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
 
-                  title: Text(
+                                  lang['native'],
 
-                    lang['native'],
+                                  style: GoogleFonts.inter(
 
-                    style:
-                        GoogleFonts.inter(
+                                    fontSize: 16,
 
-                      fontSize: 16,
-
-                      fontWeight:
-                          FontWeight.w500,
+                                    fontWeight:
+                                        FontWeight.w600,
+                                    
+                                    color: FlutterFlowTheme.of(context).primaryText,
+                                  ),
+                                ),
+                                if (isSelected)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4.0),
+                                    child: Text(
+                                      'Currently selected',
+                                      style: FlutterFlowTheme.of(context).bodySmall.override(
+                                        color: FlutterFlowTheme.of(context).primary,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          if (isSelected)
+                            Icon(
+                              Icons.check_circle_rounded,
+                              color: FlutterFlowTheme.of(context).primary,
+                              size: 24.0,
+                            ),
+                        ],
+                      ),
                     ),
                   ),
-
-                  trailing: isSelected
-
-                      ? Icon(
-                          Icons.check_circle,
-
-                          color:
-                              FlutterFlowTheme.of(
-                                      context)
-                                  .primary,
-                        )
-
-                      : null,
-
-                  onTap: () async {
-
-                    await changeLanguage(
-                      lang,
-                    );
-                  },
                 );
               },
             ),

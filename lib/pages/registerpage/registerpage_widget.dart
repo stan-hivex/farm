@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'registerpage_model.dart';
 export 'registerpage_model.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class RegisterpageWidget extends StatefulWidget {
   const RegisterpageWidget({super.key});
@@ -299,6 +300,30 @@ class _RegisterpageWidgetState extends State<RegisterpageWidget> {
     'Zimbabwe',
   ];
 
+  Widget _buildRequirementRow(String requirement, bool isMet) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        children: [
+          Icon(
+            isMet ? Icons.check_circle : Icons.radio_button_unchecked,
+            color: isMet ? Colors.green : Colors.grey,
+            size: 18.0,
+          ),
+          const SizedBox(width: 8.0),
+          Text(
+            requirement,
+            style: TextStyle(
+              fontSize: 12.0,
+              color: isMet ? Colors.green : Colors.grey[600],
+              fontWeight: isMet ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _flagForCountry(String country) {
     const countryIso = {
       'United States': 'US',
@@ -366,6 +391,10 @@ class _RegisterpageWidgetState extends State<RegisterpageWidget> {
 
   bool passwordVisible = false;
   bool confirmPasswordVisible = false;
+  bool _hasUppercase = false;
+  bool _hasLowercase = false;
+  bool _hasNumber = false;
+  bool _hasSpecialChar = false;
 
   @override
   void initState() {
@@ -601,7 +630,7 @@ class _RegisterpageWidgetState extends State<RegisterpageWidget> {
                     controller: lastNameController,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Last name is required';
+                        return 'validation.required'.tr();
                       }
                       return null;
                     },
@@ -617,7 +646,7 @@ class _RegisterpageWidgetState extends State<RegisterpageWidget> {
                     controller: usernameController,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Username required';
+                        return 'validation.required'.tr();
                       }
 
                       if (!RegExp(r'^[a-z0-9_]+$').hasMatch(value)) {
@@ -689,10 +718,10 @@ class _RegisterpageWidgetState extends State<RegisterpageWidget> {
                           keyboardType: TextInputType.number,
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Phone number required';
+                              return 'validation.required'.tr();
                             }
                             if (!RegExp(r'^[0-9]{6,15}$').hasMatch(value)) {
-                              return 'Enter valid phone number';
+                              return 'validation.invalid_phone'.tr();
                             }
                             return null;
                           },
@@ -721,20 +750,44 @@ class _RegisterpageWidgetState extends State<RegisterpageWidget> {
                   TextFormField(
                     controller: passwordController,
                     obscureText: !passwordVisible,
+                    onChanged: (value) {
+                      setState(() {
+                        _hasUppercase = value.contains(RegExp(r'[A-Z]'));
+                        _hasLowercase = value.contains(RegExp(r'[a-z]'));
+                        _hasNumber = value.contains(RegExp(r'[0-9]'));
+                        _hasSpecialChar = value.contains(RegExp(r'[!@#$%^&*(),.?\"{} |<>]'));
+                      });
+                    },
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Password required';
+                        return 'validation.required'.tr();
                       }
 
-                      if (value.length < 8) {
-                        return 'Minimum 8 characters';
+                      if (value.length < 12) {
+                        return 'Minimum 12 characters';
+                      }
+
+                      if (!_hasUppercase) {
+                        return 'Password must contain uppercase letter';
+                      }
+
+                      if (!_hasLowercase) {
+                        return 'Password must contain lowercase letter';
+                      }
+
+                      if (!_hasNumber) {
+                        return 'Password must contain a number';
+                      }
+
+                      if (!_hasSpecialChar) {
+                        return 'Password must contain special character';
                       }
 
                       return null;
                     },
                     decoration: inputDecoration(
                       context,
-                      'Enter password',
+                      'Min 12: A-Z, a-z, 0-9, !@#\$%^&*',
                     ).copyWith(
                       suffixIcon: IconButton(
                         icon: Icon(
@@ -750,6 +803,29 @@ class _RegisterpageWidgetState extends State<RegisterpageWidget> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 12.0),
+                  Container(
+                    padding: const EdgeInsets.all(12.0),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(8.0),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Password Requirements:',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.0),
+                        ),
+                        const SizedBox(height: 8.0),
+                        _buildRequirementRow('Uppercase letter (A-Z)', _hasUppercase),
+                        _buildRequirementRow('Lowercase letter (a-z)', _hasLowercase),
+                        _buildRequirementRow('Number (0-9)', _hasNumber),
+                        _buildRequirementRow('Special character (!@#\$%^&*)', _hasSpecialChar),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 16.0),
                   buildLabel(
                     context,
@@ -761,7 +837,7 @@ class _RegisterpageWidgetState extends State<RegisterpageWidget> {
                     obscureText: !confirmPasswordVisible,
                     validator: (value) {
                       if (value != passwordController.text) {
-                        return 'Passwords do not match';
+                        return 'validation.password_mismatch'.tr();
                       }
                       return null;
                     },
@@ -878,8 +954,8 @@ class _RegisterpageWidgetState extends State<RegisterpageWidget> {
 
                       if (!email.contains('@')) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Please enter a valid email address.'),
+                          SnackBar(
+                            content: Text('validation.invalid_email'.tr()),
                             backgroundColor: Colors.red,
                           ),
                         );

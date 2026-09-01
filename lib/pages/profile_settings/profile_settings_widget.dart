@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:easy_localization/easy_localization.dart';
 import '/backend/services/api_service.dart';
 import '/components/button/button_widget.dart';
 import '/components/profile_info_tile/profile_info_tile_widget.dart';
@@ -7,8 +8,7 @@ import '/components/settings_action_tile/settings_action_tile_widget.dart';
 // removed duplicate import
 import '/services/app_session_manager.dart';
 import '/services/auth/auth_service.dart';
-import '/services/biometric_lock_service.dart';
-import '/pages/settings/delete_account_page.dart';
+import '/services/localization_service.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/core/theme_extensions.dart';
@@ -292,6 +292,11 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
   Future<void> logoutUser() async {
     try {
       await AuthService().logout();
+      
+      // Reset locale to English on logout
+      if (mounted) {
+        await LocalizationService.resetLocaleToEnglish(context);
+      }
     } catch (e) {
       debugPrint('Logout failed: $e');
     }
@@ -500,7 +505,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                         24.0, 24.0, 24.0, 8.0),
                     child: Container(
                       child: Text(
-                        'Personal Information',
+                        'settings.personal_information'.tr(),
                         style: FlutterFlowTheme.of(context).labelLarge.override(
                               font: GoogleFonts.plusJakartaSans(
                                 fontWeight: FontWeight.bold,
@@ -551,7 +556,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                         .primaryText,
                                     size: 20.0,
                                   ),
-                                  label: 'Email Address',
+                                  label: 'settings.email'.tr(),
                                   show_arrow: true,
                                   value: isProfileLoading
                                       ? 'Loading...'
@@ -578,7 +583,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                         .primaryText,
                                     size: 20.0,
                                   ),
-                                  label: 'Phone Number',
+                                  label: 'settings.phone'.tr(),
                                   show_arrow: true,
                                   value: phone.isNotEmpty
                                       ? phone
@@ -607,7 +612,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                           .primaryText,
                                       size: 20.0,
                                     ),
-                                    label: 'KYC Status',
+                                    label: 'settings.kyc_status'.tr(),
                                     show_arrow: true,
                                     value: kycStatus.toUpperCase(),
                                   ),
@@ -631,7 +636,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                         24.0, 24.0, 24.0, 8.0),
                     child: Container(
                       child: Text(
-                        'Preferences',
+                        'settings.preferences'.tr(),
                         style: FlutterFlowTheme.of(context).labelLarge.override(
                               font: GoogleFonts.plusJakartaSans(
                                 fontWeight: FontWeight.bold,
@@ -706,7 +711,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                               CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              'Security & PIN',
+                                              'security.title'.tr(),
                                               style:
                                                   FlutterFlowTheme.of(context)
                                                       .bodyMedium
@@ -720,7 +725,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                             const SizedBox(height: 4),
                                             if (securityLoading)
                                               Text(
-                                                'Loading security status...',
+                                                'security.loading'.tr(),
                                                 style: TextStyle(
                                                   color: FlutterFlowTheme.of(
                                                           context)
@@ -731,10 +736,10 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                             else
                                               Text(
                                                 accountLocked
-                                                    ? 'Account Locked'
+                                                    ? 'security.locked'.tr()
                                                     : hasPin
-                                                        ? 'PIN already set'
-                                                        : 'No PIN Configured',
+                                                        ? 'security.pin_configured'.tr()
+                                                        : 'security.no_pin'.tr(),
                                                 style: TextStyle(
                                                   color: accountLocked
                                                       ? context.errorColor
@@ -777,7 +782,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                           color: context.background),
                                       const SizedBox(width: 12),
                                       Text(
-                                        'Change PIN',
+                                        'security.change_pin'.tr(),
                                         style: TextStyle(
                                             color: context.background),
                                       ),
@@ -810,7 +815,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                           color: context.background),
                                       const SizedBox(width: 12),
                                       Text(
-                                        'Forgot PIN',
+                                        'security.forgot_pin'.tr(),
                                         style: TextStyle(
                                             color: context.background),
                                       ),
@@ -837,12 +842,12 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                         : ThemeMode.light);
                                   });
                                 },
-                                title: Text('Dark Mode'),
+                                title: Text('settings.dark_mode'.tr()),
                                 subtitle: Text(
                                   Theme.of(context).brightness ==
                                           Brightness.dark
-                                      ? 'Dark theme enabled'
-                                      : 'Light theme enabled',
+                                      ? 'settings.dark_theme'.tr()
+                                      : 'settings.light_theme'.tr(),
                                 ),
                               ),
 
@@ -864,7 +869,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                           biometricsEnabled = true;
                                         });
                                         ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('Biometrics enabled')),
+                                          const SnackBar(content: Text('security.biometric_enabled'.tr())),
                                         );
                                       }
                                     } else {
@@ -875,7 +880,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                           biometricsEnabled = false;
                                         });
                                         ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('Biometrics disabled')),
+                                          const SnackBar(content: Text('security.biometric_disabled'.tr())),
                                         );
                                       }
                                     }
@@ -893,18 +898,18 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                     }
                                   }
                                 },
-                                title: Text('Enable Biometrics'),
+                                title: Text('settings.biometrics'.tr()),
                                 subtitle: Text(
                                   biometricsEnabled
-                                      ? 'Face ID / Fingerprint active'
-                                      : 'Biometric authentication disabled',
+                                      ? 'settings.biometrics_enabled'.tr()
+                                      : 'settings.biometrics_disabled'.tr(),
                                 ),
                               ),
                               ListTile(
                                 contentPadding: EdgeInsets.zero,
-                                title: Text('Biometric lock timeout'),
+                                title: Text('settings.biometric_lock_timeout'.tr()),
                                 subtitle: Text(
-                                  'Unlock after ${formatBiometricLockTimeoutLabel(biometricLockTimeoutSeconds)}',
+                                  'settings.unlock_after'.tr() + ' ${formatBiometricLockTimeoutLabel(biometricLockTimeoutSeconds)}',
                                 ),
                                 trailing: SizedBox(
                                   width: 140,
@@ -949,7 +954,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                     color: FlutterFlowTheme.of(context)
                                         .primaryText,
                                   ),
-                                  label: 'Notification Settings',
+                                  label: 'settings.notifications'.tr(),
                                 ),
                               ),
 
@@ -964,7 +969,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                     color: FlutterFlowTheme.of(context)
                                         .primaryText,
                                   ),
-                                  label: 'Language',
+                                  label: 'language.label'.tr(),
                                 ),
                               ),
 
@@ -979,7 +984,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                     color: FlutterFlowTheme.of(context)
                                         .primaryText,
                                   ),
-                                  label: 'Privacy Policy',
+                                  label: 'settings.privacy_policy'.tr(),
                                 ),
                               ),
 
@@ -994,7 +999,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                     color: FlutterFlowTheme.of(context)
                                         .primaryText,
                                   ),
-                                  label: 'Terms of Service',
+                                  label: 'settings.terms_of_service'.tr(),
                                 ),
                               ),
 
@@ -1009,7 +1014,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                     color: FlutterFlowTheme.of(context)
                                         .primaryText,
                                   ),
-                                  label: 'Support & Help Center',
+                                  label: 'settings.support'.tr(),
                                 ),
                               ),
                             ],

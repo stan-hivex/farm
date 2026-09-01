@@ -1,8 +1,320 @@
 {
-  "settings": "Paramètres",
-  "language": "Langue",
-  "notifications": "Notifications",
-  "support": "Support",
-  "save": "Enregistrer",
-  "welcome": "Bienvenue"
+  "common": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "close": "Fermer",
+    "confirm": "Confirmer",
+    "back": "Retour",
+    "next": "Suivant",
+    "skip": "Ignorer",
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "success": "Succès",
+    "warning": "Avertissement",
+    "info": "Informations",
+    "yes": "Oui",
+    "no": "Non",
+    "logout": "Déconnexion",
+    "signin": "Se connecter",
+    "signup": "S'inscrire",
+    "register": "S'inscrire"
+  },
+  "language": {
+    "label": "Langue",
+    "select": "Sélectionner la langue",
+    "english": "English",
+    "swahili": "Kiswahili",
+    "french": "Français",
+    "spanish": "Español",
+    "arabic": "العربية",
+    "change_success": "Langue modifiée avec succès"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "personal_information": "Informations Personnelles",
+    "preferences": "Préférences",
+    "security": "Sécurité",
+    "privacy": "Confidentialité",
+    "about": "À propos",
+    "email": "Adresse E-mail",
+    "phone": "Numéro de Téléphone",
+    "kyc_status": "Statut KYC",
+    "dark_mode": "Mode Sombre",
+    "light_theme": "Thème clair activé",
+    "dark_theme": "Thème sombre activé",
+    "biometrics": "Activer la Biométrie",
+    "biometrics_enabled": "Face ID / Empreinte digitale active",
+    "biometrics_disabled": "Authentification biométrique désactivée",
+    "biometric_lock_timeout": "Délai d'expiration du verrou biométrique",
+    "unlock_after": "Déverrouiller après",
+    "notifications": "Paramètres de Notification",
+    "privacy_policy": "Politique de Confidentialité",
+    "terms_of_service": "Conditions de Service",
+    "support": "Support et Centre d'Aide"
+  },
+  "security": {
+    "title": "Sécurité et Code PIN",
+    "loading": "Chargement du statut de sécurité...",
+    "locked": "Compte Verrouillé",
+    "pin_configured": "Code PIN déjà défini",
+    "no_pin": "Aucun Code PIN Configuré",
+    "change_pin": "Modifier le Code PIN",
+    "forgot_pin": "Code PIN Oublié",
+    "biometric_enabled": "Biométrie activée",
+    "biometric_disabled": "Biométrie désactivée"
+  },
+  "auth": {
+    "login": {
+      "title": "Se connecter",
+      "phone": "Numéro de Téléphone",
+      "password": "Mot de passe",
+      "button": "Se connecter",
+      "no_account": "Vous n'avez pas de compte?",
+      "forgot_password": "Mot de passe oublié?"
+    },
+    "register": {
+      "title": "S'inscrire",
+      "first_name": "Prénom",
+      "last_name": "Nom de Famille",
+      "email": "Adresse E-mail",
+      "phone": "Numéro de Téléphone",
+      "password": "Mot de passe",
+      "confirm_password": "Confirmer le Mot de passe",
+      "terms": "J'accepte les Conditions de Service",
+      "button": "S'inscrire",
+      "have_account": "Vous avez déjà un compte?"
+    },
+    "otp": {
+      "title": "Vérifier l'OTP",
+      "message": "Entrez l'OTP envoyé à votre téléphone",
+      "code": "Code OTP",
+      "verify": "Vérifier",
+      "resend": "Renvoyer l'OTP"
+    },
+    "invalid_pin": "Code PIN invalide",
+    "invalid_password": "Mot de passe invalide",
+    "account_locked": "Compte verrouillé en raison de trop de tentatives"
+  },
+  "wallet": {
+    "title": "Portefeuille",
+    "balance": "Solde",
+    "available_balance": "Solde Disponible",
+    "total_balance": "Solde Total",
+    "send": "Envoyer",
+    "receive": "Recevoir",
+    "transactions": "Transactions",
+    "deposit": "Dépôt",
+    "withdraw": "Retrait"
+  },
+  "dashboard": {
+    "title": "Tableau de Bord",
+    "welcome": "Bienvenue",
+    "quick_actions": "Actions Rapides",
+    "recent_transactions": "Transactions Récentes",
+    "portfolio": "Portefeuille"
+  },
+  "transactions": {
+    "title": "Transactions",
+    "status": "Statut",
+    "amount": "Montant",
+    "date": "Date",
+    "pending": "En Attente",
+    "completed": "Complété",
+    "failed": "Échec",
+    "cancelled": "Annulé",
+    "processing": "Traitement",
+    "sent": "Envoyé",
+    "received": "Reçu",
+    "deposit": "Dépôt",
+    "withdrawal": "Retrait",
+    "transfer": "Transfert"
+  },
+  "validation": {
+    "required": "Ce champ est obligatoire",
+    "invalid_email": "Entrez une adresse e-mail valide",
+    "invalid_phone": "Entrez un numéro de téléphone valide",
+    "password_mismatch": "Les mots de passe ne correspondent pas",
+    "weak_password": "Le mot de passe est trop faible",
+    "invalid_amount": "Entrez un montant valide"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "enable": "Activer les Notifications",
+    "settings": "Paramètres de Notification",
+    "push": "Notifications Push",
+    "email": "Notifications par E-mail",
+    "sms": "Notifications par SMS"
+  },
+  "onboarding": {
+    "title": "Tokenize Your Future",
+    "subtitle": "The first integrated blockchain ecosystem for fast payments and escrow services.",
+    "app_name": "FARM",
+    "tagline": "a loop of growth"
+  },
+  "profile": {
+    "title": "Profil",
+    "loading": "Chargement...",
+    "edit": "Modifier",
+    "view": "Afficher",
+    "username": "Nom d'utilisateur",
+    "email": "E-mail",
+    "phone": "Téléphone",
+    "kyc": "Statut KYC",
+    "verified": "Vérifié",
+    "not_available": "Non disponible",
+    "update": "Mettre à jour"
+  },
+  "errors": {
+    "something_wrong": "Quelque chose s'est mal passé",
+    "try_again": "Veuillez réessayer",
+    "network_error": "Erreur réseau. Vérifiez votre connexion",
+    "unauthorized": "Non autorisé. Veuillez vous reconnecter",
+    "not_found": "Non trouvé",
+    "server_error": "Erreur serveur. Veuillez réessayer plus tard"
+  },
+  "success": {
+    "saved": "Enregistré avec succès",
+    "updated": "Mis à jour avec succès",
+    "deleted": "Supprimé avec succès",
+    "created": "Créé avec succès",
+    "transaction_successful": "Transation réussie",
+    "login_successful": "Connexion réussie",
+    "phone_verified": "Téléphone vérifié. Connexion en cours...",
+    "password_updated": "Mot de passe mis à jour avec succès. Veuillez vous connecter avec votre nouveau mot de passe.",
+    "account_deleted": "Compte supprimé avec succès",
+    "preferences_updated": "Préférences de notification mises à jour",
+    "pin_set": "Code PIN défini avec succès",
+    "transfer_successful": "Transfert réussi",
+    "release_cancelled": "Libération annulée",
+    "withdrawal_submitted": "Demande de retrait soumise avec succès"
+  },
+  "dashboard": {
+    "transaction_failed": "Transation échouée",
+    "pin_required": "Code PIN requis pour autoriser la transation"
+  },
+  "transactions": {
+    "all_transactions": "Toutes les Transactions",
+    "no_transactions": "Aucune transation ne correspond à vos filtres pour le moment."
+  },
+  "wallet": {
+    "deposit_funds": "Verser des Fonds",
+    "payment_method": "Méthode de Paiement"
+  },
+  "biometric": {
+    "title": "Authentification Biométrique",
+    "face_id": "Face ID",
+    "fingerprint": "Empreinte Digitale",
+    "try_again": "Réessayer",
+    "use_password": "Utiliser le mot de passe à la place"
+  },
+  "kyc": {
+    "title": "Vérification KYC",
+    "take_photo": "Prendre une Photo",
+    "capture_camera": "Capturer avec votre caméra",
+    "choose_gallery": "Choisir dans la Galerie",
+    "verified": "Vérifié",
+    "not_available": "Non disponible"
+  },
+  "deposit": {
+    "title": "Dépôt",
+    "deposit_funds": "Verser des Fonds",
+    "wallet_balance": "Solde du Portefeuille",
+    "payment_method": "Méthode de Paiement"
+  },
+  "withdraw": {
+    "title": "Retrait",
+    "confirm_withdrawal": "Confirmer le Retrait",
+    "select_bank": "Sélectionner la Banque",
+    "select_crypto": "Sélectionner l'Actif Crypto",
+    "select_network": "Sélectionner le Réseau",
+    "bank_required": "Banque et numéro de compte requis pour le virement bancaire",
+    "phone_required": "Numéro de téléphone requis pour l'argent mobile",
+    "fields_required": "Veuillez remplir tous les champs obligatoires",
+    "pin_required": "Code PIN requis pour autoriser le retrait"
+  },
+  "auth": {
+    "register": {
+      "valid_email": "Veuillez entrer une adresse e-mail valide."
+    },
+    "otp": {
+      "title": "Vérifiez Votre Téléphone",
+      "message": "Entrez le code à 6 chiffres envoyé à votre téléphone",
+      "code": "Code de Vérification",
+      "verify": "Vérifier",
+      "resend": "Renvoyer le Code",
+      "full_code": "Veuillez entrer le code complet à 6 chiffres."
+    }
+  },
+  "notifications": {
+    "push_desc": "Recevez des alertes sur votre appareil",
+    "email_desc": "Envoyer les mises à jour à votre boîte de réception",
+    "sms": "Notifications SMS",
+    "no_message": "Veuillez entrer un message",
+    "mark_all_read": "Tout marquer comme lu",
+    "delete_all": "Supprimer toutes les notifications",
+    "unable_update": "Impossible de mettre à jour les préférences",
+    "unable_update_now": "Impossible de mettre à jour les préférences en ce moment"
+  },
+  "validation": {
+    "valid_recipient": "Entrez un destinataire et un montant valides",
+    "enter_amount": "Entrez un montant valide",
+    "enter_pin": "Entrez votre Code PIN"
+  },
+  "payment": {
+    "title": "Paiement",
+    "payment_requests": "Demandes de Paiement",
+    "confirm_pin": "Entrez le Code PIN pour confirmer",
+    "approve": "Approuver",
+    "approve_message": "Entrez votre Code PIN pour approuver",
+    "enter_pin": "Entrez votre Code PIN de transation",
+    "merchant_payment": "Paiement Marchand",
+    "merchant_id": "ID Marchand"
+  },
+  "escrow": {
+    "title": "Séquestre",
+    "confirm_release": "Confirmer la Libération",
+    "release_breakdown": "Ventilation de la libération:",
+    "escrow_amount": "Montant en Séquestre:",
+    "platform_fee": "Frais de Plateforme (1,5%):",
+    "cancel": "Annuler",
+    "confirm_release_btn": "Confirmer la Libération",
+    "enter_pin": "Entrez le Code PIN de transation"
+  },
+  "support": {
+    "title": "Support et Centre d'Aide",
+    "email_support": "Support par E-mail",
+    "faq": "FAQ",
+    "live_chat": "Chat en Direct",
+    "unable_load": "Impossible de charger",
+    "retrying": "Nouvelle tentative automatique. Veuillez patienter."
+  },
+  "admin": {
+    "title": "Tableau de Bord Admin",
+    "add_admin": "Ajouter un Admin",
+    "exchange_rates": "Taux de Change",
+    "fill_rates": "Veuillez remplir les deux taux KES→FARM et FARM→KES",
+    "exchange_rate_error": "Erreur lors de l'enregistrement des taux de change",
+    "load_rates_error": "Erreur lors du chargement des taux de change"
+  },
+  "errors": {
+    "unable_load": "Impossible de charger",
+    "unable_determine": "Impossible de déterminer le destinataire à partir du code QR",
+    "failed": "Échoué"
+  },
+  "misc": {
+    "loading_experience": "Chargement de votre expérience…",
+    "farm": "FARM",
+    "growth_tracking": "Suivi de la Croissance",
+    "growth_overview": "Votre aperçu de croissance",
+    "no_projects": "Aucun projet trouvé",
+    "project_not_found": "Projet non trouvé",
+    "payment_requests": "Demandes de Paiement",
+    "incoming_requests": "Demandes Entrantes",
+    "money_request": "Demande d'Argent",
+    "request_money": "Demander de l'Argent",
+    "all_requests": "Toutes les Demandes",
+    "pending_requests": "Demandes en Attente",
+    "your_requests": "Vos Demandes"
+  }
 }

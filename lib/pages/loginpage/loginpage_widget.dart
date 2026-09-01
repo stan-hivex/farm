@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'loginpage_model.dart';
 export 'loginpage_model.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '/admin/pages/admin_shell.dart';
 import '/pages/superadmin/superadmin_dashboard_page.dart';
 import '/services/secure_storage_service.dart';
@@ -44,7 +45,7 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
   bool passwordVisible = false;
   bool isLoading = false;
   bool _biometricAvailable = false;
-  String _biometricButtonLabel = 'Login with Biometric';
+  late String _biometricButtonLabel;
   Map<String, String> _selectedCountry = {
     'name': 'Algeria',
     'code': '+213',
@@ -115,6 +116,7 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
     super.initState();
     _model = createModel(context, () => LoginpageModel());
     FFAppState().themeMode = ThemeMode.light;
+    _biometricButtonLabel = 'biometric.face_id'.tr();
     _initializeBiometric();
   }
 
@@ -214,8 +216,8 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Login successful'),
+      SnackBar(
+        content: Text('success.login_successful'.tr()),
         backgroundColor: Colors.green,
       ),
     );
@@ -260,8 +262,8 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
 
     if (identifier.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Please fill in all fields"),
+        SnackBar(
+          content: Text('validation.required'.tr()),
           backgroundColor: Colors.red,
         ),
       );

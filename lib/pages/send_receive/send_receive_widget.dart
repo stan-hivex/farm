@@ -1904,7 +1904,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                                               ),
                                             ),
                                             child: const Text(
-                                              'Continue',
+                                              'send farm',
                                               style: TextStyle(
                                                 fontSize: 18,
                                                 fontWeight: FontWeight.bold,

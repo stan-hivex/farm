@@ -20,6 +20,7 @@ import 'package:lottie/lottie.dart';
 
 import 'otppage_model.dart';
 export 'otppage_model.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class OtppageWidget extends StatefulWidget {
   const OtppageWidget({
@@ -357,8 +358,8 @@ class _OtppageWidgetState extends State<OtppageWidget> {
 
     setState(() {
       _isVerifying = true;
-      _statusTitle = 'Verification successful';
-      _statusMessage = 'Finishing the secure login process...';
+      _statusTitle = 'success.transaction_successful'.tr();
+      _statusMessage = 'auth.otp.verify'.tr();
     });
 
     try {
@@ -383,8 +384,8 @@ class _OtppageWidgetState extends State<OtppageWidget> {
       if (response['success'] == true) {
         debugPrint('[OTP] completeFirebaseVerification succeeded');
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Phone verified. Logging you in...'),
+          SnackBar(
+            content: Text('success.phone_verified'.tr()),
             backgroundColor: Colors.green,
           ),
         );
@@ -421,7 +422,7 @@ class _OtppageWidgetState extends State<OtppageWidget> {
 
     if (otp.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter the full 6-digit code.')),
+        SnackBar(content: Text('auth.otp.full_code'.tr())),
       );
       return;
     }

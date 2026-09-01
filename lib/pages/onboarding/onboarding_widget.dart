@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '/components/button/button_widget.dart';
 import '/components/step_indicator/step_indicator_widget.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
@@ -34,6 +36,8 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
   bool _isCheckingAuth = true;
   bool _showMarketing = false;
   bool _showAuthActions = false;
+  Timer? _startupLogoTimer;
+  Timer? _marketingTimer;
 
   @override
   void initState() {
@@ -50,6 +54,8 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
 
   @override
   void dispose() {
+    _startupLogoTimer?.cancel();
+    _marketingTimer?.cancel();
     _model.dispose();
 
     super.dispose();
@@ -70,13 +76,21 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
 
     const logoDisplay = Duration(seconds: 3);
     const marketingDisplay = Duration(seconds: 5);
-    await Future.delayed(logoDisplay);
 
-    if (!mounted) return;
-    setState(() => _showMarketing = true);
+    _startupLogoTimer = Timer(logoDisplay, () {
+      if (!mounted) return;
+      setState(() => _showMarketing = true);
 
-    await Future.delayed(marketingDisplay);
+      _marketingTimer = Timer(marketingDisplay, () {
+        if (!mounted) return;
+        _runAuthenticatedFlow();
+      });
+    });
 
+    await Future<void>.value();
+  }
+
+  Future<void> _runAuthenticatedFlow() async {
     if (!mounted) return;
 
     final isAuthenticated = await RouteGuardService().isUserAuthenticated();
@@ -199,135 +213,6 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
                       mainAxisAlignment: MainAxisAlignment.start,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Padding(
-                          padding: const EdgeInsetsDirectional.fromSTEB(
-                              0.0, 40.0, 0.0, 60.0),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Container(
-                                width: 80.0,
-                                height: 80.0,
-                                decoration: BoxDecoration(
-                                  color: FlutterFlowTheme.of(context).primary,
-                                  borderRadius: BorderRadius.circular(20.0),
-                                  shape: BoxShape.rectangle,
-                                ),
-                                alignment: const AlignmentDirectional(0.0, 0.0),
-                                child: SizedBox(
-                                  width: 40.0,
-                                  height: 50.0,
-                                  child: Stack(
-                                    alignment:
-                                        const AlignmentDirectional(-1.0, -1.0),
-                                    children: [
-                                      Align(
-                                        alignment: const AlignmentDirectional(
-                                            0.0, 0.0),
-                                        child: Container(
-                                          width: 6.0,
-                                          height: 50.0,
-                                          decoration: BoxDecoration(
-                                            color: FlutterFlowTheme.of(context)
-                                                .onPrimary,
-                                            borderRadius:
-                                                BorderRadius.circular(2.0),
-                                            shape: BoxShape.rectangle,
-                                          ),
-                                        ),
-                                      ),
-                                      Align(
-                                        alignment: const AlignmentDirectional(
-                                            -1.0, -0.6),
-                                        child: Container(
-                                          width: 24.0,
-                                          height: 6.0,
-                                          decoration: BoxDecoration(
-                                            color: FlutterFlowTheme.of(context)
-                                                .onPrimary,
-                                            borderRadius:
-                                                BorderRadius.circular(2.0),
-                                            shape: BoxShape.rectangle,
-                                          ),
-                                        ),
-                                      ),
-                                      Align(
-                                        alignment: const AlignmentDirectional(
-                                            -1.0, 0.0),
-                                        child: Container(
-                                          width: 18.0,
-                                          height: 6.0,
-                                          decoration: BoxDecoration(
-                                            color: FlutterFlowTheme.of(context)
-                                                .onPrimary,
-                                            borderRadius:
-                                                BorderRadius.circular(2.0),
-                                            shape: BoxShape.rectangle,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              Column(
-                                mainAxisSize: MainAxisSize.min,
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    'FARM',
-                                    textAlign: TextAlign.center,
-                                    style: FlutterFlowTheme.of(context)
-                                        .headlineLarge
-                                        .override(
-                                          font: GoogleFonts.plusJakartaSans(
-                                            fontWeight: FontWeight.w900,
-                                            fontStyle:
-                                                FlutterFlowTheme.of(context)
-                                                    .headlineLarge
-                                                    .fontStyle,
-                                          ),
-                                          color: primaryTextColor,
-                                          letterSpacing: 0.0,
-                                          fontWeight: FontWeight.w900,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .headlineLarge
-                                                  .fontStyle,
-                                          lineHeight: 1.2,
-                                        ),
-                                  ),
-                                  Text(
-                                    'a loop of growth',
-                                    textAlign: TextAlign.center,
-                                    style: FlutterFlowTheme.of(context)
-                                        .titleMedium
-                                        .override(
-                                          font: GoogleFonts.plusJakartaSans(
-                                            fontWeight:
-                                                FlutterFlowTheme.of(context)
-                                                    .titleMedium
-                                                    .fontWeight,
-                                            fontStyle: FontStyle.italic,
-                                          ),
-                                          color: secondaryTextColor,
-                                          letterSpacing: 0.0,
-                                          fontWeight:
-                                              FlutterFlowTheme.of(context)
-                                                  .titleMedium
-                                                  .fontWeight,
-                                          fontStyle: FontStyle.italic,
-                                          lineHeight: 1.4,
-                                        ),
-                                  ),
-                                ].divide(const SizedBox(height: 4.0)),
-                              ),
-                            ].divide(const SizedBox(height: 24.0)),
-                          ),
-                        ),
                         Container(
                           height: 300.0,
                           alignment: const AlignmentDirectional(0.0, 0.0),

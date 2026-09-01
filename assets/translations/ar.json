@@ -1,8 +1,320 @@
 {
-  "settings": "الإعدادات",
-  "language": "اللغة",
-  "notifications": "الإشعارات",
-  "support": "الدعم",
-  "save": "حفظ",
-  "welcome": "مرحباً"
+  "common": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "close": "إغلاق",
+    "confirm": "تأكيد",
+    "back": "رجوع",
+    "next": "التالي",
+    "skip": "تخطي",
+    "loading": "جاري التحميل...",
+    "error": "خطأ",
+    "success": "نجاح",
+    "warning": "تحذير",
+    "info": "معلومة",
+    "yes": "نعم",
+    "no": "لا",
+    "logout": "تسجيل الخروج",
+    "signin": "تسجيل الدخول",
+    "signup": "إنشاء حساب",
+    "register": "تسجيل"
+  },
+  "language": {
+    "label": "اللغة",
+    "select": "اختر اللغة",
+    "english": "English",
+    "swahili": "Kiswahili",
+    "french": "Français",
+    "spanish": "Español",
+    "arabic": "العربية",
+    "change_success": "تم تغيير اللغة بنجاح"
+  },
+  "settings": {
+    "title": "الإعدادات",
+    "personal_information": "المعلومات الشخصية",
+    "preferences": "التفضيلات",
+    "security": "الأمان",
+    "privacy": "الخصوصية",
+    "about": "حول",
+    "email": "عنوان البريد الإلكتروني",
+    "phone": "رقم الهاتف",
+    "kyc_status": "حالة التحقق",
+    "dark_mode": "الوضع الداكن",
+    "light_theme": "تم تفعيل المظهر الفاتح",
+    "dark_theme": "تم تفعيل المظهر الداكن",
+    "biometrics": "تفعيل المصادقة البيومترية",
+    "biometrics_enabled": "معرّف الوجه / بصمة الإصبع نشطة",
+    "biometrics_disabled": "تم تعطيل المصادقة البيومترية",
+    "biometric_lock_timeout": "مهلة قفل المصادقة البيومترية",
+    "unlock_after": "فتح بعد",
+    "notifications": "إعدادات الإشعارات",
+    "privacy_policy": "سياسة الخصوصية",
+    "terms_of_service": "شروط الخدمة",
+    "support": "الدعم ومركز المساعدة"
+  },
+  "security": {
+    "title": "الأمان والرقم السري",
+    "loading": "جاري تحميل حالة الأمان...",
+    "locked": "تم قفل الحساب",
+    "pin_configured": "تم تعيين الرقم السري بالفعل",
+    "no_pin": "لم يتم تعيين الرقم السري",
+    "change_pin": "تغيير الرقم السري",
+    "forgot_pin": "نسيت الرقم السري",
+    "biometric_enabled": "تم تفعيل المصادقة البيومترية",
+    "biometric_disabled": "تم تعطيل المصادقة البيومترية"
+  },
+  "auth": {
+    "login": {
+      "title": "تسجيل الدخول",
+      "phone": "رقم الهاتف",
+      "password": "كلمة المرور",
+      "button": "تسجيل الدخول",
+      "no_account": "ليس لديك حساب؟",
+      "forgot_password": "هل نسيت كلمة المرور؟"
+    },
+    "register": {
+      "title": "إنشاء حساب",
+      "first_name": "الاسم الأول",
+      "last_name": "اسم العائلة",
+      "email": "عنوان البريد الإلكتروني",
+      "phone": "رقم الهاتف",
+      "password": "كلمة المرور",
+      "confirm_password": "تأكيد كلمة المرور",
+      "terms": "أوافق على شروط الخدمة",
+      "button": "إنشاء حساب",
+      "have_account": "هل لديك حساب بالفعل؟"
+    },
+    "otp": {
+      "title": "التحقق من الرمز",
+      "message": "أدخل الرمز المرسل إلى هاتفك",
+      "code": "رمز المرة الواحدة",
+      "verify": "تحقق",
+      "resend": "إعادة إرسال الرمز"
+    },
+    "invalid_pin": "الرقم السري غير صحيح",
+    "invalid_password": "كلمة المرور غير صحيحة",
+    "account_locked": "تم قفل الحساب بسبب محاولات متعددة"
+  },
+  "wallet": {
+    "title": "المحفظة",
+    "balance": "الرصيد",
+    "available_balance": "الرصيد المتاح",
+    "total_balance": "إجمالي الرصيد",
+    "send": "إرسال",
+    "receive": "استقبال",
+    "transactions": "المعاملات",
+    "deposit": "إيداع",
+    "withdraw": "سحب"
+  },
+  "dashboard": {
+    "title": "لوحة التحكم",
+    "welcome": "مرحباً",
+    "quick_actions": "الإجراءات السريعة",
+    "recent_transactions": "المعاملات الأخيرة",
+    "portfolio": "المحفظة"
+  },
+  "transactions": {
+    "title": "المعاملات",
+    "status": "الحالة",
+    "amount": "المبلغ",
+    "date": "التاريخ",
+    "pending": "قيد الانتظار",
+    "completed": "مكتمل",
+    "failed": "فشل",
+    "cancelled": "ملغى",
+    "processing": "قيد المعالجة",
+    "sent": "تم الإرسال",
+    "received": "تم الاستقبال",
+    "deposit": "إيداع",
+    "withdrawal": "سحب",
+    "transfer": "تحويل"
+  },
+  "validation": {
+    "required": "هذا الحقل مطلوب",
+    "invalid_email": "أدخل عنوان بريد إلكتروني صحيح",
+    "invalid_phone": "أدخل رقم هاتف صحيح",
+    "password_mismatch": "كلمات المرور غير متطابقة",
+    "weak_password": "كلمة المرور ضعيفة جداً",
+    "invalid_amount": "أدخل مبلغاً صحيحاً"
+  },
+  "notifications": {
+    "title": "الإشعارات",
+    "enable": "تفعيل الإشعارات",
+    "settings": "إعدادات الإشعارات",
+    "push": "إشعارات الدفع",
+    "email": "إشعارات البريد الإلكتروني",
+    "sms": "إشعارات الرسائل القصيرة"
+  },
+  "onboarding": {
+    "title": "Tokenize Your Future",
+    "subtitle": "The first integrated blockchain ecosystem for fast payments and escrow services.",
+    "app_name": "FARM",
+    "tagline": "a loop of growth"
+  },
+  "profile": {
+    "title": "الملف الشخصي",
+    "loading": "جاري التحميل...",
+    "edit": "تعديل",
+    "view": "عرض",
+    "username": "اسم المستخدم",
+    "email": "البريد الإلكتروني",
+    "phone": "الهاتف",
+    "kyc": "حالة التحقق",
+    "verified": "تم التحقق",
+    "not_available": "غير متاح",
+    "update": "تحديث"
+  },
+  "errors": {
+    "something_wrong": "حدث شيء خاطئ",
+    "try_again": "يرجى المحاولة مرة أخرى",
+    "network_error": "خطأ في الشبكة. يرجى التحقق من اتصالك",
+    "unauthorized": "غير مصرح. يرجى تسجيل الدخول مرة أخرى",
+    "not_found": "لم يتم العثور عليه",
+    "server_error": "خطأ في الخادم. يرجى المحاولة لاحقاً"
+  },
+  "success": {
+    "saved": "تم الحفظ بنجاح",
+    "updated": "تم التحديث بنجاح",
+    "deleted": "تم الحذف بنجاح",
+    "created": "تم الإنشاء بنجاح",
+    "transaction_successful": "تمت المعاملة بنجاح",
+    "login_successful": "تم تسجيل الدخول بنجاح",
+    "phone_verified": "تم التحقق من الهاتف. جاري تسجيل الدخول...",
+    "password_updated": "تم تحديث كلمة المرور بنجاح. يرجى تسجيل الدخول بكلمة المرور الجديدة.",
+    "account_deleted": "تم حذف الحساب بنجاح",
+    "preferences_updated": "تم تحديث تفضيلات الإشعارات",
+    "pin_set": "تم تعيين الرقم السري بنجاح",
+    "transfer_successful": "تم التحويل بنجاح",
+    "release_cancelled": "تم إلغاء الإفراج",
+    "withdrawal_submitted": "تم تقديم طلب السحب بنجاح"
+  },
+  "dashboard": {
+    "transaction_failed": "فشلت المعاملة",
+    "pin_required": "الرقم السري مطلوب للموافقة على المعاملة"
+  },
+  "transactions": {
+    "all_transactions": "جميع المعاملات",
+    "no_transactions": "لا توجد معاملات تطابق عوامل التصفية الخاصة بك حالياً."
+  },
+  "wallet": {
+    "deposit_funds": "إيداع الأموال",
+    "payment_method": "طريقة الدفع"
+  },
+  "biometric": {
+    "title": "المصادقة البيومترية",
+    "face_id": "معرّف الوجه",
+    "fingerprint": "بصمة الإصبع",
+    "try_again": "حاول مجدداً",
+    "use_password": "استخدم كلمة المرور بدلاً من ذلك"
+  },
+  "kyc": {
+    "title": "التحقق من الهوية",
+    "take_photo": "التقط صورة",
+    "capture_camera": "التقط بكاميرتك",
+    "choose_gallery": "اختر من المعرض",
+    "verified": "تم التحقق",
+    "not_available": "غير متاح"
+  },
+  "deposit": {
+    "title": "إيداع",
+    "deposit_funds": "إيداع الأموال",
+    "wallet_balance": "رصيد المحفظة",
+    "payment_method": "طريقة الدفع"
+  },
+  "withdraw": {
+    "title": "سحب",
+    "confirm_withdrawal": "تأكيد السحب",
+    "select_bank": "اختر البنك",
+    "select_crypto": "اختر العملة الرقمية",
+    "select_network": "اختر الشبكة",
+    "bank_required": "البنك ورقم الحساب مطلوبان للتحويل البنكي",
+    "phone_required": "رقم الهاتف مطلوب لخدمة الأموال عبر الهاتف المحمول",
+    "fields_required": "يرجى ملء جميع الحقول المطلوبة",
+    "pin_required": "الرقم السري مطلوب لتأكيد السحب"
+  },
+  "auth": {
+    "register": {
+      "valid_email": "يرجى إدخال عنوان بريد إلكتروني صحيح."
+    },
+    "otp": {
+      "title": "التحقق من هاتفك",
+      "message": "أدخل الرمز المكون من 6 أرقام المرسل إلى هاتفك",
+      "code": "رمز التحقق",
+      "verify": "تحقق",
+      "resend": "إعادة إرسال الرمز",
+      "full_code": "يرجى إدخال الرمز الكامل المكون من 6 أرقام."
+    }
+  },
+  "notifications": {
+    "push_desc": "تلقِّ التنبيهات على جهازك",
+    "email_desc": "أرسل التحديثات إلى صندوق بريدك",
+    "sms": "إشعارات الرسائل القصيرة",
+    "no_message": "يرجى إدخال رسالة",
+    "mark_all_read": "وضع علامة على الجميع كمقروء",
+    "delete_all": "حذف جميع الإشعارات",
+    "unable_update": "غير قادر على تحديث التفضيلات",
+    "unable_update_now": "غير قادر على تحديث التفضيلات الآن"
+  },
+  "validation": {
+    "valid_recipient": "أدخل المستلم والمبلغ الصحيحين",
+    "enter_amount": "أدخل مبلغاً صحيحاً",
+    "enter_pin": "أدخل الرقم السري الخاص بك"
+  },
+  "payment": {
+    "title": "الدفع",
+    "payment_requests": "طلبات الدفع",
+    "confirm_pin": "أدخل الرقم السري للتأكيد",
+    "approve": "وافق",
+    "approve_message": "أدخل الرقم السري الخاص بك للموافقة",
+    "enter_pin": "أدخل رقم السري للمعاملة",
+    "merchant_payment": "دفع التاجر",
+    "merchant_id": "معرّف التاجر"
+  },
+  "escrow": {
+    "title": "الضمان",
+    "confirm_release": "تأكيد الإفراج",
+    "release_breakdown": "تفاصيل الإفراج:",
+    "escrow_amount": "مبلغ الضمان:",
+    "platform_fee": "رسوم المنصة (1.5%):",
+    "cancel": "إلغاء",
+    "confirm_release_btn": "تأكيد الإفراج",
+    "enter_pin": "أدخل رقم السري للمعاملة"
+  },
+  "support": {
+    "title": "الدعم ومركز المساعدة",
+    "email_support": "الدعم عبر البريد الإلكتروني",
+    "faq": "الأسئلة الشائعة",
+    "live_chat": "الدردشة المباشرة",
+    "unable_load": "غير قادر على التحميل",
+    "retrying": "إعادة المحاولة تلقائياً. يرجى الانتظار."
+  },
+  "admin": {
+    "title": "لوحة التحكم الإدارية",
+    "add_admin": "إضافة مسؤول",
+    "exchange_rates": "أسعار الصرف",
+    "fill_rates": "يرجى ملء كلا سعري الصرف KES→FARM و FARM→KES",
+    "exchange_rate_error": "خطأ في حفظ أسعار الصرف",
+    "load_rates_error": "فشل تحميل أسعار الصرف"
+  },
+  "errors": {
+    "unable_load": "غير قادر على التحميل",
+    "unable_determine": "غير قادر على تحديد المستلم من رمز الاستجابة السريعة",
+    "failed": "فشل"
+  },
+  "misc": {
+    "loading_experience": "جاري تحميل تجربتك…",
+    "farm": "FARM",
+    "growth_tracking": "تتبع النمو",
+    "growth_overview": "نظرة عامة على نموك",
+    "no_projects": "لم يتم العثور على مشاريع",
+    "project_not_found": "لم يتم العثور على المشروع",
+    "payment_requests": "طلبات الدفع",
+    "incoming_requests": "الطلبات الواردة",
+    "money_request": "طلب المال",
+    "request_money": "اطلب المال",
+    "all_requests": "جميع الطلبات",
+    "pending_requests": "الطلبات المعلقة",
+    "your_requests": "طلباتك"
+  }
 }
