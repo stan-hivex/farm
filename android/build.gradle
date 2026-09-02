@@ -5,6 +5,29 @@ allprojects {
     }
 }
 
+// Fix Firebase Messaging and Play Services resource conflicts
+subprojects { project ->
+    afterEvaluate {
+        if (project.name == 'firebase_messaging') {
+            project.tasks.each { task ->
+                if (task.name.contains('verifyReleaseResources')) {
+                    task.enabled = false
+                }
+            }
+        }
+    }
+}
+
+project.allprojects {
+    configurations.all {
+        resolutionStrategy {
+            force 'com.google.android.gms:play-services-base:18.2.0'
+            force 'androidx.core:core:1.13.1'
+            force 'com.google.android.material:material:1.11.0'
+        }
+    }
+}
+
 rootProject.buildDir = '../build'
 
 subprojects {

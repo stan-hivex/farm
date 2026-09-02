@@ -101,6 +101,27 @@
     "account_locked": "Akaunti iliyofungwa",
     "verification_failed": "Uthibitisho haujafanikia"
   },
+  "auth_password_reset": {
+    "title": "Badilisha nenosiri",
+    "description": "Unda nenosiri jipya la akaunti yako.",
+    "requirements": "Tumia angalau herufi 12 zenye herufi kubwa, ndogo, nambari na alama.",
+    "email": "Anwani ya barua pepe",
+    "send_reset": "Tuma kiungo cha kubadilisha",
+    "sending": "Inatuma...",
+    "check_email": "Angalia barua pepe yako",
+    "email_sent": "Ikiwa akaunti ipo kwa barua pepe hii, FARM imetuma kiungo cha kubadilisha nenosiri.",
+    "back_login": "Rudi kuingia",
+    "new_password": "Nenosiri jipya",
+    "confirm_password": "Thibitisha nenosiri",
+    "reset": "Badilisha nenosiri",
+    "success": "Nenosiri limebadilishwa. Sasa unaweza kuingia kwa nenosiri jipya.",
+    "invalid": "Kiungo hiki cha kubadilisha nenosiri si sahihi.",
+    "expired": "Kiungo hiki kimekwisha muda. Omba kiungo kipya.",
+    "used": "Kiungo hiki si sahihi au kimetumika tayari.",
+    "checking": "Inakagua kiungo cha kubadilisha nenosiri...",
+    "request_new": "Omba kiungo kipya",
+    "password_mismatch": "Manenosiri hayalingani."
+  },
   "wallet": {
     "title": "Pochi",
     "balance": "Salio",

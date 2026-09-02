@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:http/http.dart' as http;
 import '/core/config/supabase_config.dart';
@@ -39,15 +40,8 @@ class AuthService {
 
   SupabaseClient get _supabase => SupabaseConfig.client;
 
-  /// Sign up a new user with email and password.
-  ///
-  /// Flow:
-  /// 1. Create account in Supabase
-  /// 2. Supabase sends verification email
-  /// 3. User clicks link in email
-  /// 4. Session is established
-  /// 5. Backend creates FARM user, wallet, and issues JWT
-  Future<AuthResponse> signUp({
+  /// Register a FARM user through the backend and Firebase account linkage.
+  Future<void> signUp({
     required String email,
     required String password,
     required String firstName,
@@ -59,15 +53,6 @@ class AuthService {
     String? turnstileToken,
   }) async {
     try {
-      final response = await _supabase.auth.signUp(
-        email: email,
-        password: password,
-      );
-
-      if (response.user == null) {
-        throw Exception('Sign up failed: User is null');
-      }
-
       await ApiService.register(
         firstName: firstName,
         lastName: lastName,
@@ -80,11 +65,10 @@ class AuthService {
         turnstileToken: turnstileToken,
       );
 
-      return response;
     } on AuthException catch (e) {
       throw Exception('Sign up error: ${e.message}');
     } catch (e) {
-      throw Exception('Sign up failed: $e');
+      throw Exception('Sign up failed');
     }
   }
 
@@ -100,6 +84,34 @@ class AuthService {
   }) async {
     try {
       final normalizedIdentifier = identifier.trim();
+
+      if (normalizedIdentifier.contains('@')) {
+        return _loginWithFirebase(
+          firebaseEmail: normalizedIdentifier,
+          password: password,
+          identifier: normalizedIdentifier,
+          turnstileToken: turnstileToken,
+          countryCode: countryCode,
+        );
+      }
+
+      try {
+        final resolved = await ApiService.resolveLoginEmail(
+          identifier: normalizedIdentifier,
+        );
+        final email = (resolved['data'] as Map?)?['email']?.toString() ?? '';
+        if (email.isNotEmpty) {
+          return _loginWithFirebase(
+            firebaseEmail: email,
+            password: password,
+            identifier: normalizedIdentifier,
+            turnstileToken: turnstileToken,
+            countryCode: countryCode,
+          );
+        }
+      } catch (_) {
+        // Accounts not yet linked continue through the legacy login path.
+      }
 
       final response = await ApiService.login(
         identifier: normalizedIdentifier,
@@ -143,6 +155,52 @@ class AuthService {
     }
   }
 
+  Future<Map<String, dynamic>> _loginWithFirebase({
+    required String firebaseEmail,
+    required String password,
+    required String identifier,
+    String? turnstileToken,
+    String? countryCode,
+  }) async {
+    try {
+      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: firebaseEmail.trim(),
+        password: password,
+      );
+      final firebaseToken = await credential.user?.getIdToken() ?? '';
+      if (firebaseToken.isEmpty) {
+        throw Exception('Firebase authentication did not return a token');
+      }
+      final response = await completeFirebaseLogin(
+        identifier: identifier,
+        firebaseToken: firebaseToken,
+        countryCode: countryCode,
+        turnstileToken: turnstileToken,
+      );
+      await FirebaseAuth.instance.signOut();
+      return response;
+    } on FirebaseAuthException catch (e) {
+      throw Exception(_firebaseLoginError(e.code));
+    }
+  }
+
+  String _firebaseLoginError(String code) {
+    switch (code) {
+      case 'user-disabled':
+        return 'This account is disabled.';
+      case 'user-not-found':
+      case 'wrong-password':
+      case 'invalid-credential':
+        return 'Invalid credentials';
+      case 'too-many-requests':
+        return 'Too many requests. Try again later.';
+      case 'network-request-failed':
+        return 'Network error. Check your connection.';
+      default:
+        return 'Unable to sign in. Please try again.';
+    }
+  }
+
   Future<Map<String, dynamic>> completeFirebaseLogin({
     required String identifier,
     required String firebaseToken,
@@ -176,6 +234,9 @@ class AuthService {
         'farmJwt': farmJwt,
         'refreshToken': refreshToken,
         'user': backendUser,
+        'requiresPhoneVerification': responseData['requiresPhoneVerification'] == true,
+        'pendingLoginId': responseData['pendingLoginId']?.toString() ?? '',
+        'phone': responseData['phone']?.toString() ?? '',
         'loginMethod': 'firebase',
       };
     } catch (e) {
@@ -434,6 +495,24 @@ class AuthService {
         email: email,
         turnstileToken: turnstileToken,
       );
+      final resetUrl = const String.fromEnvironment('FARM_RESET_PASSWORD_URL');
+      final actionCodeSettings = resetUrl.isEmpty
+          ? null
+          : ActionCodeSettings(
+              url: resetUrl,
+              handleCodeInApp: true,
+              androidPackageName: 'farm.africa',
+              androidInstallApp: true,
+              iOSBundleId: 'com.mycompany.farm',
+            );
+      try {
+        await FirebaseAuth.instance.sendPasswordResetEmail(
+          email: email.trim(),
+          actionCodeSettings: actionCodeSettings,
+        );
+      } on FirebaseAuthException catch (e) {
+        if (e.code != 'user-not-found') rethrow;
+      }
     } catch (e) {
       throw Exception('Password reset failed: $e');
     }
@@ -446,15 +525,33 @@ class AuthService {
     required String password,
     required String confirmPassword,
   }) async {
+    if (password != confirmPassword) {
+      throw Exception('Passwords do not match.');
+    }
     try {
-      await ApiService.resetPassword(
-        token: token,
-        email: email,
-        password: password,
-        confirmPassword: confirmPassword,
+      await FirebaseAuth.instance.confirmPasswordReset(
+        code: token,
+        newPassword: password,
       );
-    } catch (e) {
-      throw Exception('Password reset confirmation failed: $e');
+    } on FirebaseAuthException catch (e) {
+      throw Exception(_passwordResetError(e.code));
+    }
+  }
+
+  String _passwordResetError(String code) {
+    switch (code) {
+      case 'expired-action-code':
+        return 'This password reset link has expired. Please request a new one.';
+      case 'invalid-action-code':
+        return 'This password reset link is invalid or has already been used.';
+      case 'weak-password':
+        return 'Choose a stronger password.';
+      case 'user-disabled':
+        return 'This account is disabled.';
+      case 'network-request-failed':
+        return 'Network error. Check your connection.';
+      default:
+        return 'Unable to reset your password. Please request a new link.';
     }
   }
 

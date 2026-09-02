@@ -96,6 +96,27 @@
     "invalid_password": "Contraseña inválida",
     "account_locked": "Cuenta bloqueada por demasiados intentos"
   },
+  "auth_password_reset": {
+    "title": "Restablecer contraseña",
+    "description": "Crea una nueva contraseña para tu cuenta.",
+    "requirements": "Usa al menos 12 caracteres con mayúscula, minúscula, número y símbolo.",
+    "email": "Correo electrónico",
+    "send_reset": "Enviar enlace",
+    "sending": "Enviando...",
+    "check_email": "Revisa tu correo",
+    "email_sent": "Si existe una cuenta para este correo, FARM ha enviado un enlace de restablecimiento.",
+    "back_login": "Volver al inicio de sesión",
+    "new_password": "Nueva contraseña",
+    "confirm_password": "Confirmar contraseña",
+    "reset": "Restablecer contraseña",
+    "success": "Contraseña restablecida. Ya puedes iniciar sesión con la nueva contraseña.",
+    "invalid": "Este enlace de restablecimiento no es válido.",
+    "expired": "Este enlace ha caducado. Solicita uno nuevo.",
+    "used": "Este enlace no es válido o ya se utilizó.",
+    "checking": "Comprobando el enlace...",
+    "request_new": "Solicitar un enlace nuevo",
+    "password_mismatch": "Las contraseñas no coinciden."
+  },
   "wallet": {
     "title": "Billetera",
     "balance": "Saldo",

@@ -96,6 +96,27 @@
     "invalid_password": "Mot de passe invalide",
     "account_locked": "Compte verrouillé en raison de trop de tentatives"
   },
+  "auth_password_reset": {
+    "title": "Réinitialiser le mot de passe",
+    "description": "Créez un nouveau mot de passe pour votre compte.",
+    "requirements": "Utilisez au moins 12 caractères avec une majuscule, une minuscule, un chiffre et un symbole.",
+    "email": "Adresse e-mail",
+    "send_reset": "Envoyer le lien",
+    "sending": "Envoi...",
+    "check_email": "Vérifiez votre e-mail",
+    "email_sent": "Si un compte existe pour cet e-mail, FARM a envoyé un lien de réinitialisation.",
+    "back_login": "Retour à la connexion",
+    "new_password": "Nouveau mot de passe",
+    "confirm_password": "Confirmer le mot de passe",
+    "reset": "Réinitialiser",
+    "success": "Mot de passe réinitialisé. Vous pouvez vous connecter avec le nouveau mot de passe.",
+    "invalid": "Ce lien de réinitialisation est invalide.",
+    "expired": "Ce lien a expiré. Demandez un nouveau lien.",
+    "used": "Ce lien est invalide ou déjà utilisé.",
+    "checking": "Vérification du lien...",
+    "request_new": "Demander un nouveau lien",
+    "password_mismatch": "Les mots de passe ne correspondent pas."
+  },
   "wallet": {
     "title": "Portefeuille",
     "balance": "Solde",

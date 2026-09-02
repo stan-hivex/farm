@@ -946,8 +946,10 @@ class _RegisterpageWidgetState extends State<RegisterpageWidget> {
                         'referral_code': referralController.text.trim(),
                       };
 
-                      print('REGISTER DATA');
-                      print(body);
+                      debugPrint('REGISTER DATA received');
+                      debugPrint(
+                        'Registration fields prepared: ${body.keys.toList()}',
+                      );
 
                       final email = emailController.text.trim();
                       final password = passwordController.text.trim();
@@ -992,7 +994,7 @@ class _RegisterpageWidgetState extends State<RegisterpageWidget> {
                           },
                         );
                       } catch (e) {
-                        print('ERROR: $e');
+                        debugPrint('Registration request failed');
 
                         final message = e.toString().contains('Could not connect to backend server')
                             ? 'Could not connect to backend server. Please check your internet connection and try again.'

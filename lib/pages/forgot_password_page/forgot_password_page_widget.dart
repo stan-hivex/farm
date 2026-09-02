@@ -4,6 +4,7 @@ import '/flutter_flow/flutter_flow_util.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '/services/auth/auth_service.dart';
 import '/pages/loginpage/loginpage_widget.dart';
 import 'forgot_password_page_model.dart';
@@ -37,6 +38,7 @@ class _ForgotPasswordPageWidgetState extends State<ForgotPasswordPageWidget> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   bool _isSubmitting = false;
+  bool _emailSent = false;
 
   @override
   void initState() {
@@ -65,13 +67,7 @@ class _ForgotPasswordPageWidgetState extends State<ForgotPasswordPageWidget> {
       if (!mounted) {
         return;
       }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('A secure reset link has been sent to your email.'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      setState(() => _emailSent = true);
     } catch (e) {
       if (!mounted) {
         return;
@@ -144,7 +140,7 @@ class _ForgotPasswordPageWidgetState extends State<ForgotPasswordPageWidget> {
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    'Reset your password',
+                    'auth_password_reset.title'.tr(),
                     textAlign: TextAlign.center,
                     style: FlutterFlowTheme.of(context).headlineMedium.override(
                           font: GoogleFonts.plusJakartaSans(
@@ -156,7 +152,7 @@ class _ForgotPasswordPageWidgetState extends State<ForgotPasswordPageWidget> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Enter your email address and we will send a secure reset link to help you create a new password.',
+                    'auth_password_reset.description'.tr(),
                     textAlign: TextAlign.center,
                     style: FlutterFlowTheme.of(context).bodyMedium.override(
                           font: GoogleFonts.inter(),
@@ -165,11 +161,25 @@ class _ForgotPasswordPageWidgetState extends State<ForgotPasswordPageWidget> {
                         ),
                   ),
                   const SizedBox(height: 24),
-                  TextFormField(
+                  if (_emailSent) ...[
+                    Text('auth_password_reset.check_email'.tr(), textAlign: TextAlign.center, style: FlutterFlowTheme.of(context).headlineSmall),
+                    const SizedBox(height: 12),
+                    Text(
+                      'auth_password_reset.email_sent'.tr(),
+                      textAlign: TextAlign.center,
+                      style: FlutterFlowTheme.of(context).bodyMedium,
+                    ),
+                    const SizedBox(height: 24),
+                    FilledButton(
+                      onPressed: () => context.goNamed(LoginpageWidget.routeName),
+                      child: Text('auth_password_reset.back_login'.tr()),
+                    ),
+                  ] else ...[
+                    TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'Email address',
+                    decoration: InputDecoration(
+                      labelText: 'auth_password_reset.email'.tr(),
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.email_outlined),
                     ),
@@ -182,25 +192,19 @@ class _ForgotPasswordPageWidgetState extends State<ForgotPasswordPageWidget> {
                       }
                       return null;
                     },
-                  ),
-                  const SizedBox(height: 20),
-                  FilledButton.icon(
-                    onPressed: _isSubmitting ? null : _submit,
-                    icon: _isSubmitting
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.send_rounded),
-                    label:
-                        Text(_isSubmitting ? 'Sending...' : 'Send reset link'),
-                  ),
-                  const SizedBox(height: 16),
-                  TextButton(
-                    onPressed: () => context.goNamed(LoginpageWidget.routeName),
-                    child: const Text('Back to sign in'),
-                  ),
+                    ),
+                    const SizedBox(height: 20),
+                    FilledButton.icon(
+                      onPressed: _isSubmitting ? null : _submit,
+                      icon: _isSubmitting ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send_rounded),
+                      label: Text(_isSubmitting ? 'auth_password_reset.sending'.tr() : 'auth_password_reset.send_reset'.tr()),
+                    ),
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: () => context.goNamed(LoginpageWidget.routeName),
+                      child: const Text('Back to sign in'),
+                    ),
+                  ],
                 ],
               ),
             ),

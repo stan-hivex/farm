@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/loginpage/loginpage_widget.dart';
+import '/pages/forgot_password_page/forgot_password_page_widget.dart';
 import '/services/auth/auth_service.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class ResetPasswordPageWidget extends StatefulWidget {
   const ResetPasswordPageWidget({
@@ -26,6 +29,11 @@ class _ResetPasswordPageWidgetState extends State<ResetPasswordPageWidget> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _isSubmitting = false;
+  bool _isCheckingLink = true;
+  bool _linkIsValid = false;
+  bool _showPassword = false;
+  bool _showConfirmPassword = false;
+  String _linkMessage = 'auth_password_reset.checking';
   late String _token;
   late String _email;
 
@@ -34,6 +42,10 @@ class _ResetPasswordPageWidgetState extends State<ResetPasswordPageWidget> {
     super.initState();
     _token = widget.token.isNotEmpty ? widget.token : Uri.base.queryParameters['token'] ?? '';
     _email = widget.email.isNotEmpty ? widget.email : Uri.base.queryParameters['email'] ?? '';
+    if (_token.isEmpty) {
+      _token = Uri.base.queryParameters['oobCode'] ?? '';
+    }
+    _verifyResetCode();
   }
 
   @override
@@ -44,6 +56,7 @@ class _ResetPasswordPageWidgetState extends State<ResetPasswordPageWidget> {
   }
 
   Future<void> _submit() async {
+    if (!_linkIsValid || _isSubmitting) return;
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -54,21 +67,19 @@ class _ResetPasswordPageWidgetState extends State<ResetPasswordPageWidget> {
       await AuthService().confirmPasswordReset(
         token: _token,
         email: _email,
-        password: _passwordController.text.trim(),
-        confirmPassword: _confirmPasswordController.text.trim(),
+        password: _passwordController.text,
+        confirmPassword: _confirmPasswordController.text,
       );
 
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Password updated successfully. Please sign in with your new password.'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      context.goNamed(LoginpageWidget.routeName);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Password reset successful. You can now sign in with your new password.'),
+        backgroundColor: Colors.green,
+      ));
+      if (mounted) context.goNamed(LoginpageWidget.routeName);
     } catch (e) {
       if (!mounted) {
         return;
@@ -85,6 +96,40 @@ class _ResetPasswordPageWidgetState extends State<ResetPasswordPageWidget> {
       if (mounted) {
         setState(() => _isSubmitting = false);
       }
+    }
+  }
+
+  Future<void> _verifyResetCode() async {
+    if (_token.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _isCheckingLink = false;
+        _linkMessage = 'auth_password_reset.invalid';
+      });
+      return;
+    }
+    try {
+      _email = await FirebaseAuth.instance.verifyPasswordResetCode(_token);
+      if (!mounted) return;
+      setState(() {
+        _isCheckingLink = false;
+        _linkIsValid = true;
+        _linkMessage = 'auth_password_reset.description';
+      });
+    } on FirebaseAuthException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isCheckingLink = false;
+        _linkMessage = error.code == 'expired-action-code'
+            ? 'auth_password_reset.expired'
+            : 'auth_password_reset.used';
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isCheckingLink = false;
+        _linkMessage = 'auth_password_reset.invalid';
+      });
     }
   }
 
@@ -105,52 +150,63 @@ class _ResetPasswordPageWidgetState extends State<ResetPasswordPageWidget> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'Choose a strong new password for ${_email.isNotEmpty ? _email : 'your account'}',
-                  style: FlutterFlowTheme.of(context).headlineSmall,
-                ),
+                Text('auth_password_reset.title'.tr(), style: FlutterFlowTheme.of(context).headlineSmall),
                 const SizedBox(height: 16),
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'New password',
-                    border: OutlineInputBorder(),
+                Text(_linkMessage.tr(), style: FlutterFlowTheme.of(context).bodyMedium),
+                if (_isCheckingLink) ...[
+                  const SizedBox(height: 32),
+                  const Center(child: CircularProgressIndicator()),
+                ] else if (_linkIsValid) ...[
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _passwordController,
+                    obscureText: !_showPassword,
+                    decoration: InputDecoration(
+                      labelText: 'auth_password_reset.new_password'.tr(),
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: Icon(_showPassword ? Icons.visibility_off : Icons.visibility),
+                        onPressed: () => setState(() => _showPassword = !_showPassword),
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value == null || !RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\da-zA-Z]).{12,}$').hasMatch(value)) {
+                        return 'auth_password_reset.requirements'.tr();
+                      }
+                      return null;
+                    },
                   ),
-                  validator: (value) {
-                    if (value == null || value.trim().length < 12) {
-                      return 'Use at least 12 characters, including uppercase, lowercase, a number, and a symbol.';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _confirmPasswordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Confirm password',
-                    border: OutlineInputBorder(),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _confirmPasswordController,
+                    obscureText: !_showConfirmPassword,
+                    decoration: InputDecoration(
+                      labelText: 'auth_password_reset.confirm_password'.tr(),
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: Icon(_showConfirmPassword ? Icons.visibility_off : Icons.visibility),
+                        onPressed: () => setState(() => _showConfirmPassword = !_showConfirmPassword),
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value != _passwordController.text) return 'auth_password_reset.password_mismatch'.tr();
+                      return null;
+                    },
                   ),
-                  validator: (value) {
-                    if (value != _passwordController.text) {
-                      return 'Passwords do not match.';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 24),
-                FilledButton.icon(
-                  onPressed: _isSubmitting ? null : _submit,
-                  icon: _isSubmitting
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.lock_reset),
-                  label: Text(_isSubmitting ? 'Updating...' : 'Update password'),
-                ),
+                  const SizedBox(height: 24),
+                  FilledButton.icon(
+                    onPressed: _isSubmitting ? null : _submit,
+                    icon: _isSubmitting ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.lock_reset),
+                    label: Text(_isSubmitting ? 'auth_password_reset.updating'.tr() : 'auth_password_reset.reset'.tr()),
+                  ),
+                ] else ...[
+                  const SizedBox(height: 24),
+                  FilledButton.icon(
+                    onPressed: () => context.goNamed(ForgotPasswordPageWidget.routeName),
+                    icon: const Icon(Icons.mark_email_read_outlined),
+                    label: Text('auth_password_reset.request_new'.tr()),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 TextButton(
                   onPressed: () => context.goNamed(LoginpageWidget.routeName),

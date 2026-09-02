@@ -47,6 +47,8 @@ class _OtppageWidgetState extends State<OtppageWidget> {
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
   final TextEditingController otpController = TextEditingController();
+  late FocusNode _otpFocusNode;
+  
   // Web-only confirmation result
   ConfirmationResult? _webConfirmationResult;
   RecaptchaVerifier? _recaptchaVerifier;
@@ -56,6 +58,9 @@ class _OtppageWidgetState extends State<OtppageWidget> {
   bool _otpRequestInProgress = false;
   bool _verificationStarted = false;
   bool _isCompletingVerification = false;
+  bool _autoVerificationAttempted = false; // Prevent duplicate auto-verification
+  bool _verificationSucceeded = false;
+  int _verificationGeneration = 0;
 
   Timer? _fallbackTimer;
   String _statusTitle = 'Verifying your phone number...';
@@ -70,6 +75,7 @@ class _OtppageWidgetState extends State<OtppageWidget> {
   void initState() {
     super.initState();
     _model = createModel(context, () => OtppageModel());
+    _otpFocusNode = FocusNode();
     otpController.addListener(_onOtpChanged);
 
     _startFallbackTimer();
@@ -122,14 +128,40 @@ class _OtppageWidgetState extends State<OtppageWidget> {
     } catch (_) {}
     otpController.removeListener(_onOtpChanged);
     otpController.dispose();
+    _otpFocusNode.dispose();
     _model.dispose();
     super.dispose();
   }
 
   void _onOtpChanged() {
-    if (otpController.text.trim().length == 6 && !_isCompletingVerification) {
-      _verifyManualCode();
+    final trimmedOtp = otpController.text.trim();
+
+    if (trimmedOtp.length != 6 ||
+        _isCompletingVerification ||
+        _verificationSucceeded ||
+        _autoVerificationAttempted) {
+      return;
     }
+
+    // Autofill can arrive before codeSent; let codeSent retry once the session exists.
+    if (!kIsWeb && (_verificationId == null || _verificationId!.isEmpty)) {
+      return;
+    }
+    if (kIsWeb && _webConfirmationResult == null) return;
+
+    _autoVerificationAttempted = true;
+    debugPrint('[OTP] Automatic verification triggered - full OTP code detected');
+    _verifyManualCode();
+  }
+
+  void _tryVerifyCompleteOtp() {
+    if (otpController.text.trim().length == 6) {
+      _onOtpChanged();
+    }
+  }
+
+  bool _isCurrentVerification(int generation) {
+    return mounted && generation == _verificationGeneration && !_verificationSucceeded;
   }
 
   void _startFallbackTimer() {
@@ -159,6 +191,8 @@ class _OtppageWidgetState extends State<OtppageWidget> {
 
   Future<void> _startPhoneVerification() async {
     if (!mounted) return;
+
+    final verificationGeneration = ++_verificationGeneration;
 
     final firebaseInitialized = Firebase.apps.isNotEmpty;
     final normalizedPhone = _normalizePhoneNumberForFirebase(widget.phone);
@@ -208,7 +242,7 @@ class _OtppageWidgetState extends State<OtppageWidget> {
               debugPrint('[OTP] reCAPTCHA completed');
             },
             onError: (e) {
-              debugPrint('[OTP] reCAPTCHA error code=${e.code} message=${e.message}');
+                debugPrint('[OTP] reCAPTCHA error code=${e.code}');
             },
             onExpired: () {
               debugPrint('[OTP] reCAPTCHA expired');
@@ -222,7 +256,7 @@ class _OtppageWidgetState extends State<OtppageWidget> {
             _sharedVerifierRendered = true;
             debugPrint('[OTP] reCAPTCHA rendered (shared)');
           } catch (e, st) {
-            debugPrint('[OTP] reCAPTCHA render failed: $e');
+            debugPrint('[OTP] reCAPTCHA render failed');
             debugPrintStack(label: '[OTP] reCAPTCHA render stack', stackTrace: st);
           }
         } else {
@@ -239,7 +273,7 @@ class _OtppageWidgetState extends State<OtppageWidget> {
           );
           debugPrint('[OTP] Firebase SMS request finished confirmationResult=${_webConfirmationResult != null}');
         } on FirebaseAuthException catch (e, st) {
-          debugPrint('[FirebaseAuthException] code=${e.code} message=${e.message}');
+          debugPrint('[FirebaseAuthException] code=${e.code}');
           debugPrintStack(label: '[FirebaseAuthException] stackTrace', stackTrace: st);
           // map common errors to user-friendly state
           if (e.code == 'quota-exceeded' || e.code == 'auth/quota-exceeded' || e.code == 'too-many-requests' || e.code == 'auth/too-many-requests') {
@@ -263,7 +297,7 @@ class _OtppageWidgetState extends State<OtppageWidget> {
           _sharedVerifierRendered = false;
           rethrow;
         } catch (e, st) {
-          debugPrint('[OTP] signInWithPhoneNumber unexpected error: $e');
+          debugPrint('[OTP] signInWithPhoneNumber unexpected error');
           debugPrintStack(label: '[OTP] unexpected stack', stackTrace: st);
           try {
             _sharedRecaptchaVerifier?.clear();
@@ -291,15 +325,16 @@ class _OtppageWidgetState extends State<OtppageWidget> {
         forceResendingToken: _resendToken,
         verificationCompleted: (PhoneAuthCredential credential) async {
           debugPrint('[PHONE AUTH] verificationCompleted');
-          debugPrint('[PHONE AUTH] credential received = ${credential.smsCode != null || credential.providerId.isNotEmpty}');
-          if (!mounted) return;
-          await _completeFirebaseVerification(credential);
+          if (!_isCurrentVerification(verificationGeneration)) return;
+          await _completeFirebaseVerification(
+            credential,
+            verificationGeneration: verificationGeneration,
+          );
         },
         verificationFailed: (FirebaseAuthException error) async {
           debugPrint('[PHONE AUTH] verificationFailed');
           debugPrint('[PHONE AUTH] code = ${error.code}');
-          debugPrint('[PHONE AUTH] message = ${error.message}');
-          if (!mounted) return;
+          if (!_isCurrentVerification(verificationGeneration)) return;
           setState(() {
             _isVerifying = false;
             _statusTitle = 'Phone verification failed';
@@ -312,7 +347,7 @@ class _OtppageWidgetState extends State<OtppageWidget> {
           debugPrint('[PHONE AUTH] verificationId received = ${verificationId.isNotEmpty}');
           debugPrint('[PHONE AUTH] resendToken received = ${resendToken != null}');
           debugPrint('[PHONE AUTH] codeSent SUCCESS - Firebase accepted SMS request');
-          if (!mounted) return;
+          if (!_isCurrentVerification(verificationGeneration)) return;
           setState(() {
             _verificationId = verificationId;
             _resendToken = resendToken;
@@ -320,11 +355,12 @@ class _OtppageWidgetState extends State<OtppageWidget> {
             _statusMessage = 'We are waiting for the code to arrive automatically.';
             _showManualOtpField = true;
           });
+          _tryVerifyCompleteOtp();
         },
         codeAutoRetrievalTimeout: (String verificationId) {
           debugPrint('[PHONE AUTH] codeAutoRetrievalTimeout');
           debugPrint('[PHONE AUTH] verificationId received = ${verificationId.isNotEmpty}');
-          if (!mounted) return;
+          if (!_isCurrentVerification(verificationGeneration)) return;
           setState(() {
             _verificationId = verificationId;
             _showManualOtpField = true;
@@ -337,9 +373,8 @@ class _OtppageWidgetState extends State<OtppageWidget> {
     } catch (e) {
       if (e is FirebaseAuthException) {
         debugPrint('[PHONE AUTH] exception code = ${e.code}');
-        debugPrint('[PHONE AUTH] exception message = ${e.message}');
       } else {
-        debugPrint('[OTP] startPhoneVerification failed: $e');
+        debugPrint('[OTP] startPhoneVerification failed');
       }
       if (!mounted) return;
       setState(() {
@@ -351,8 +386,17 @@ class _OtppageWidgetState extends State<OtppageWidget> {
     }
   }
 
-  Future<void> _completeFirebaseVerification(PhoneAuthCredential credential) async {
-    if (!mounted || _isCompletingVerification) return;
+  Future<void> _completeFirebaseVerification(
+    PhoneAuthCredential credential, {
+    int? verificationGeneration,
+  }) async {
+    if (!mounted ||
+        _isCompletingVerification ||
+        _verificationSucceeded ||
+        (verificationGeneration != null &&
+            verificationGeneration != _verificationGeneration)) {
+      return;
+    }
 
     _isCompletingVerification = true;
 
@@ -363,10 +407,10 @@ class _OtppageWidgetState extends State<OtppageWidget> {
     });
 
     try {
-      debugPrint('[OTP] completeFirebaseVerification signing in with credential');
+      debugPrint('[OTP] Automatic verification in progress');
       final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
       final firebaseToken = await userCredential.user?.getIdToken() ?? '';
-      debugPrint('[OTP] completeFirebaseVerification firebaseToken length=${firebaseToken.length} user=${userCredential.user?.uid}');
+      debugPrint('[OTP] Firebase authentication successful (token length=${firebaseToken.length}, user UID available)');
 
       if (firebaseToken.isEmpty) {
         throw Exception('Unable to obtain a Firebase ID token.');
@@ -377,12 +421,14 @@ class _OtppageWidgetState extends State<OtppageWidget> {
         firebaseIdToken: firebaseToken,
         pendingLoginId: widget.pendingLoginId,
       );
-      debugPrint('[PHONE AUTH] /api/auth/verify-phone reached = true');
+      debugPrint('[OTP] Backend verification endpoint reached');
 
       if (!mounted) return;
 
       if (response['success'] == true) {
-        debugPrint('[OTP] completeFirebaseVerification succeeded');
+        debugPrint('[OTP] OTP verification succeeded');
+        _verificationSucceeded = true;
+        _fallbackTimer?.cancel();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('success.phone_verified'.tr()),
@@ -404,19 +450,20 @@ class _OtppageWidgetState extends State<OtppageWidget> {
       if (!mounted) return;
       setState(() {
         _isCompletingVerification = false;
+        _autoVerificationAttempted = false; // Reset flag to allow retry
         _isVerifying = false;
-        _statusTitle = 'Verification failed';
-        _statusMessage = e.toString();
         _showManualOtpField = true;
+        _statusTitle = 'Verification failed';
+        _statusMessage = _friendlyError(e);
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Verification failed: $e')),
+        SnackBar(content: Text('Verification failed: ${_friendlyError(e)}')),
       );
     }
   }
 
   Future<void> _verifyManualCode() async {
-    if (_isCompletingVerification) return;
+    if (_isCompletingVerification || _verificationSucceeded) return;
 
     final otp = otpController.text.trim();
 
@@ -429,20 +476,20 @@ class _OtppageWidgetState extends State<OtppageWidget> {
 
     if (kIsWeb) {
       _isCompletingVerification = true;
-      debugPrint('[OTP] Starting Firebase phone verification via confirmation.confirm');
-      debugPrint('[OTP] verifyManualCode web otp=$otp');
+      debugPrint('[OTP] Web platform: initiating OTP verification');
       try {
         final confirmation = _webConfirmationResult;
         if (confirmation == null) {
-          debugPrint('[OTP] verifyManualCode missing confirmation result');
+          debugPrint('[OTP] Web platform: confirmation result missing');
           _isCompletingVerification = false;
+          _autoVerificationAttempted = false; // Reset flag to allow retry
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Confirmation result missing. Please resend code.')));
           return;
         }
         final userCredential = await confirmation.confirm(otp);
-        debugPrint('[OTP] Firebase confirmation result received; user=${userCredential.user?.uid}');
+        debugPrint('[OTP] Firebase authentication successful via web platform');
         final firebaseToken = await userCredential.user?.getIdToken() ?? '';
-        debugPrint('[OTP] verifyManualCode firebaseToken length=${firebaseToken.length}');
+        debugPrint('[OTP] Firebase token obtained (length=${firebaseToken.length})');
         if (firebaseToken.isEmpty) throw Exception('Unable to obtain Firebase ID token.');
 
         final response = await AuthService().verifyPhone(
@@ -465,12 +512,14 @@ class _OtppageWidgetState extends State<OtppageWidget> {
           await FirebaseAuth.instance.signOut();
         } catch (_) {}
         if (e is FirebaseAuthException) {
-          debugPrint('[Firebase ERROR] verifyManualCode code=${e.code} message=${e.message}');
+          debugPrint('[OTP] Firebase error during verification');
         }
         if (!mounted) return;
         setState(() {
           _isCompletingVerification = false;
+          _autoVerificationAttempted = false; // Reset flag to allow retry
           _isVerifying = false;
+          _showManualOtpField = true;
           _statusTitle = 'Verification failed';
           _statusMessage = _friendlyError(e);
         });
@@ -484,6 +533,7 @@ class _OtppageWidgetState extends State<OtppageWidget> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Verification session expired. Request a new code.')),
       );
+      _autoVerificationAttempted = false; // Reset flag to allow retry
       return;
     }
     final credential = PhoneAuthProvider.credential(
@@ -527,6 +577,15 @@ class _OtppageWidgetState extends State<OtppageWidget> {
       _secondsRemaining = 30;
     });
     _startFallbackTimer();
+    
+    // Reset all state for new OTP attempt
+    otpController.clear();
+    _autoVerificationAttempted = false; // Reset auto-verification flag to allow new attempt
+    _isCompletingVerification = false;
+    _verificationId = null;
+    _resendToken = null;
+    _verificationGeneration++;
+    
     // ensure previous verifier/confirmation cleared before resending: clear shared verifier
     try {
       _sharedRecaptchaVerifier?.clear();
@@ -536,6 +595,8 @@ class _OtppageWidgetState extends State<OtppageWidget> {
     _recaptchaVerifier = null;
     _webConfirmationResult = null;
     _otpRequestInProgress = false;
+    
+    debugPrint('[OTP] Resend initiated - state reset for new OTP');
     await _startPhoneVerification();
   }
 
@@ -620,20 +681,22 @@ class _OtppageWidgetState extends State<OtppageWidget> {
                   const Icon(Icons.phone_android_rounded, size: 42),
                 const SizedBox(height: 24),
                 if (_showManualOtpField) ...[
-                  TextField(
-                    controller: otpController,
-                    keyboardType: TextInputType.number,
-                    autofillHints: const [AutofillHints.oneTimeCode],
-                    textAlign: TextAlign.center,
-                    maxLength: 6,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: InputDecoration(
-                      hintText: 'Enter 6-digit code',
-                      filled: true,
-                      fillColor: FlutterFlowTheme.of(context).secondaryBackground,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(color: FlutterFlowTheme.of(context).alternate),
+                  AutofillGroup(
+                    child: TextField(
+                      controller: otpController,
+                      keyboardType: TextInputType.number,
+                      autofillHints: const [AutofillHints.oneTimeCode],
+                      textAlign: TextAlign.center,
+                      maxLength: 6,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      decoration: InputDecoration(
+                        hintText: 'Enter 6-digit code',
+                        filled: true,
+                        fillColor: FlutterFlowTheme.of(context).secondaryBackground,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: FlutterFlowTheme.of(context).alternate),
+                        ),
                       ),
                     ),
                   ),

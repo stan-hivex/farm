@@ -251,11 +251,14 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
   /// Login with email or phone/password
   Future<void> handleLogin() async {
     final raw = phoneController.text.trim();
+    final isEmailIdentifier = raw.contains('@');
     // normalize: keep digits only and remove leading zeros
     final digitsOnly = raw.replaceAll(RegExp(r'[^0-9]'), '');
     final normalizedDigits = digitsOnly.replaceFirst(RegExp(r'^0+'), '');
     final countryCode = _selectedCountry['code']?.replaceAll('+', '') ?? '';
-    final identifier = countryCode.isNotEmpty
+    final identifier = isEmailIdentifier
+      ? raw
+      : countryCode.isNotEmpty
         ? '+$countryCode$normalizedDigits'
         : '+$normalizedDigits';
     final password = passwordController.text.trim();

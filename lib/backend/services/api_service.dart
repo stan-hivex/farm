@@ -205,6 +205,17 @@ class ApiService {
         timeoutSeconds: 60,
       );
 
+  static Future<Map<String, dynamic>> resolveLoginEmail({
+    required String identifier,
+  }) =>
+      _request(
+        method: 'POST',
+        path: '/auth/resolve-login-email',
+        body: {'identifier': identifier},
+        requiresAuth: false,
+        timeoutSeconds: 30,
+      );
+
   static Future<Map<String, dynamic>> verifyPhone({
     required String firebaseIdToken,
     required String pendingLoginId,

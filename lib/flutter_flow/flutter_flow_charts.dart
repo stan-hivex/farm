@@ -112,6 +112,9 @@ class FlutterFlowBarChart extends StatelessWidget {
     this.barSpace,
     this.groupSpace,
     this.alignment = BarChartAlignment.center,
+    this.showBarValues = false,
+    this.barValueFormatter,
+    this.barValueTextStyle,
     this.chartStylingInfo = const ChartStylingInfo(),
   });
 
@@ -126,6 +129,9 @@ class FlutterFlowBarChart extends StatelessWidget {
   final double? barSpace;
   final double? groupSpace;
   final BarChartAlignment alignment;
+  final bool showBarValues;
+  final String Function(double)? barValueFormatter;
+  final TextStyle? barValueTextStyle;
   final ChartStylingInfo chartStylingInfo;
 
   Map<int, List<double>> get dataMap {
@@ -199,7 +205,7 @@ class FlutterFlowBarChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BarChart(
+    final chart = BarChart(
       BarChartData(
         barTouchData: BarTouchData(
           handleBuiltInTouches: chartStylingInfo.enableTooltip,
@@ -245,6 +251,52 @@ class FlutterFlowBarChart extends StatelessWidget {
         maxY: axisBounds.maxY,
         backgroundColor: chartStylingInfo.backgroundColor,
       ),
+    );
+
+    if (!showBarValues || stacked || barData.isEmpty) return chart;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final values = barData.first.data;
+        final maximum =
+            axisBounds.maxY ?? (values.isEmpty ? 0 : values.reduce(max));
+        final leftReserved = yAxisLabelInfo.reservedSize ?? 22;
+        final bottomReserved = xAxisLabelInfo.reservedSize ?? 22;
+        final plotWidth = constraints.maxWidth - leftReserved - 8;
+        final plotHeight = constraints.maxHeight - bottomReserved - 8;
+        return Stack(
+          children: [
+            Positioned.fill(child: chart),
+            ...values
+                .asMap()
+                .entries
+                .where((entry) => entry.value > 0)
+                .map((entry) {
+              final index = entry.key;
+              final value = entry.value;
+              final x =
+                  leftReserved + (index + 0.5) * plotWidth / values.length;
+              final y =
+                  maximum <= 0 ? 0.0 : 8 + plotHeight * (1 - value / maximum);
+              return Positioned(
+                left: x - 24,
+                top: y - 18,
+                width: 48,
+                child: IgnorePointer(
+                  child: Text(
+                    barValueFormatter?.call(value) ??
+                        formatLabel(const LabelFormatter(), value),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: barValueTextStyle,
+                  ),
+                ),
+              );
+            }),
+          ],
+        );
+      },
     );
   }
 }

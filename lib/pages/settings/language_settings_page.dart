@@ -1,11 +1,8 @@
-
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/backend/services/api_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
-import '/flutter_flow/flutter_flow_util.dart';
 import '/services/localization_service.dart';
 
 class LanguageSettingsPageWidget extends StatefulWidget {
@@ -21,37 +18,31 @@ class LanguageSettingsPageWidget extends StatefulWidget {
 
 class _LanguageSettingsPageWidgetState
     extends State<LanguageSettingsPageWidget> {
-
   bool loading = true;
 
   late Locale _currentLocale;
 
   final List<Map<String, dynamic>> languages = [
-
     {
       'name': 'English',
       'native': 'English',
       'locale': Locale('en'),
     },
-
     {
       'name': 'Swahili',
       'native': 'Kiswahili',
       'locale': Locale('sw'),
     },
-
     {
       'name': 'French',
       'native': 'Français',
       'locale': Locale('fr'),
     },
-
     {
       'name': 'Spanish',
       'native': 'Español',
       'locale': Locale('es'),
     },
-
     {
       'name': 'Arabic',
       'native': 'العربية',
@@ -80,19 +71,14 @@ class _LanguageSettingsPageWidgetState
   // =====================================
   // SAVE TO BACKEND (OPTIONAL)
   // =====================================
-  Future<void> saveLanguageBackend(
-      String languageCode) async {
-
+  Future<void> saveLanguageBackend(String languageCode) async {
     try {
-
       await ApiService.request(
         method: 'PUT',
         path: '/settings/language',
         body: {'language': languageCode},
       );
-
     } catch (e) {
-
       debugPrint(
         'LANGUAGE BACKEND ERROR: $e',
       );
@@ -106,7 +92,6 @@ class _LanguageSettingsPageWidgetState
   Future<void> changeLanguage(
     Map<String, dynamic> lang,
   ) async {
-
     final Locale locale = lang['locale'];
 
     try {
@@ -123,7 +108,6 @@ class _LanguageSettingsPageWidgetState
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-
         SnackBar(
           content: Text(
             'language.change_success'.tr(),
@@ -148,25 +132,14 @@ class _LanguageSettingsPageWidgetState
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-
-      backgroundColor:
-          FlutterFlowTheme.of(context)
-              .primaryBackground,
-
+      backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
       appBar: AppBar(
-
         title: Text(
           'language.label'.tr(),
         ),
-
         elevation: 0,
-
-        backgroundColor:
-            FlutterFlowTheme.of(context)
-                .primaryBackground,
-        
+        backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
         leading: IconButton(
           icon: Icon(
             Icons.arrow_back_ios_rounded,
@@ -175,31 +148,18 @@ class _LanguageSettingsPageWidgetState
           onPressed: () => Navigator.pop(context),
         ),
       ),
-
       body: loading
-
           ? Center(
-              child:
-                  CircularProgressIndicator(),
+              child: CircularProgressIndicator(),
             )
-
           : ListView.builder(
-
-              padding:
-                  const EdgeInsets.all(16),
-
-              itemCount:
-                  languages.length,
-
-              itemBuilder:
-                  (context, index) {
-
-                final lang =
-                    languages[index];
+              padding: const EdgeInsets.all(16),
+              itemCount: languages.length,
+              itemBuilder: (context, index) {
+                final lang = languages[index];
 
                 final isSelected =
-                    _currentLocale.languageCode ==
-                        lang['locale'].languageCode;
+                    _currentLocale.languageCode == lang['locale'].languageCode;
 
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12.0),
@@ -211,7 +171,9 @@ class _LanguageSettingsPageWidgetState
                       padding: const EdgeInsets.all(16.0),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? FlutterFlowTheme.of(context).primary.withOpacity(0.1)
+                            ? FlutterFlowTheme.of(context)
+                                .primary
+                                .withValues(alpha: 0.1)
                             : FlutterFlowTheme.of(context).secondaryBackground,
                         borderRadius: BorderRadius.circular(16.0),
                         border: Border.all(
@@ -229,17 +191,12 @@ class _LanguageSettingsPageWidgetState
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-
                                   lang['native'],
-
                                   style: GoogleFonts.inter(
-
                                     fontSize: 16,
-
-                                    fontWeight:
-                                        FontWeight.w600,
-                                    
-                                    color: FlutterFlowTheme.of(context).primaryText,
+                                    fontWeight: FontWeight.w600,
+                                    color: FlutterFlowTheme.of(context)
+                                        .primaryText,
                                   ),
                                 ),
                                 if (isSelected)
@@ -247,9 +204,12 @@ class _LanguageSettingsPageWidgetState
                                     padding: const EdgeInsets.only(top: 4.0),
                                     child: Text(
                                       'Currently selected',
-                                      style: FlutterFlowTheme.of(context).bodySmall.override(
-                                        color: FlutterFlowTheme.of(context).primary,
-                                      ),
+                                      style: FlutterFlowTheme.of(context)
+                                          .bodySmall
+                                          .override(
+                                            color: FlutterFlowTheme.of(context)
+                                                .primary,
+                                          ),
                                     ),
                                   ),
                               ],

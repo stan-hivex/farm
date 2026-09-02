@@ -252,6 +252,15 @@ GoRouter createRouter(
           builder: (context, params) => const ForgotPasswordPageWidget(),
         ),
         FFRoute(
+          name: ResetPasswordPageWidget.routeName,
+          path: ResetPasswordPageWidget.routePath,
+          builder: (context, params) => ResetPasswordPageWidget(
+            token: params.getParam('oobCode', ParamType.String) ??
+                params.getParam('token', ParamType.String) ?? '',
+            email: params.getParam('email', ParamType.String) ?? '',
+          ),
+        ),
+        FFRoute(
           name: PinSetupPageWidget.routeName,
           path: PinSetupPageWidget.routePath,
           builder: (context, params) => const PinSetupPageWidget(),
