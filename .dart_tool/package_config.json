@@ -542,6 +542,12 @@
       "languageVersion": "2.15"
     },
     {
+      "name": "image_gallery_saver_plus",
+      "rootUri": "file:///C:/Users/u/AppData/Local/Pub/Cache/hosted/pub.dev/image_gallery_saver_plus-5.1.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.9"
+    },
+    {
       "name": "image_picker",
       "rootUri": "file:///C:/Users/u/AppData/Local/Pub/Cache/hosted/pub.dev/image_picker-1.2.2",
       "packageUri": "lib/",

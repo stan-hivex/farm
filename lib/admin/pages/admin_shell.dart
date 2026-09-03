@@ -38,6 +38,7 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      _startPeriodicRefresh();
       final ok = await AdminGuard.isAuthenticated();
       if (!ok && mounted) {
         debugPrint(
@@ -85,11 +86,7 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
 
     try {
       final refreshed = await AdminApiService.ensureValidSession();
-      if (refreshed && mounted) {
-        setState(() {
-          _pageRevision += 1;
-        });
-      }
+      if (refreshed) debugPrint('[AUTH] Admin session refreshed without rebuilding the page.');
     } catch (_) {}
   }
 
@@ -151,27 +148,28 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final isWide = MediaQuery.of(context).size.width > 700;
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      drawer: const AdminSidebar(),
-      body: Row(
-        children: [
-          // Sidebar — only on wide screens
+    return PopScope<bool>(
+      canPop: _selectedIndex == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _selectedIndex != 0 && mounted) {
+          setState(() => _selectedIndex = 0);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        drawer: const AdminSidebar(),
+        body: Row(children: <Widget>[
           if (isWide) _buildSidebar(),
-
-          // Main content
           Expanded(
-            child: Column(
-              children: [
-                _buildTopBar(isWide),
-                Expanded(child: _buildCurrentPage()),
-              ],
-            ),
+            child: Column(children: <Widget>[
+              _buildTopBar(isWide),
+              Expanded(child: _buildCurrentPage()),
+            ]),
           ),
-        ],
+        ]),
+        // Bottom nav — only on narrow screens
+        bottomNavigationBar: isWide ? null : _buildBottomNav(),
       ),
-      // Bottom nav — only on narrow screens
-      bottomNavigationBar: isWide ? null : _buildBottomNav(),
     );
   }
 

@@ -41,6 +41,7 @@
         "go_router",
         "google_fonts",
         "http",
+        "image_gallery_saver_plus",
         "image_picker",
         "intl",
         "json_path",
@@ -409,6 +410,13 @@
     {
       "name": "percent_indicator",
       "version": "4.2.2",
+      "dependencies": [
+        "flutter"
+      ]
+    },
+    {
+      "name": "image_gallery_saver_plus",
+      "version": "5.1.1",
       "dependencies": [
         "flutter"
       ]

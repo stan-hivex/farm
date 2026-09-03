@@ -18,6 +18,7 @@ class _KycManagementPageState extends State<KycManagementPage> {
   bool _loading = true;
   String? _error;
   int _page = 1;
+  String _statusFilter = 'pending';
 
   @override
   void initState() {
@@ -31,7 +32,7 @@ class _KycManagementPageState extends State<KycManagementPage> {
       _error = null;
     });
     try {
-      final res = await AdminApiService.getKycQueue(page: _page);
+      final res = await AdminApiService.getKycQueue(page: _page, status: _statusFilter);
       setState(() => _queue = res['data'] ?? []);
     } catch (e) {
       setState(() => _error = e.toString().replaceAll('Exception: ', ''));
@@ -98,15 +99,43 @@ class _KycManagementPageState extends State<KycManagementPage> {
         ElevatedButton(onPressed: _load, child: Text('Retry'))
       ]));
 
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: _queue.isEmpty
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: Row(
+            children: [
+              for (final status in ['pending', 'rejected', 'verified'])
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(status.toUpperCase()),
+                    selected: _statusFilter == status,
+                    onSelected: (_) {
+                      setState(() {
+                        _statusFilter = status;
+                        _page = 1;
+                      });
+                      _load();
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _load,
+            child: _queue.isEmpty
           ? Center(child: Text('No pending KYC applications'))
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _queue.length,
               itemBuilder: (_, i) => _kycCard(_queue[i]),
             ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -159,7 +188,7 @@ class _KycManagementPageState extends State<KycManagementPage> {
                   decoration: BoxDecoration(
                       color: const Color.fromRGBO(255, 165, 0, 0.12),
                       borderRadius: BorderRadius.circular(8)),
-                  child: Text('PENDING',
+                  child: Text((doc['status'] ?? _statusFilter).toString().toUpperCase(),
                       style: GoogleFonts.plusJakartaSans(
                           color: context.warningColor,
                           fontSize: 10,
@@ -247,7 +276,7 @@ class _KycManagementPageState extends State<KycManagementPage> {
                   ],
                 ]),
               ),
-            Padding(
+            if (_statusFilter == 'pending') Padding(
               padding: const EdgeInsets.all(14),
               child: Row(children: [
                 Expanded(

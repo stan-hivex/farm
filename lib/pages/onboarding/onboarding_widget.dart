@@ -13,6 +13,7 @@ import '/admin/core/admin_navigation.dart';
 import '/admin/pages/admin_shell.dart';
 import '/pages/superadmin/superadmin_dashboard_page.dart';
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -200,14 +201,54 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final marketingHeight =
-                  (constraints.maxHeight * 0.42).clamp(280.0, 360.0);
+                  (constraints.maxHeight * 0.34).clamp(250.0, 310.0);
               final artworkSize = marketingHeight - 24.0;
 
               return Column(
                 children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 24.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 96.0,
+                          height: 96.0,
+                          decoration: BoxDecoration(
+                            color: Colors.black,
+                            borderRadius: BorderRadius.circular(24.0),
+                          ),
+                          alignment: Alignment.center,
+                          child: Image.asset(
+                            'assets/images/app_logo.png',
+                            width: 68.0,
+                            height: 68.0,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                        const SizedBox(height: 12.0),
+                        Text(
+                          'onboarding.app_name'.tr(),
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 42.0,
+                            fontWeight: FontWeight.w800,
+                            color: primaryTextColor,
+                          ),
+                        ),
+                        Text(
+                          'onboarding.tagline'.tr(),
+                          style: GoogleFonts.inter(
+                            fontSize: 20.0,
+                            fontStyle: FontStyle.italic,
+                            color: secondaryTextColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   // Keep the full marketing artwork visible across phone sizes.
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(24.0, 24.0, 24.0, 0.0),
+                    padding: const EdgeInsets.fromLTRB(24.0, 28.0, 24.0, 0.0),
                     child: SizedBox(
                       height: marketingHeight,
                       width: double.infinity,

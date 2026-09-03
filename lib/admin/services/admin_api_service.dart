@@ -17,9 +17,10 @@ class AdminApiService {
 
   static Future<String> _getToken() async {
     debugPrint('Reading admin/super admin session...');
-    final adminSession = await AuthSessionStore.readAdminSession();
-    final superAdminSession = await AuthSessionStore.readSuperAdminSession();
-    final session = superAdminSession ?? adminSession;
+    final activeRole = await AuthSessionStore.readActiveRole();
+    final session = activeRole == 'super_admin'
+        ? await AuthSessionStore.readSuperAdminSession()
+        : await AuthSessionStore.readAdminSession();
     final token = session?.accessToken ?? '';
     final role = session?.role ?? '';
     debugPrint(
@@ -33,9 +34,10 @@ class AdminApiService {
       };
 
   static Future<String> _getRefreshToken() async {
-    final adminSession = await AuthSessionStore.readAdminSession();
-    final superAdminSession = await AuthSessionStore.readSuperAdminSession();
-    final session = superAdminSession ?? adminSession;
+    final activeRole = await AuthSessionStore.readActiveRole();
+    final session = activeRole == 'super_admin'
+        ? await AuthSessionStore.readSuperAdminSession()
+        : await AuthSessionStore.readAdminSession();
     return session?.refreshToken ?? '';
   }
 
@@ -361,8 +363,8 @@ class AdminApiService {
       _req(method: 'PATCH', path: '/admin/users/$userId/status', body: data);
 
   // ── KYC ───────────────────────────────────────────────────────────────────
-  static Future<Map<String, dynamic>> getKycQueue({int page = 1}) =>
-      _req(method: 'GET', path: '/kyc/queue?page=$page');
+    static Future<Map<String, dynamic>> getKycQueue({int page = 1, String? status}) =>
+      _req(method: 'GET', path: '/kyc/queue?page=$page${status != null ? "&status=$status" : ""}');
 
   static Future<Map<String, dynamic>> reviewKyc(String docId, String status,
           {String? rejectionReason}) =>
@@ -409,20 +411,22 @@ class AdminApiService {
 
   // ── Deposits ──────────────────────────────────────────────────────────────
   static Future<Map<String, dynamic>> getDeposits(
-          {int page = 1, String? status}) =>
+          {int page = 1, String? status, String? search}) =>
       _req(
         method: 'GET',
         path: '/admin/transactions?page=$page&type=deposit'
-            '${status != null ? "&status=$status" : ""}',
+            '${status != null ? "&status=$status" : ""}'
+            '${search != null ? "&search=${Uri.encodeQueryComponent(search)}" : ""}',
       );
 
   // ── Withdrawals ───────────────────────────────────────────────────────────
   static Future<Map<String, dynamic>> getWithdrawals(
-          {int page = 1, String? status}) =>
+          {int page = 1, String? status, String? search}) =>
       _req(
         method: 'GET',
         path: '/admin/transactions?page=$page&type=withdrawal'
-            '${status != null ? "&status=$status" : ""}',
+            '${status != null ? "&status=$status" : ""}'
+            '${search != null ? "&search=${Uri.encodeQueryComponent(search)}" : ""}',
       );
 
   static Future<Map<String, dynamic>> processWithdrawal(

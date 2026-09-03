@@ -9,6 +9,7 @@ import '/pages/loginpage/loginpage_widget.dart';
 import 'add_superadmin_page.dart';
 import 'deposits_management_page.dart';
 import 'escrow_management_page.dart';
+import 'kyc_management_page.dart';
 import 'notifications_management_page.dart';
 import 'user_management_page.dart';
 import 'withdrawals_management_page.dart';
@@ -286,20 +287,25 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       physics: const NeverScrollableScrollPhysics(),
       children: [
         _metricCard('Total Users', '${s['total_users'] ?? 0}', 'Active people',
-            cardColor, accent),
+          cardColor, accent, () => _navigateTo(const UserManagementPage())),
         _metricCard('Active Escrows', '${s['active_escrows'] ?? 0}',
-            'Escrow flows', cardColor, accent),
+          'Escrow flows', cardColor, accent, () => _navigateTo(const EscrowManagementPage())),
         _metricCard('Pending KYC', '${s['pending_kyc'] ?? 0}', 'Review queue',
-            cardColor, accent),
+          cardColor, accent, () => _navigateTo(const KycManagementPage())),
         _metricCard('Pending Payouts', '${s['pending_payouts'] ?? 0}',
-            'Awaiting settlement', cardColor, accent),
+          'Awaiting settlement', cardColor, accent, () => _navigateTo(const WithdrawalsManagementPage())),
       ],
     );
   }
 
   Widget _metricCard(String title, String value, String caption,
-      Color cardColor, Color accent) {
-    return Container(
+      Color cardColor, Color accent, VoidCallback onTap) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: cardColor,
@@ -343,6 +349,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               style: GoogleFonts.plusJakartaSans(
                   color: context.onSurface.withOpacity(0.54), fontSize: 12)),
         ],
+      ),
+        ),
       ),
     );
   }

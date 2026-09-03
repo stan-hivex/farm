@@ -1,6 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '/app_state.dart';
 import '/backend/services/api_service.dart';
 import '/services/app_session_manager.dart';
 import '/services/transaction_authentication_service.dart';
@@ -16,7 +16,8 @@ class SuperadminWalletPage extends StatefulWidget {
   State<SuperadminWalletPage> createState() => _SuperadminWalletPageState();
 }
 
-class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
+class _SuperadminWalletPageState extends State<SuperadminWalletPage>
+  with WidgetsBindingObserver {
   Map<String, dynamic>? _walletData;
   bool _loading = true;
   bool _loadingHistory = true;
@@ -24,6 +25,7 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
   String _selectedWithdrawalMethod = 'MOBILE_MONEY';
   String? _selectedBank;
   List<dynamic> _history = [];
+  Timer? _refreshTimer;
 
   final _amountController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -59,12 +61,16 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadWalletData();
     _fetchWithdrawalHistory();
+    _startPeriodicRefresh();
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     _amountController.dispose();
     _phoneController.dispose();
     _accountNameController.dispose();
@@ -75,6 +81,29 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
     _pinController.dispose();
     _pinFocusNode.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _startPeriodicRefresh();
+      unawaited(_refreshWallet());
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _refreshTimer?.cancel();
+    }
+  }
+
+  void _startPeriodicRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+      if (mounted) unawaited(_refreshWallet());
+    });
+  }
+
+  Future<void> _refreshWallet() async {
+    await _loadWalletData();
+    await _fetchWithdrawalHistory();
   }
 
   Future<void> _promptBiometricForPinField() async {
@@ -113,9 +142,11 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
     });
     try {
       final resp = await ApiService.request(method: 'GET', path: '/admin/wallet');
-      setState(() => _walletData = resp['data'] ?? resp);
+      if (mounted) setState(() => _walletData = resp['data'] ?? resp);
     } catch (e) {
-      setState(() => _error = e.toString().replaceAll('Exception: ', ''));
+      if (mounted) {
+        setState(() => _error = e.toString().replaceAll('Exception: ', ''));
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -136,7 +167,6 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
 
       final usedBiometric = authResult?.biometricUsed == true;
       if (usedBiometric) {
-        final token = await FFAppState().getActiveAccessToken();
         final Map<String, dynamic> body = {
           'amount': double.parse(_amountController.text),
           'method': _selectedWithdrawalMethod,
@@ -246,6 +276,7 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
   }
 
   Future<void> _fetchWithdrawalHistory() async {
+    if (!mounted) return;
     setState(() {
       _loadingHistory = true;
     });
@@ -257,9 +288,9 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
           ? decoded['data'] ?? decoded['withdrawals'] ?? []
           : decoded;
 
-      setState(() => _history = List<dynamic>.from(data as List));
+      if (mounted) setState(() => _history = List<dynamic>.from(data as List));
     } catch (_) {
-      setState(() => _history = []);
+      if (mounted) setState(() => _history = []);
     } finally {
       if (mounted) setState(() => _loadingHistory = false);
     }
@@ -356,9 +387,12 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
     final balance = _walletData?['available_balance'] ?? _walletData?['balance'] ?? 0.0;
     final pendingWithdrawals = _walletData?['pending_withdrawals'] ?? 0.0;
     final totalWithdrawn = _walletData?['total_withdrawn'] ?? 0.0;
+    final withdrawalFeeEarnings = _walletData?['withdrawal_fee_earnings'] ?? 0.0;
     final currency = _walletData?['currency'] ?? 'FARM';
 
-    return Scaffold(
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: cardColor,
@@ -384,7 +418,7 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
               const SizedBox(height: 24),
 
               // Withdrawal Stats
-              _buildWithdrawalStats(totalWithdrawn, currency, accent, cardColor, muted),
+              _buildWithdrawalStats(totalWithdrawn, withdrawalFeeEarnings, currency, accent, cardColor, muted),
               const SizedBox(height: 24),
 
               // Withdrawal Method Selection
@@ -543,6 +577,7 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -612,7 +647,7 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
     );
   }
 
-  Widget _buildWithdrawalStats(double totalWithdrawn, String currency, Color accent, Color cardColor, Color muted) {
+  Widget _buildWithdrawalStats(double totalWithdrawn, double withdrawalFeeEarnings, String currency, Color accent, Color cardColor, Color muted) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -644,6 +679,25 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
               ),
             ],
           ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                'Withdrawal fees credited',
+                style: GoogleFonts.plusJakartaSans(color: muted, fontSize: 11),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '${currency.toUpperCase()} ${withdrawalFeeEarnings.toStringAsFixed(2)}',
+                style: GoogleFonts.plusJakartaSans(
+                  color: Colors.greenAccent,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 12),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(

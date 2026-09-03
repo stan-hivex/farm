@@ -17,6 +17,7 @@ class _WithdrawalsManagementPageState extends State<WithdrawalsManagementPage> {
   List<dynamic> _withdrawals = [];
   bool _loading = true;
   String _statusFilter = 'all';
+  String _search = '';
   int _page = 1;
 
   @override
@@ -29,7 +30,9 @@ class _WithdrawalsManagementPageState extends State<WithdrawalsManagementPage> {
     setState(() => _loading = true);
     try {
       final res = await AdminApiService.getWithdrawals(
-          page: _page, status: _statusFilter == 'all' ? null : _statusFilter);
+          page: _page,
+          status: _statusFilter == 'all' ? null : _statusFilter,
+          search: _search.isEmpty ? null : _search);
       setState(() => _withdrawals = res['data'] ?? []);
     } catch (_) {
     } finally {
@@ -111,6 +114,21 @@ class _WithdrawalsManagementPageState extends State<WithdrawalsManagementPage> {
       body: SafeArea(
         child: Column(
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+              child: TextField(
+                decoration: const InputDecoration(
+                  hintText: 'Search withdrawals by username or transaction ID',
+                  prefixIcon: Icon(Icons.search),
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (value) {
+                  _search = value.trim();
+                  _page = 1;
+                  _load();
+                },
+              ),
+            ),
             _filterRow(accent),
             if (_loading && _withdrawals.isEmpty)
               const Expanded(
@@ -145,7 +163,10 @@ class _WithdrawalsManagementPageState extends State<WithdrawalsManagementPage> {
                                 final statusLabel = (w['status_display'] ?? w['status'] ?? '-').toString().toUpperCase();
                                 final dateLabel = (w['date'] ?? '-').toString();
                                 final timeLabel = (w['time'] ?? '-').toString();
-                                return Container(
+                                return InkWell(
+                                  onTap: () => _showDetails(w),
+                                  borderRadius: BorderRadius.circular(18),
+                                  child: Container(
                                   margin: const EdgeInsets.only(bottom: 14),
                                   padding: const EdgeInsets.all(16),
                                   decoration: BoxDecoration(
@@ -340,6 +361,7 @@ class _WithdrawalsManagementPageState extends State<WithdrawalsManagementPage> {
                                           ]),
                                         ],
                                       ]),
+                                  ),
                                 );
                               }))),
           ],
@@ -381,4 +403,22 @@ class _WithdrawalsManagementPageState extends State<WithdrawalsManagementPage> {
             ),
         ]),
       );
+
+  void _showDetails(Map<String, dynamic> item) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.all(24),
+          children: [
+            Text('Withdrawal details', style: GoogleFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.bold)),
+            for (final entry in item.entries)
+              if (entry.value != null) ListTile(title: Text(entry.key), subtitle: Text(entry.value.toString())),
+          ],
+        ),
+      ),
+    );
+  }
 }

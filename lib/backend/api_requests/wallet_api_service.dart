@@ -1,143 +1,165 @@
-import '/backend/services/api_service.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '/core/app_config.dart';
 
 class WalletApiService {
-  static Future<Map<String, dynamic>> getWallet() async {
-    final resp = await ApiService.getWallet();
-    return resp['data'] ?? resp;
+  static String get _base => '${AppConfig.api}/wallet';
+  static String get _transferBase => '${AppConfig.api}/transfer-requests';
+
+  static Future<Map<String, dynamic>> getWallet({
+    required String token,
+  }) async {
+    final res = await http.get(
+      Uri.parse(_base),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+    if (res.statusCode != 200) throw Exception('Failed to load wallet');
+    final body = jsonDecode(res.body);
+    return body['data'];
   }
 
   static Future<Map<String, dynamic>> sendFunds({
+    required String token,
     required String recipient,
     required double amount,
-    String? pin,
+    required String pin,
     String? description,
-    bool? biometricAuth,
-    String? deviceFingerprint,
   }) async {
-    final resp = await ApiService.request(
-      method: 'POST',
-      path: '/wallet/send',
-      body: {
+    final res = await http.post(
+      Uri.parse('$_base/send'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
         'recipient_identifier': recipient,
         'amount': amount,
-        if (pin != null) 'pin': pin,
-        if (biometricAuth == true) 'biometric_auth': true,
-        if (deviceFingerprint != null) 'device_fingerprint': deviceFingerprint,
+        'pin': pin,
         'description': description ?? '',
-      },
-      requiresAuth: true,
+      }),
     );
-    return resp;
+    final body = jsonDecode(res.body);
+    if (res.statusCode != 200 && res.statusCode != 201) {
+      throw Exception(body['message'] ?? 'Transfer failed');
+    }
+    return body;
   }
 
   static Future<List<dynamic>> getTransactions({
+    required String token,
     String? type,
     String? status,
     int page = 1,
   }) async {
-    final params = <String, String>{'page': page.toString()};
-    if (type != null) params['type'] = type;
-    if (status != null) params['status'] = status;
-    final query = params.entries.map((e) => '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}').join('&');
-    final path = '/transactions${query.isNotEmpty ? '?$query' : ''}';
-    final resp = await ApiService.request(
-      method: 'GET',
-      path: path,
-      requiresAuth: true,
+    final uri = Uri.parse('$_base/transactions').replace(
+      queryParameters: {
+        'page': page.toString(),
+        if (type != null) 'type': type,
+        if (status != null) 'status': status,
+      },
     );
-    return resp['data'] ?? [];
+    final res = await http.get(
+      uri,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (res.statusCode != 200) throw Exception('Failed to fetch transactions');
+    final body = jsonDecode(res.body);
+    return body['data'] ?? [];
   }
 
   static Future<Map<String, dynamic>> getTransaction({
+    required String token,
     required String txId,
   }) async {
-    final resp = await ApiService.request(
-      method: 'GET',
-      path: '/wallet/transactions/$txId',
-      requiresAuth: true,
+    final res = await http.get(
+      Uri.parse('$_base/transactions/$txId'),
+      headers: {'Authorization': 'Bearer $token'},
     );
-    return resp['data'] ?? resp;
+    if (res.statusCode != 200) throw Exception('Transaction not found');
+    return jsonDecode(res.body)['data'];
   }
 
-  static Future<List<dynamic>> getPendingRequests() async {
-    final resp = await ApiService.request(
-      method: 'GET',
-      path: '/payment-requests/pending',
-      requiresAuth: true,
-    );
-    return List<dynamic>.from(resp['data'] ?? []);
-  }
-
-  static Future<List<dynamic>> getTransferRequestHistory({
-    int page = 1,
-    int limit = 10,
+  static Future<List<dynamic>> getPendingRequests({
+    required String token,
   }) async {
-    final path = '/payment-requests?page=${Uri.encodeQueryComponent(page.toString())}&limit=${Uri.encodeQueryComponent(limit.toString())}';
-    final resp = await ApiService.request(
-      method: 'GET',
-      path: path,
-      requiresAuth: true,
+    final res = await http.get(
+      Uri.parse('$_transferBase/pending'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
     );
-    return List<dynamic>.from(resp['data'] ?? []);
+    if (res.statusCode != 200) throw Exception('Failed to load transfer requests');
+    final body = jsonDecode(res.body);
+    return List<dynamic>.from(body['data'] ?? []);
   }
 
   static Future<Map<String, dynamic>> requestFunds({
-    required String recipientIdentifier,
+    required String token,
+    required String senderIdentifier,
     required double amount,
     String? description,
   }) async {
-    final resp = await ApiService.request(
-      method: 'POST',
-      path: '/payment-requests/request',
-      body: {
-        'recipient_identifier': recipientIdentifier,
+    final res = await http.post(
+      Uri.parse('$_transferBase/request'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'sender_identifier': senderIdentifier,
         'amount': amount,
         'description': description ?? '',
-      },
-      requiresAuth: true,
+      }),
     );
-    return resp;
+    final body = jsonDecode(res.body);
+    if (res.statusCode != 200 && res.statusCode != 201) {
+      throw Exception(body['message'] ?? 'Failed to request funds');
+    }
+    return body;
   }
 
   static Future<Map<String, dynamic>> acceptTransferRequest({
+    required String token,
     required String requestId,
-    String? pin,
-    bool? biometricAuth,
-    String? deviceFingerprint,
+    required String pin,
   }) async {
-    final resp = await ApiService.request(
-      method: 'POST',
-      path: '/payment-requests/accept',
-      body: {
-        'request_id': requestId,
-        if (pin != null) 'pin': pin,
-        if (biometricAuth == true) 'biometric_auth': true,
-        if (deviceFingerprint != null) 'device_fingerprint': deviceFingerprint,
+    final res = await http.post(
+      Uri.parse('$_transferBase/accept'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
       },
-      requiresAuth: true,
+      body: jsonEncode({
+        'request_id': requestId,
+        'pin': pin,
+      }),
     );
-    return resp;
+    final body = jsonDecode(res.body);
+    if (res.statusCode != 200 && res.statusCode != 201) {
+      throw Exception(body['message'] ?? 'Failed to approve transfer request');
+    }
+    return body;
   }
 
   static Future<Map<String, dynamic>> rejectTransferRequest({
+    required String token,
     required String requestId,
   }) async {
-    final resp = await ApiService.request(
-      method: 'POST',
-      path: '/payment-requests/$requestId/reject',
-      requiresAuth: true,
+    final res = await http.post(
+      Uri.parse('$_transferBase/$requestId/reject'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
     );
-    return resp;
-  }
-
-  static Future<Map<String, dynamic>> cancelTransferRequest({
-    required String requestId,
-  }) async {
-    final resp = await ApiService.request(
-      method: 'POST',
-      path: '/payment-requests/$requestId/cancel',
-      requiresAuth: true,
-    );
-    return resp;
+    final body = jsonDecode(res.body);
+    if (res.statusCode != 200 && res.statusCode != 201) {
+      throw Exception(body['message'] ?? 'Failed to reject transfer request');
+    }
+    return body;
   }
 }

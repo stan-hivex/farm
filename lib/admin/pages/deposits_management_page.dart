@@ -16,6 +16,7 @@ class _DepositsManagementPageState extends State<DepositsManagementPage> {
   List<dynamic> _deposits = [];
   bool _loading = true;
   String _statusFilter = 'all';
+  String _search = '';
   int _page = 1;
 
   @override
@@ -28,7 +29,9 @@ class _DepositsManagementPageState extends State<DepositsManagementPage> {
     setState(() => _loading = true);
     try {
       final res = await AdminApiService.getDeposits(
-          page: _page, status: _statusFilter == 'all' ? null : _statusFilter);
+          page: _page,
+          status: _statusFilter == 'all' ? null : _statusFilter,
+          search: _search.isEmpty ? null : _search);
       setState(() => _deposits = res['data'] ?? []);
     } catch (_) {
     } finally {
@@ -86,6 +89,21 @@ class _DepositsManagementPageState extends State<DepositsManagementPage> {
       body: SafeArea(
         child: Column(
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+              child: TextField(
+                decoration: const InputDecoration(
+                  hintText: 'Search deposits by username or transaction ID',
+                  prefixIcon: Icon(Icons.search),
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (value) {
+                  _search = value.trim();
+                  _page = 1;
+                  _load();
+                },
+              ),
+            ),
             _filterRow(accent),
             if (_loading && _deposits.isEmpty)
               const Expanded(
@@ -119,7 +137,10 @@ class _DepositsManagementPageState extends State<DepositsManagementPage> {
                                 final statusLabel = (d['status_display'] ?? d['status'] ?? '-').toString().toUpperCase();
                                 final dateLabel = (d['date'] ?? '-').toString();
                                 final timeLabel = (d['time'] ?? '-').toString();
-                                return Container(
+                                return InkWell(
+                                  onTap: () => _showDetails(d),
+                                  borderRadius: BorderRadius.circular(18),
+                                  child: Container(
                                   margin: const EdgeInsets.only(bottom: 12),
                                   padding: const EdgeInsets.all(16),
                                   decoration: BoxDecoration(
@@ -232,6 +253,7 @@ class _DepositsManagementPageState extends State<DepositsManagementPage> {
                                           ),
                                         ]),
                                   ]),
+                                  ),
                                 );
                               }))),
           ],
@@ -273,4 +295,22 @@ class _DepositsManagementPageState extends State<DepositsManagementPage> {
             ),
         ]),
       );
+
+  void _showDetails(Map<String, dynamic> item) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.all(24),
+          children: [
+            Text('Deposit details', style: GoogleFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.bold)),
+            for (final entry in item.entries)
+              if (entry.value != null) ListTile(title: Text(entry.key), subtitle: Text(entry.value.toString())),
+          ],
+        ),
+      ),
+    );
+  }
 }
