@@ -1,25 +1,15 @@
 import '/backend/services/api_service.dart';
 
 class BiometricApiService {
-  /// Verify the device with the backend. Falls back to a local trusted
-  /// response if the backend call fails.
+  /// Verify the current device fingerprint with the backend.
   static Future<Map<String, dynamic>> verifyDevice({
     required String deviceFingerprint,
-  }) async {
-    try {
-      final resp = await ApiService.request(
-        method: 'POST',
-        path: '/biometric/verify',
-        body: {'device_fingerprint': deviceFingerprint},
-      );
-      return resp;
-    } catch (_) {
-      return {
-        'trusted': true,
-        'requiresReauth': false,
-        'message': 'Device verified (local fallback)',
-      };
-    }
+  }) {
+    return ApiService.request(
+      method: 'POST',
+      path: '/security/verify-device',
+      body: {'deviceFingerprint': deviceFingerprint},
+    );
   }
 
   /// Enable biometrics for the current user.
@@ -27,22 +17,14 @@ class BiometricApiService {
     required String deviceFingerprint,
     required String biometricType,
   }) async {
-    try {
-      final resp = await ApiService.request(
-        method: 'POST',
-        path: '/biometric/enable',
-        body: {
-          'device_fingerprint': deviceFingerprint,
-          'biometric_type': biometricType,
-        },
-      );
-      return resp;
-    } catch (_) {
-      return {
-        'success': true,
-        'deviceId': 'local-device-${DateTime.now().millisecondsSinceEpoch}',
-        'message': 'Biometrics enabled locally (fallback)',
-      };
-    }
+    return ApiService.request(
+      method: 'PUT',
+      path: '/security/biometrics',
+      body: {
+        'enabled': true,
+        'deviceFingerprint': deviceFingerprint,
+        'biometricType': biometricType,
+      },
+    );
   }
 }

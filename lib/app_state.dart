@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'flutter_flow/flutter_flow_theme.dart';
-import '/services/auth/session_store_service.dart';
-import '/services/secure_storage_service.dart';
-
-enum AuthStartupState { initializing, authenticated, unauthenticated }
+import 'services/auth/session_store_service.dart';
+import 'services/secure_storage_service.dart';
 
 class FFAppState extends ChangeNotifier {
   static FFAppState _instance = FFAppState._internal();
@@ -15,57 +13,130 @@ class FFAppState extends ChangeNotifier {
 
   FFAppState._internal();
 
-  AuthStartupState _authStartupState = AuthStartupState.initializing;
-  AuthStartupState get authStartupState => _authStartupState;
-  bool get isAuthInitializing =>
-      _authStartupState == AuthStartupState.initializing;
-
-  void setAuthStartupState(AuthStartupState value) {
-    if (_authStartupState == value) return;
-    _authStartupState = value;
-    notifyListeners();
-  }
-
   static void reset() {
     _instance = FFAppState._internal();
   }
 
   Future<void> initializePersistedState() async {
     final prefs = await SharedPreferences.getInstance();
+    final storedRole = prefs.getString('role') ?? '';
+    final normalizedStoredRole = storedRole.toLowerCase();
+    final hasActiveSessionMarker =
+        prefs.getString('authInstallId')?.isNotEmpty == true;
 
-    _accessToken = prefs.getString('accessToken') ?? '';
-    _refreshToken = prefs.getString('refreshToken') ?? '';
-    _userId = prefs.getString('userId') ?? '';
+    final adminSession = await AuthSessionStore.readAdminSession();
+    final superAdminSession = await AuthSessionStore.readSuperAdminSession();
+    final userSession = await AuthSessionStore.readUserSession();
+
+    if (hasActiveSessionMarker &&
+        normalizedStoredRole == 'admin' &&
+        adminSession != null) {
+      _accessToken = adminSession.accessToken;
+      _refreshToken = adminSession.refreshToken;
+      _userId = adminSession.userId;
+      _role = adminSession.role;
+      _isLoggedIn = adminSession.accessToken.isNotEmpty;
+    } else if (hasActiveSessionMarker &&
+        normalizedStoredRole == 'super_admin' &&
+        superAdminSession != null) {
+      _accessToken = superAdminSession.accessToken;
+      _refreshToken = superAdminSession.refreshToken;
+      _userId = superAdminSession.userId;
+      _role = superAdminSession.role;
+      _isLoggedIn = superAdminSession.accessToken.isNotEmpty;
+    } else if (hasActiveSessionMarker &&
+        normalizedStoredRole == 'user' &&
+        userSession != null) {
+      _accessToken = userSession.accessToken;
+      _refreshToken = userSession.refreshToken;
+      _userId = userSession.userId;
+      _role = userSession.role;
+      _isLoggedIn = userSession.accessToken.isNotEmpty;
+    } else if (hasActiveSessionMarker &&
+        adminSession != null &&
+        adminSession.accessToken.isNotEmpty) {
+      _accessToken = adminSession.accessToken;
+      _refreshToken = adminSession.refreshToken;
+      _userId = adminSession.userId;
+      _role = adminSession.role;
+      _isLoggedIn = true;
+    } else if (hasActiveSessionMarker &&
+        superAdminSession != null &&
+        superAdminSession.accessToken.isNotEmpty) {
+      _accessToken = superAdminSession.accessToken;
+      _refreshToken = superAdminSession.refreshToken;
+      _userId = superAdminSession.userId;
+      _role = superAdminSession.role;
+      _isLoggedIn = true;
+    } else if (hasActiveSessionMarker &&
+        userSession != null &&
+        userSession.accessToken.isNotEmpty) {
+      _accessToken = userSession.accessToken;
+      _refreshToken = userSession.refreshToken;
+      _userId = userSession.userId;
+      _role = userSession.role;
+      _isLoggedIn = userSession.accessToken.isNotEmpty;
+    } else {
+      _accessToken =
+          hasActiveSessionMarker ? prefs.getString('accessToken') ?? '' : '';
+      if (hasActiveSessionMarker && _accessToken.isEmpty) {
+        _accessToken = await SecureStorageService.readAccessToken() ?? '';
+      }
+      _refreshToken =
+          hasActiveSessionMarker ? prefs.getString('refreshToken') ?? '' : '';
+      if (hasActiveSessionMarker && _refreshToken.isEmpty) {
+        _refreshToken = await SecureStorageService.readRefreshToken() ?? '';
+      }
+      _userId = hasActiveSessionMarker ? prefs.getString('userId') ?? '' : '';
+      _role = hasActiveSessionMarker ? normalizedStoredRole : '';
+      _isLoggedIn =
+          hasActiveSessionMarker && (prefs.getBool('isLoggedIn') ?? false);
+    }
+
     _firstName = prefs.getString('firstName') ?? '';
     _userName = prefs.getString('userName') ?? '';
     _phone = prefs.getString('phone') ?? '';
     _email = prefs.getString('email') ?? '';
     _kycStatus = prefs.getString('kycStatus') ?? '';
-    _emailVerified = prefs.getBool('emailVerified') ?? false;
-    _isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+    if (!hasActiveSessionMarker) {
+      _isLoggedIn = false;
+    } else if (!(_accessToken.isNotEmpty || _refreshToken.isNotEmpty)) {
+      _isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+    }
     _biometricsEnabled = prefs.getBool('biometricsEnabled') ?? false;
     _hasPin = prefs.getBool('hasPin') ?? false;
-    _isBiometricAllowed = prefs.getBool('isBiometricAllowed') ?? true;
     _pushNotifications = prefs.getBool('pushNotifications') ?? true;
     _emailNotifications = prefs.getBool('emailNotifications') ?? false;
     _inAppNotifications = prefs.getBool('inAppNotifications') ?? true;
     _smsNotifications = prefs.getBool('smsNotifications') ?? false;
     _notificationSoundEnabled =
-      prefs.getBool('notificationSoundEnabled') ?? true;
+        prefs.getBool('notificationSoundEnabled') ?? true;
     _notificationVibrationEnabled =
-      prefs.getBool('notificationVibrationEnabled') ?? true;
+        prefs.getBool('notificationVibrationEnabled') ?? true;
+    if (_role.isEmpty && hasActiveSessionMarker) {
+      _role = prefs.getString('role') ?? '';
+    }
     _walletBalance = prefs.getDouble('walletBalance') ?? 0.0;
     _kesEquivalent = prefs.getDouble('kesEquivalent') ?? 0.0;
     _profileImageUrl = prefs.getString('profileImageUrl') ?? '';
     _unreadNotificationCount = prefs.getInt('unreadNotificationCount') ?? 0;
-    _biometricLockTimeoutSeconds =
-      prefs.getInt('biometricLockTimeoutSeconds') ?? 600;
-    final biometricVerified = prefs.getString('biometricLastVerified');
-    _biometricLastVerified = biometricVerified == null
-      ? null
-      : DateTime.tryParse(biometricVerified);
-    _role = prefs.getString('role') ?? '';
-    
+    if (prefs.containsKey('biometricLockTimeoutSeconds')) {
+      _biometricLockTimeoutSeconds =
+          prefs.getInt('biometricLockTimeoutSeconds') ?? 600;
+    } else if (prefs.containsKey('biometricLockTimeoutMinutes')) {
+      _biometricLockTimeoutSeconds =
+          (prefs.getInt('biometricLockTimeoutMinutes') ?? 10) * 60;
+    } else {
+      _biometricLockTimeoutSeconds = 600;
+    }
+    final storedBiometricVerified = prefs.getString('biometric_last_verified');
+    if (storedBiometricVerified != null) {
+      _biometricLastVerified = DateTime.tryParse(storedBiometricVerified);
+    } else {
+      _biometricLastVerified =
+          await SecureStorageService.readBiometricLastVerified();
+    }
+
     // Load theme mode
     final themeModeString = prefs.getString('themeMode');
     if (themeModeString != null) {
@@ -74,14 +145,23 @@ class FFAppState extends ChangeNotifier {
         orElse: () => ThemeMode.system,
       );
     }
+    // Diagnostic auth restore log
+    debugPrint(
+        '[AUTH] initializePersistedState: role=$_role userId=$_userId accessTokenPresent=${_accessToken.isNotEmpty} refreshTokenPresent=${_refreshToken.isNotEmpty} isLoggedIn=$_isLoggedIn');
+  }
+
+  bool _suspendNotifications = false;
+
+  void _notifyListeners() {
+    if (!_suspendNotifications) {
+      notifyListeners();
+    }
   }
 
   void update(VoidCallback callback) {
     callback();
     _notifyListeners();
   }
-
-  bool _suspendNotifications = false;
 
   void batchUpdate(VoidCallback callback) {
     _suspendNotifications = true;
@@ -90,48 +170,61 @@ class FFAppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _notifyListeners() {
-    if (!_suspendNotifications) notifyListeners();
-  }
-
   String _accessToken = '';
   String get accessToken => _accessToken;
   set accessToken(String value) {
+    if (_accessToken == value) return;
     _accessToken = value;
     notifyListeners();
     SharedPreferences.getInstance().then(
       (prefs) => prefs.setString('accessToken', value),
     );
+    SecureStorageService.writeAccessToken(value);
   }
 
   String get authToken => _accessToken;
 
   Future<String> getActiveAccessToken() async {
-    if (_accessToken.isNotEmpty) return _accessToken;
-    final session = await AuthSessionStore.readRoleSession(_role);
-    if (session == null || session.accessToken.isEmpty) return _accessToken;
-    _accessToken = session.accessToken;
-    _refreshToken = session.refreshToken;
-    _userId = session.userId;
-    _role = session.role;
-    _isLoggedIn = true;
-    notifyListeners();
+    if (_accessToken.isNotEmpty) {
+      return _accessToken;
+    }
+
+    final normalizedRole = _role.toLowerCase();
+    final persistedSession =
+        await AuthSessionStore.readRoleSession(normalizedRole);
+    final persistedToken = persistedSession?.accessToken ?? '';
+    if (persistedToken.isNotEmpty) {
+      // Lazily restore in-memory token from persisted role session without
+      // clearing other persisted storage. Do not assume session is invalid —
+      // token will be validated by RefreshManager when needed.
+      _accessToken = persistedToken;
+      _refreshToken = persistedSession?.refreshToken ?? _refreshToken;
+      _userId = persistedSession?.userId ?? _userId;
+      _role = persistedSession?.role ?? _role;
+      _isLoggedIn = persistedToken.isNotEmpty;
+      notifyListeners();
+    }
     return _accessToken;
   }
 
   String _refreshToken = '';
   String get refreshToken => _refreshToken;
   set refreshToken(String value) {
+    if (_refreshToken == value) return;
     _refreshToken = value;
+    notifyListeners();
     SharedPreferences.getInstance().then(
       (prefs) => prefs.setString('refreshToken', value),
     );
+    SecureStorageService.writeRefreshToken(value);
   }
 
   String _userId = '';
   String get userId => _userId;
   set userId(String value) {
+    if (_userId == value) return;
     _userId = value;
+    notifyListeners();
     SharedPreferences.getInstance().then(
       (prefs) => prefs.setString('userId', value),
     );
@@ -140,7 +233,9 @@ class FFAppState extends ChangeNotifier {
   String _firstName = '';
   String get firstName => _firstName;
   set firstName(String value) {
+    if (_firstName == value) return;
     _firstName = value;
+    notifyListeners();
     SharedPreferences.getInstance().then(
       (prefs) => prefs.setString('firstName', value),
     );
@@ -149,7 +244,9 @@ class FFAppState extends ChangeNotifier {
   String _userName = '';
   String get userName => _userName;
   set userName(String value) {
+    if (_userName == value) return;
     _userName = value;
+    notifyListeners();
     SharedPreferences.getInstance().then(
       (prefs) => prefs.setString('userName', value),
     );
@@ -158,16 +255,31 @@ class FFAppState extends ChangeNotifier {
   String _phone = '';
   String get phone => _phone;
   set phone(String value) {
+    if (_phone == value) return;
     _phone = value;
+    notifyListeners();
     SharedPreferences.getInstance().then(
       (prefs) => prefs.setString('phone', value),
+    );
+  }
+
+  String _email = '';
+  String get email => _email;
+  set email(String value) {
+    if (_email == value) return;
+    _email = value;
+    notifyListeners();
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setString('email', value),
     );
   }
 
   String _kycStatus = '';
   String get kycStatus => _kycStatus;
   set kycStatus(String value) {
+    if (_kycStatus == value) return;
     _kycStatus = value;
+    notifyListeners();
     SharedPreferences.getInstance().then(
       (prefs) => prefs.setString('kycStatus', value),
     );
@@ -176,154 +288,222 @@ class FFAppState extends ChangeNotifier {
   bool _isLoggedIn = false;
   bool get isLoggedIn => _isLoggedIn;
   set isLoggedIn(bool value) {
+    if (_isLoggedIn == value) return;
     _isLoggedIn = value;
+    notifyListeners();
     SharedPreferences.getInstance().then(
-      (prefs) => prefs.setBool('isLoggedIn', value),
+      (prefs) async {
+        await prefs.setBool('isLoggedIn', value);
+        if (value) {
+          await prefs.setString('authInstallId', 'active');
+          await prefs.setBool('hasCompletedLogin', true);
+        }
+      },
     );
   }
 
   bool _biometricsEnabled = false;
   bool get biometricsEnabled => _biometricsEnabled;
   set biometricsEnabled(bool value) {
+    if (_biometricsEnabled == value) return;
     _biometricsEnabled = value;
+    notifyListeners();
     SharedPreferences.getInstance().then(
       (prefs) => prefs.setBool('biometricsEnabled', value),
     );
   }
 
-  String _role = '';
-  String get role => _role;
-  set role(String value) {
-    _role = value;
+  bool _hasPin = false;
+  bool get hasPin => _hasPin;
+  set hasPin(bool value) {
+    if (_hasPin == value) return;
+    _hasPin = value;
+    notifyListeners();
     SharedPreferences.getInstance().then(
-      (prefs) => prefs.setString('role', value),
+      (prefs) => prefs.setBool('hasPin', value),
+    );
+  }
+
+  DateTime? _biometricLastVerified;
+  DateTime? get biometricLastVerified => _biometricLastVerified;
+  set biometricLastVerified(DateTime? value) {
+    if (_biometricLastVerified == value) return;
+    _biometricLastVerified = value;
+    notifyListeners();
+    if (value == null) {
+      SecureStorageService.deleteBiometricLastVerified();
+      SharedPreferences.getInstance().then(
+        (prefs) => prefs.remove('biometric_last_verified'),
+      );
+    } else {
+      SecureStorageService.writeBiometricLastVerified(value.toIso8601String());
+      SharedPreferences.getInstance().then(
+        (prefs) =>
+            prefs.setString('biometric_last_verified', value.toIso8601String()),
+      );
+    }
+  }
+
+  int _biometricLockTimeoutSeconds = 600;
+  int get biometricLockTimeoutSeconds => _biometricLockTimeoutSeconds;
+  set biometricLockTimeoutSeconds(int value) {
+    if (_biometricLockTimeoutSeconds == value) return;
+    _biometricLockTimeoutSeconds = value;
+    notifyListeners();
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setInt('biometricLockTimeoutSeconds', value),
+    );
+  }
+
+  bool _notificationSoundEnabled = true;
+  bool get notificationSoundEnabled => _notificationSoundEnabled;
+  set notificationSoundEnabled(bool value) {
+    if (_notificationSoundEnabled == value) return;
+    _notificationSoundEnabled = value;
+    _notifyListeners();
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setBool('notificationSoundEnabled', value),
+    );
+  }
+
+  bool _notificationVibrationEnabled = true;
+  bool get notificationVibrationEnabled => _notificationVibrationEnabled;
+  set notificationVibrationEnabled(bool value) {
+    if (_notificationVibrationEnabled == value) return;
+    _notificationVibrationEnabled = value;
+    _notifyListeners();
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setBool('notificationVibrationEnabled', value),
+    );
+  }
+
+  bool _pushNotifications = true;
+  bool get pushNotifications => _pushNotifications;
+  set pushNotifications(bool value) {
+    if (_pushNotifications == value) return;
+    _pushNotifications = value;
+    notifyListeners();
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setBool('pushNotifications', value),
+    );
+  }
+
+  bool _emailNotifications = false;
+  bool get emailNotifications => _emailNotifications;
+  set emailNotifications(bool value) {
+    if (_emailNotifications == value) return;
+    _emailNotifications = value;
+    notifyListeners();
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setBool('emailNotifications', value),
+    );
+  }
+
+  bool _inAppNotifications = true;
+  bool get inAppNotifications => _inAppNotifications;
+  set inAppNotifications(bool value) {
+    if (_inAppNotifications == value) return;
+    _inAppNotifications = value;
+    notifyListeners();
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setBool('inAppNotifications', value),
+    );
+  }
+
+  bool _smsNotifications = false;
+  bool get smsNotifications => _smsNotifications;
+  set smsNotifications(bool value) {
+    if (_smsNotifications == value) return;
+    _smsNotifications = value;
+    notifyListeners();
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setBool('smsNotifications', value),
     );
   }
 
   bool _emailVerified = false;
   bool get emailVerified => _emailVerified;
   set emailVerified(bool value) {
+    if (_emailVerified == value) return;
     _emailVerified = value;
+    notifyListeners();
     SharedPreferences.getInstance().then(
       (prefs) => prefs.setBool('emailVerified', value),
     );
   }
 
+  String _role = '';
+  String get role => _role;
+  set role(String value) {
+    if (_role == value) return;
+    _role = value;
+    notifyListeners();
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setString('role', value),
+    );
+  }
+
+  bool get isUser => _role.toLowerCase() == 'user';
+  bool get isAdmin =>
+      _role.toLowerCase() == 'admin' || _role.toLowerCase() == 'super_admin';
+  bool get isBiometricAllowed => isUser && _biometricsEnabled;
+
   double _walletBalance = 0.0;
   double get walletBalance => _walletBalance;
   set walletBalance(double value) {
+    if (_walletBalance == value) return;
     _walletBalance = value;
-    SharedPreferences.getInstance().then((prefs) =>
-        prefs.setDouble('walletBalance', value));
     notifyListeners();
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setDouble('walletBalance', value),
+    );
   }
 
   double _kesEquivalent = 0.0;
   double get kesEquivalent => _kesEquivalent;
   set kesEquivalent(double value) {
+    if (_kesEquivalent == value) return;
     _kesEquivalent = value;
-    SharedPreferences.getInstance().then((prefs) =>
-        prefs.setDouble('kesEquivalent', value));
     notifyListeners();
-  }
-
-  String _email = '';
-  String get email => _email;
-  set email(String value) {
-    _email = value;
-    SharedPreferences.getInstance().then((prefs) => prefs.setString('email', value));
-    notifyListeners();
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setDouble('kesEquivalent', value),
+    );
   }
 
   String _profileImageUrl = '';
   String get profileImageUrl => _profileImageUrl;
   set profileImageUrl(String value) {
+    if (_profileImageUrl == value) return;
     _profileImageUrl = value;
-    SharedPreferences.getInstance().then((prefs) => prefs.setString('profileImageUrl', value));
     notifyListeners();
-  }
-
-  List<Map<String, dynamic>> _recentTransactions = [];
-  List<Map<String, dynamic>> get recentTransactions => _recentTransactions;
-  set recentTransactions(List<Map<String, dynamic>> value) {
-    _recentTransactions = value;
-    notifyListeners();
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setString('profileImageUrl', value),
+    );
   }
 
   int _unreadNotificationCount = 0;
   int get unreadNotificationCount => _unreadNotificationCount;
   set unreadNotificationCount(int value) {
+    if (_unreadNotificationCount == value) return;
     _unreadNotificationCount = value;
-    SharedPreferences.getInstance().then((prefs) => prefs.setInt('unreadNotificationCount', value));
+    notifyListeners();
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setInt('unreadNotificationCount', value),
+    );
+  }
+
+  List<Map<String, dynamic>> _recentTransactions = [];
+  List<Map<String, dynamic>> get recentTransactions => _recentTransactions;
+  set recentTransactions(List<Map<String, dynamic>> value) {
+    if (_recentTransactions == value) return;
+    _recentTransactions = value;
     notifyListeners();
   }
 
-  bool _hasPin = false;
-  bool get hasPin => _hasPin;
-  set hasPin(bool value) {
-    _hasPin = value;
-    SharedPreferences.getInstance().then((prefs) => prefs.setBool('hasPin', value));
-    notifyListeners();
-  }
-
-  bool _isBiometricAllowed = true;
-  bool get isBiometricAllowed => _isBiometricAllowed;
-  set isBiometricAllowed(bool value) {
-    _isBiometricAllowed = value;
-    SharedPreferences.getInstance().then((prefs) => prefs.setBool('isBiometricAllowed', value));
-    notifyListeners();
-  }
-
-  int _biometricLockTimeoutSeconds = 600;
-  int get biometricLockTimeoutSeconds => _biometricLockTimeoutSeconds;
-  set biometricLockTimeoutSeconds(int value) {
-    _biometricLockTimeoutSeconds = value;
-    SharedPreferences.getInstance().then((prefs) => prefs.setInt('biometricLockTimeoutSeconds', value));
-    notifyListeners();
-  }
-
-  DateTime? _biometricLastVerified;
-  DateTime? get biometricLastVerified => _biometricLastVerified;
-  set biometricLastVerified(DateTime? value) {
-    _biometricLastVerified = value;
-    SharedPreferences.getInstance().then((prefs) {
-      if (value == null) return prefs.remove('biometricLastVerified');
-      return prefs.setString('biometricLastVerified', value.toIso8601String());
-    });
-    notifyListeners();
-  }
-
-  bool _pushNotifications = true;
-  bool get pushNotifications => _pushNotifications;
-  set pushNotifications(bool value) { _pushNotifications = value; _persistBool('pushNotifications', value); notifyListeners(); }
-  bool _emailNotifications = false;
-  bool get emailNotifications => _emailNotifications;
-  set emailNotifications(bool value) { _emailNotifications = value; _persistBool('emailNotifications', value); notifyListeners(); }
-  bool _inAppNotifications = true;
-  bool get inAppNotifications => _inAppNotifications;
-  set inAppNotifications(bool value) { _inAppNotifications = value; _persistBool('inAppNotifications', value); notifyListeners(); }
-  bool _smsNotifications = false;
-  bool get smsNotifications => _smsNotifications;
-  set smsNotifications(bool value) { _smsNotifications = value; _persistBool('smsNotifications', value); notifyListeners(); }
-  bool _notificationSoundEnabled = true;
-  bool get notificationSoundEnabled => _notificationSoundEnabled;
-  set notificationSoundEnabled(bool value) { _notificationSoundEnabled = value; _persistBool('notificationSoundEnabled', value); notifyListeners(); }
-  bool _notificationVibrationEnabled = true;
-  bool get notificationVibrationEnabled => _notificationVibrationEnabled;
-  set notificationVibrationEnabled(bool value) { _notificationVibrationEnabled = value; _persistBool('notificationVibrationEnabled', value); notifyListeners(); }
-
-  void _persistBool(String key, bool value) {
-    SharedPreferences.getInstance().then((prefs) => prefs.setBool(key, value));
-  }
-
-  bool get isAdmin => _role == 'admin' || _role == 'super_admin';
-
-  Future<void> clearRoleSession(String role) =>
-      AuthSessionStore.clearRoleSession(role);
-
-  ThemeMode _themeMode = ThemeMode.light;
+  ThemeMode _themeMode = ThemeMode.system;
   ThemeMode get themeMode => _themeMode;
   set themeMode(ThemeMode value) {
+    if (_themeMode == value) return;
     _themeMode = value;
     notifyListeners();
     SharedPreferences.getInstance().then(
@@ -337,6 +517,11 @@ class FFAppState extends ChangeNotifier {
   }
 
   Future<void> clearAuthCredentials([String? reason]) async {
+    final msg = '[FFAppState] clearAuthCredentials called' +
+        (reason != null ? ' reason=$reason' : '');
+    debugPrint(msg);
+    debugPrint(StackTrace.current.toString());
+    final previousRole = role;
     accessToken = '';
     refreshToken = '';
     userId = '';
@@ -346,9 +531,8 @@ class FFAppState extends ChangeNotifier {
     kycStatus = '';
     isLoggedIn = false;
     biometricsEnabled = false;
+    hasPin = false;
     role = '';
-    themeMode = ThemeMode.light;
-    await SecureStorageService.clearAuthData();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('accessToken');
     await prefs.remove('refreshToken');
@@ -357,9 +541,27 @@ class FFAppState extends ChangeNotifier {
     await prefs.remove('userName');
     await prefs.remove('phone');
     await prefs.remove('kycStatus');
-    await prefs.remove('emailVerified');
     await prefs.remove('isLoggedIn');
     await prefs.remove('biometricsEnabled');
     await prefs.remove('role');
+    await prefs.remove('biometric_last_verified');
+    await prefs.remove('authInstallId');
+    await prefs.remove('hasCompletedLogin');
+    await AuthSessionStore.clearRoleSession(previousRole);
+    await SecureStorageService.clearAuthData();
+    await SecureStorageService.deleteBiometricLastVerified();
+  }
+
+  Future<void> clearRoleSession(String role) async {
+    print('CLEAR SESSION CALLED');
+    print(StackTrace.current);
+    final normalizedRole = role.toLowerCase();
+    if (normalizedRole == 'admin') {
+      await AuthSessionStore.clearAdminSession();
+    } else if (normalizedRole == 'super_admin') {
+      await AuthSessionStore.clearSuperAdminSession();
+    } else {
+      await AuthSessionStore.clearUserSession();
+    }
   }
 }

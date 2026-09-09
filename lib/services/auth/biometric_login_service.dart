@@ -53,10 +53,14 @@ class BiometricLoginService {
   /// This checks if biometrics are enabled and local backend tokens are stored.
   Future<bool> hasBiometricSession() async {
     try {
-      if (!FFAppState().isBiometricAllowed) {
+      final state = FFAppState();
+      if (!state.isUser || !state.isLoggedIn || !state.biometricsEnabled) {
         return false;
       }
-      if (FFAppState().refreshToken.isEmpty) {
+      if (!state.isBiometricAllowed) {
+        return false;
+      }
+      if (state.refreshToken.isEmpty) {
         return false;
       }
       return true;
@@ -80,8 +84,14 @@ class BiometricLoginService {
   /// 5. Store tokens and return user data
   Future<Map<String, dynamic>> authenticateWithBiometric() async {
     try {
+      if (!FFAppState().isUser || !FFAppState().isLoggedIn) {
+        throw Exception(
+            'Biometric unlock is only available for user accounts.');
+      }
+
       // Step 1: Authenticate locally via BiometricLockService
-      debugPrint('[Biometric] Starting local authentication via BiometricLockService...');
+      debugPrint(
+          '[Biometric] Starting local authentication via BiometricLockService...');
       final biometricService = BiometricLockService();
       final isAuthenticated = await biometricService.authenticate(
         localizedReason: 'Unlock your FARM account with your biometric',
@@ -103,10 +113,12 @@ class BiometricLoginService {
         );
       }
 
-      debugPrint('[Biometric] Refreshing backend session with stored refresh token...');
+      debugPrint(
+          '[Biometric] Refreshing backend session with stored refresh token...');
       final refreshedToken = await AuthService().refreshSession(force: true);
       if (refreshedToken == null || refreshedToken.isEmpty) {
-        throw Exception('Failed to refresh backend session. Please log in again.');
+        throw Exception(
+            'Failed to refresh backend session. Please log in again.');
       }
 
       final farmJwt = FFAppState().accessToken;

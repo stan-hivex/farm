@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '/flutter_flow/flutter_flow_theme.dart';
-import '/pages/onboarding/onboarding_widget.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:go_router/go_router.dart';
+import '/flutter_flow/flutter_flow_util.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -16,34 +17,27 @@ class _SplashPageState extends State<SplashPage> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) {
-        Navigator.of(context).pushReplacementNamed(OnboardingWidget.routePath);
-      }
-    });
+    _showSplashThenOnboarding();
+  }
+
+  Future<void> _showSplashThenOnboarding() async {
+    await Future.delayed(const Duration(seconds: 3));
+    if (mounted) {
+      context.go('/onboarding');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = FlutterFlowTheme.of(context);
-    return Scaffold(
-      backgroundColor: theme.primaryBackground,
+    return const Scaffold(
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset(
-              'assets/images/app_logo.png',
-              width: 72,
-              height: 72,
-              fit: BoxFit.contain,
-            ),
-            const SizedBox(height: 16),
-            Text('FARM',
-                style: theme.titleLarge.copyWith(fontWeight: FontWeight.w800)),
-            const SizedBox(height: 8),
-            Text('Loading your experience…', style: theme.bodyMedium),
-          ],
+        child: Text(
+          'FARM',
+          style: TextStyle(
+            fontSize: 42,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 2,
+          ),
         ),
       ),
     );

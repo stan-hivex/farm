@@ -89,7 +89,7 @@ class _LanguageSettingsPageState extends State<LanguageSettingsPage> {
                     Padding(
                       padding: const EdgeInsets.only(top: 4.0),
                       child: Text(
-                        'Currently selected',
+                        'ui.currently_selected'.tr(),
                         style: FlutterFlowTheme.of(context).bodySmall.override(
                               color: FlutterFlowTheme.of(context).primary,
                             ),
@@ -174,7 +174,7 @@ class _LanguageSettingsPageState extends State<LanguageSettingsPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Language Selection',
+                        'language.label'.tr(),
                         style: FlutterFlowTheme.of(context).bodyMedium.override(
                               font: GoogleFonts.plusJakartaSans(
                                 fontWeight: FontWeight.w600,
@@ -184,7 +184,7 @@ class _LanguageSettingsPageState extends State<LanguageSettingsPage> {
                       ),
                       const SizedBox(height: 8.0),
                       Text(
-                        'Select your preferred language. The app will immediately display content in your chosen language and remember your preference.',
+                        'ui.language_description'.tr(),
                         style: FlutterFlowTheme.of(context).bodySmall.override(
                               color: FlutterFlowTheme.of(context).secondaryText,
                             ),

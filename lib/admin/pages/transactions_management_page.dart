@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/core/theme_extensions.dart';
-import '/services/transaction_receipt_service.dart';
 import '../services/admin_api_service.dart';
 
 class TransactionsManagementPage extends StatefulWidget {
@@ -21,7 +19,6 @@ class _TransactionsManagementPageState
   bool _loading = true;
   String _typeFilter = 'all';
   String _statusFilter = 'all';
-  String _search = '';
   int _page = 1;
   int _total = 0;
 
@@ -38,7 +35,6 @@ class _TransactionsManagementPageState
         page: _page,
         type: _typeFilter == 'all' ? null : _typeFilter,
         status: _statusFilter == 'all' ? null : _statusFilter,
-        search: _search.isEmpty ? null : _search,
       );
       setState(() {
         _txns = res['data'] ?? [];
@@ -77,7 +73,7 @@ class _TransactionsManagementPageState
         child: Column(
           children: [
             _filters(accent),
-            if (_loading && _txns.isEmpty)
+            if (_loading)
               const Expanded(
                   child: Center(
                       child:
@@ -137,10 +133,7 @@ class _TransactionsManagementPageState
                           final statusLabel = (t['status_display'] ?? t['status'] ?? '-').toString().toUpperCase();
                           final dateLabel = (t['date'] ?? '-').toString();
                           final timeLabel = (t['time'] ?? '-').toString();
-                          return InkWell(
-                            onTap: () => _showTransactionDetails(t),
-                            borderRadius: BorderRadius.circular(16),
-                            child: Container(
+                          return Container(
                             margin: const EdgeInsets.only(bottom: 12),
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
@@ -235,7 +228,6 @@ class _TransactionsManagementPageState
                                     ),
                                   ]),
                             ]),
-                            ),
                           );
                         },
                       ))),
@@ -247,21 +239,6 @@ class _TransactionsManagementPageState
 
   Widget _filters(Color accent) => Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
-            child: TextField(
-              decoration: const InputDecoration(
-                hintText: 'Search by username, user ID, or transaction ID',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (value) {
-                _search = value.trim();
-                _page = 1;
-                _load();
-              },
-            ),
-          ),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
@@ -345,51 +322,4 @@ class _TransactionsManagementPageState
           ),
         ],
       );
-
-  void _showTransactionDetails(Map<String, dynamic> transaction) {
-    final reference = (transaction['transaction_reference'] ?? transaction['id'] ?? '-').toString();
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Wrap(
-            runSpacing: 10,
-            children: [
-              Text('Transaction details', style: GoogleFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.bold)),
-              for (final entry in transaction.entries)
-                if (entry.value != null && entry.value.toString().isNotEmpty)
-                  ListTile(title: Text(entry.key), subtitle: Text(entry.value.toString())),
-              Row(children: [
-                OutlinedButton.icon(
-                  onPressed: () => Clipboard.setData(ClipboardData(text: reference)),
-                  icon: const Icon(Icons.copy),
-                  label: const Text('Copy ID'),
-                ),
-                const SizedBox(width: 8),
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    await TransactionReceiptService.share([transaction]);
-                    if (mounted) Navigator.pop(context);
-                  },
-                  icon: const Icon(Icons.share),
-                  label: const Text('Share'),
-                ),
-                const SizedBox(width: 8),
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    await TransactionReceiptService.download([transaction]);
-                    if (mounted) Navigator.pop(context);
-                  },
-                  icon: const Icon(Icons.download),
-                  label: const Text('Download'),
-                ),
-              ]),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }

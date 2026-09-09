@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '/services/auth/auth_service.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
@@ -55,7 +56,8 @@ class _VerifyEmailPageWidgetState extends State<VerifyEmailPageWidget> {
     if (email.isEmpty || !email.contains('@')) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter a valid email address to resend verification.'),
+          content: Text(
+              'Please enter a valid email address to resend verification.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -85,7 +87,7 @@ class _VerifyEmailPageWidgetState extends State<VerifyEmailPageWidget> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Verify Email'),
+        title: Text('auth.otp.verify'.tr()),
         backgroundColor: FlutterFlowTheme.of(context).primary,
         automaticallyImplyLeading: true,
       ),
@@ -97,7 +99,7 @@ class _VerifyEmailPageWidgetState extends State<VerifyEmailPageWidget> {
             children: [
               const SizedBox(height: 24.0),
               Text(
-                'Email Verification',
+                'auth.otp.verify'.tr(),
                 style: FlutterFlowTheme.of(context).titleLarge,
               ),
               const SizedBox(height: 16.0),
@@ -112,21 +114,25 @@ class _VerifyEmailPageWidgetState extends State<VerifyEmailPageWidget> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Icon(Icons.check_circle_outline, size: 64.0, color: Colors.green),
+                    Icon(Icons.check_circle_outline,
+                        size: 64.0, color: Colors.green),
                     const SizedBox(height: 16.0),
-                    Text(resultMessage ?? '', style: FlutterFlowTheme.of(context).bodyLarge),
+                    Text(resultMessage ?? '',
+                        style: FlutterFlowTheme.of(context).bodyLarge),
                     const SizedBox(height: 24.0),
                     FFButtonWidget(
-                      onPressed: () => Navigator.pushReplacementNamed(context, 'loginpage'),
+                      onPressed: () =>
+                          Navigator.pushReplacementNamed(context, 'loginpage'),
                       text: 'Go to Login',
                       options: FFButtonOptions(
                         width: double.infinity,
                         height: 50.0,
                         color: FlutterFlowTheme.of(context).primary,
-                        textStyle: FlutterFlowTheme.of(context).titleSmall.override(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
+                        textStyle:
+                            FlutterFlowTheme.of(context).titleSmall.override(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
                         elevation: 3.0,
                         borderRadius: BorderRadius.circular(12.0),
                       ),
@@ -135,7 +141,10 @@ class _VerifyEmailPageWidgetState extends State<VerifyEmailPageWidget> {
                 )
               else ...[
                 if (resultMessage != null) ...[
-                  Text(resultMessage!, style: FlutterFlowTheme.of(context).bodyMedium.override(color: Colors.red)),
+                  Text(resultMessage!,
+                      style: FlutterFlowTheme.of(context)
+                          .bodyMedium
+                          .override(color: Colors.red)),
                   const SizedBox(height: 20.0),
                 ],
                 TextFormField(
@@ -166,7 +175,8 @@ class _VerifyEmailPageWidgetState extends State<VerifyEmailPageWidget> {
                 FFButtonWidget(
                   onPressed: isLoading
                       ? null
-                      : () => Navigator.pushReplacementNamed(context, 'loginpage'),
+                      : () =>
+                          Navigator.pushReplacementNamed(context, 'loginpage'),
                   text: 'Back to Login',
                   options: FFButtonOptions(
                     width: double.infinity,

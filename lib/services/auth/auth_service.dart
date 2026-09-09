@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:http/http.dart' as http;
 import '/core/config/supabase_config.dart';
@@ -11,7 +10,6 @@ import '/services/auth/refresh_manager.dart';
 import '/services/secure_storage_service.dart';
 import '/services/app_session_manager.dart';
 import '/services/notification_service.dart';
-import '/services/auth/session_store_service.dart';
 
 /// Centralized authentication service for the FARM app.
 ///
@@ -40,8 +38,15 @@ class AuthService {
 
   SupabaseClient get _supabase => SupabaseConfig.client;
 
-  /// Register a FARM user through the backend and Firebase account linkage.
-  Future<void> signUp({
+  /// Sign up a new user with email and password.
+  ///
+  /// Flow:
+  /// 1. Create account in Supabase
+  /// 2. Supabase sends verification email
+  /// 3. User clicks link in email
+  /// 4. Session is established
+  /// 5. Backend creates FARM user, wallet, and issues JWT
+  Future<AuthResponse> signUp({
     required String email,
     required String password,
     required String firstName,
@@ -53,6 +58,15 @@ class AuthService {
     String? turnstileToken,
   }) async {
     try {
+      final response = await _supabase.auth.signUp(
+        email: email,
+        password: password,
+      );
+
+      if (response.user == null) {
+        throw Exception('Sign up failed: User is null');
+      }
+
       await ApiService.register(
         firstName: firstName,
         lastName: lastName,
@@ -65,10 +79,11 @@ class AuthService {
         turnstileToken: turnstileToken,
       );
 
+      return response;
     } on AuthException catch (e) {
       throw Exception('Sign up error: ${e.message}');
     } catch (e) {
-      throw Exception('Sign up failed');
+      throw Exception('Sign up failed: $e');
     }
   }
 
@@ -85,34 +100,6 @@ class AuthService {
     try {
       final normalizedIdentifier = identifier.trim();
 
-      if (normalizedIdentifier.contains('@')) {
-        return _loginWithFirebase(
-          firebaseEmail: normalizedIdentifier,
-          password: password,
-          identifier: normalizedIdentifier,
-          turnstileToken: turnstileToken,
-          countryCode: countryCode,
-        );
-      }
-
-      try {
-        final resolved = await ApiService.resolveLoginEmail(
-          identifier: normalizedIdentifier,
-        );
-        final email = (resolved['data'] as Map?)?['email']?.toString() ?? '';
-        if (email.isNotEmpty) {
-          return _loginWithFirebase(
-            firebaseEmail: email,
-            password: password,
-            identifier: normalizedIdentifier,
-            turnstileToken: turnstileToken,
-            countryCode: countryCode,
-          );
-        }
-      } catch (_) {
-        // Accounts not yet linked continue through the legacy login path.
-      }
-
       final response = await ApiService.login(
         identifier: normalizedIdentifier,
         password: password,
@@ -125,26 +112,21 @@ class AuthService {
       final refreshToken = responseData['refresh_token'] as String? ?? '';
       final backendUser = responseData['user'] as Map<String, dynamic>?;
 
-      // The backend decides whether this account needs phone verification.
+      // Backend handles all authentication directly - no intermediate verification needed
+      // Save tokens regardless of platform
       if (farmJwt.isNotEmpty) {
-        await _persistSessionTokens(
+        _persistSessionTokens(
           farmJwt: farmJwt,
           refreshToken: refreshToken,
           backendUser: backendUser,
         );
-        final role = backendUser?['role']?.toString().toLowerCase() ?? '';
-        if (role == 'user') {
-          await NotificationService.registerForCurrentUser();
-        }
+        await NotificationService.registerForCurrentUser();
       }
 
       return {
         'success': true,
         'farmJwt': farmJwt,
         'refreshToken': refreshToken,
-        'requiresPhoneVerification': responseData['requiresPhoneVerification'] == true,
-        'pendingLoginId': responseData['pendingLoginId']?.toString() ?? '',
-        'phone': responseData['phone']?.toString() ?? '',
         'user': backendUser,
         'loginMethod': 'backend',
       };
@@ -152,52 +134,6 @@ class AuthService {
       throw Exception('Login error: ${e.message}');
     } catch (e) {
       throw Exception('Login failed: $e');
-    }
-  }
-
-  Future<Map<String, dynamic>> _loginWithFirebase({
-    required String firebaseEmail,
-    required String password,
-    required String identifier,
-    String? turnstileToken,
-    String? countryCode,
-  }) async {
-    try {
-      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: firebaseEmail.trim(),
-        password: password,
-      );
-      final firebaseToken = await credential.user?.getIdToken() ?? '';
-      if (firebaseToken.isEmpty) {
-        throw Exception('Firebase authentication did not return a token');
-      }
-      final response = await completeFirebaseLogin(
-        identifier: identifier,
-        firebaseToken: firebaseToken,
-        countryCode: countryCode,
-        turnstileToken: turnstileToken,
-      );
-      await FirebaseAuth.instance.signOut();
-      return response;
-    } on FirebaseAuthException catch (e) {
-      throw Exception(_firebaseLoginError(e.code));
-    }
-  }
-
-  String _firebaseLoginError(String code) {
-    switch (code) {
-      case 'user-disabled':
-        return 'This account is disabled.';
-      case 'user-not-found':
-      case 'wrong-password':
-      case 'invalid-credential':
-        return 'Invalid credentials';
-      case 'too-many-requests':
-        return 'Too many requests. Try again later.';
-      case 'network-request-failed':
-        return 'Network error. Check your connection.';
-      default:
-        return 'Unable to sign in. Please try again.';
     }
   }
 
@@ -221,7 +157,7 @@ class AuthService {
       final backendUser = responseData['user'] as Map<String, dynamic>?;
 
       if (farmJwt.isNotEmpty) {
-        await _persistSessionTokens(
+        _persistSessionTokens(
           farmJwt: farmJwt,
           refreshToken: refreshToken,
           backendUser: backendUser,
@@ -234,9 +170,6 @@ class AuthService {
         'farmJwt': farmJwt,
         'refreshToken': refreshToken,
         'user': backendUser,
-        'requiresPhoneVerification': responseData['requiresPhoneVerification'] == true,
-        'pendingLoginId': responseData['pendingLoginId']?.toString() ?? '',
-        'phone': responseData['phone']?.toString() ?? '',
         'loginMethod': 'firebase',
       };
     } catch (e) {
@@ -247,13 +180,11 @@ class AuthService {
   /// Verify phone with backend using the Firebase ID token.
   Future<Map<String, dynamic>> verifyPhone({
     required String firebaseIdToken,
-    required String pendingLoginId,
     String? turnstileToken,
   }) async {
     try {
       final response = await ApiService.verifyPhone(
         firebaseIdToken: firebaseIdToken,
-        pendingLoginId: pendingLoginId,
         turnstileToken: turnstileToken,
       );
 
@@ -263,7 +194,7 @@ class AuthService {
       final backendUser = responseData['user'] as Map<String, dynamic>?;
 
       if (farmJwt.isNotEmpty) {
-        await _persistSessionTokens(
+        _persistSessionTokens(
           farmJwt: farmJwt,
           refreshToken: refreshToken,
           backendUser: backendUser,
@@ -286,80 +217,25 @@ class AuthService {
     await NotificationService.registerForCurrentUser();
   }
 
-  Future<void> _persistSessionTokens({
+  void _persistSessionTokens({
     required String farmJwt,
     required String refreshToken,
     required Map<String, dynamic>? backendUser,
-  }) async {
-    final role = backendUser is Map<String, dynamic>
-        ? backendUser['role']?.toString().toLowerCase() ?? ''
-        : '';
-    final normalizedRole = role.isEmpty ? 'user' : role;
-
-    if (normalizedRole == 'admin') {
-      FFAppState().accessToken = farmJwt;
-      FFAppState().refreshToken = refreshToken;
-      FFAppState().isLoggedIn = true;
-      FFAppState().userId = backendUser?['id']?.toString() ?? '';
-      FFAppState().role = normalizedRole;
-
-      debugPrint('Admin login detected.');
-      debugPrint('Saving AdminSession...');
-      debugPrint('Access token length: ${farmJwt.length}');
-      debugPrint('Refresh token length: ${refreshToken.length}');
-      debugPrint('Role: ADMIN');
-      await AuthSessionStore.saveAdminSession(
-        accessToken: farmJwt,
-        refreshToken: refreshToken,
-        role: normalizedRole,
-        userId: backendUser?['id']?.toString() ?? '',
-      );
-      debugPrint('Skipping biometric setup.');
-      return;
-    }
-
-    if (normalizedRole == 'super_admin') {
-      FFAppState().accessToken = farmJwt;
-      FFAppState().refreshToken = refreshToken;
-      FFAppState().isLoggedIn = true;
-      FFAppState().userId = backendUser?['id']?.toString() ?? '';
-      FFAppState().role = normalizedRole;
-
-      debugPrint('Super admin login detected.');
-      debugPrint('Saving SuperAdminSession...');
-      debugPrint('Access token length: ${farmJwt.length}');
-      debugPrint('Refresh token length: ${refreshToken.length}');
-      debugPrint('Role: SUPER_ADMIN');
-      await AuthSessionStore.saveSuperAdminSession(
-        accessToken: farmJwt,
-        refreshToken: refreshToken,
-        role: normalizedRole,
-        userId: backendUser?['id']?.toString() ?? '',
-      );
-      debugPrint('Skipping biometric setup.');
-      return;
-    }
-
-    final backendData = backendUser!;
+  }) {
     FFAppState().accessToken = farmJwt;
     FFAppState().refreshToken = refreshToken;
     FFAppState().isLoggedIn = farmJwt.isNotEmpty;
-    FFAppState().userId = backendData['id']?.toString() ?? '';
-    FFAppState().firstName = backendData['first_name']?.toString() ?? '';
-    FFAppState().userName = backendData['username']?.toString() ?? '';
-    FFAppState().phone = backendData['phone']?.toString() ?? '';
-    FFAppState().kycStatus = backendData['kyc_status']?.toString() ?? '';
-    FFAppState().emailVerified = backendData['email_verified'] == true;
-    FFAppState().role = normalizedRole;
-    await AuthSessionStore.saveUserSession(
-      accessToken: farmJwt,
-      refreshToken: refreshToken,
-      role: normalizedRole,
-      userId: backendData['id']?.toString() ?? '',
-    );
+    if (backendUser is Map<String, dynamic>) {
+      FFAppState().userId = backendUser['id']?.toString() ?? '';
+      FFAppState().firstName = backendUser['first_name']?.toString() ?? '';
+      FFAppState().userName = backendUser['username']?.toString() ?? '';
+      FFAppState().phone = backendUser['phone']?.toString() ?? '';
+      FFAppState().kycStatus = backendUser['kyc_status']?.toString() ?? '';
+      FFAppState().emailVerified = backendUser['email_verified'] == true;
+      FFAppState().role = backendUser['role']?.toString() ?? 'user';
+    }
 
-    debugPrint(
-        '[AuthService] Login completed. Starting background user syncNow.');
+    debugPrint('[AuthService] Login completed, starting background syncNow.');
     Future.microtask(() {
       return AppSessionManager().syncNow().catchError((e) {
         debugPrint('[AuthService] syncNow background refresh failed: $e');
@@ -414,8 +290,6 @@ class AuthService {
 
   /// Log out the user from Supabase and FARM backend, and clear all local auth data.
   Future<void> logout() async {
-    print('LOGOUT CALLED');
-    print(StackTrace.current);
     Exception? logoutError;
 
     try {
@@ -438,10 +312,8 @@ class AuthService {
     }
 
     try {
-      final activeRole = FFAppState().role;
       await SecureStorageService.clearAuthData();
       await FFAppState().clearAuthCredentials();
-      await FFAppState().clearRoleSession(activeRole);
     } catch (e) {
       debugPrint('Local clear auth data error: $e');
       logoutError = Exception('Local logout cleanup failed: $e');
@@ -457,8 +329,6 @@ class AuthService {
     required bool acknowledged,
     required bool confirmDelete,
   }) async {
-    print('LOGOUT CALLED');
-    print(StackTrace.current);
     try {
       await ApiService.deleteAccount(
         body: {
@@ -495,24 +365,6 @@ class AuthService {
         email: email,
         turnstileToken: turnstileToken,
       );
-      final resetUrl = const String.fromEnvironment('FARM_RESET_PASSWORD_URL');
-      final actionCodeSettings = resetUrl.isEmpty
-          ? null
-          : ActionCodeSettings(
-              url: resetUrl,
-              handleCodeInApp: true,
-              androidPackageName: 'farm.africa',
-              androidInstallApp: true,
-              iOSBundleId: 'com.mycompany.farm',
-            );
-      try {
-        await FirebaseAuth.instance.sendPasswordResetEmail(
-          email: email.trim(),
-          actionCodeSettings: actionCodeSettings,
-        );
-      } on FirebaseAuthException catch (e) {
-        if (e.code != 'user-not-found') rethrow;
-      }
     } catch (e) {
       throw Exception('Password reset failed: $e');
     }
@@ -525,33 +377,15 @@ class AuthService {
     required String password,
     required String confirmPassword,
   }) async {
-    if (password != confirmPassword) {
-      throw Exception('Passwords do not match.');
-    }
     try {
-      await FirebaseAuth.instance.confirmPasswordReset(
-        code: token,
-        newPassword: password,
+      await ApiService.resetPassword(
+        token: token,
+        email: email,
+        password: password,
+        confirmPassword: confirmPassword,
       );
-    } on FirebaseAuthException catch (e) {
-      throw Exception(_passwordResetError(e.code));
-    }
-  }
-
-  String _passwordResetError(String code) {
-    switch (code) {
-      case 'expired-action-code':
-        return 'This password reset link has expired. Please request a new one.';
-      case 'invalid-action-code':
-        return 'This password reset link is invalid or has already been used.';
-      case 'weak-password':
-        return 'Choose a stronger password.';
-      case 'user-disabled':
-        return 'This account is disabled.';
-      case 'network-request-failed':
-        return 'Network error. Check your connection.';
-      default:
-        return 'Unable to reset your password. Please request a new link.';
+    } catch (e) {
+      throw Exception('Password reset confirmation failed: $e');
     }
   }
 

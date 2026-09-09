@@ -38,11 +38,12 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      _startPeriodicRefresh();
       final ok = await AdminGuard.isAuthenticated();
       if (!ok && mounted) {
-        debugPrint(
-            '[AUTH] Admin session check unavailable; preserving session.');
+        AuthNavigation.replaceAllWithBuilder(
+          context,
+          (_) => LoginpageWidget(),
+        );
         return;
       }
       unawaited(_refreshAdminSession());
@@ -62,8 +63,7 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       _startPeriodicRefresh();
       unawaited(_refreshAdminSession());
-    } else if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.detached) {
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
       _refreshTimer?.cancel();
     }
   }
@@ -80,13 +80,22 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
     if (!mounted) return;
     final ok = await AdminGuard.isAuthenticated();
     if (!ok) {
-      debugPrint('[AUTH] Admin refresh unavailable; preserving session.');
+      if (mounted) {
+            AuthNavigation.replaceAllWithBuilder(
+              context,
+              (_) => LoginpageWidget(),
+            );
+      }
       return;
     }
 
     try {
       final refreshed = await AdminApiService.ensureValidSession();
-      if (refreshed) debugPrint('[AUTH] Admin session refreshed without rebuilding the page.');
+      if (refreshed && mounted) {
+        setState(() {
+          _pageRevision += 1;
+        });
+      }
     } catch (_) {}
   }
 
@@ -148,28 +157,27 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final isWide = MediaQuery.of(context).size.width > 700;
 
-    return PopScope<bool>(
-      canPop: _selectedIndex == 0,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && _selectedIndex != 0 && mounted) {
-          setState(() => _selectedIndex = 0);
-        }
-      },
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        drawer: const AdminSidebar(),
-        body: Row(children: <Widget>[
+    return Scaffold(
+      backgroundColor: Colors.white,
+      drawer: const AdminSidebar(),
+      body: Row(
+        children: [
+          // Sidebar — only on wide screens
           if (isWide) _buildSidebar(),
+
+          // Main content
           Expanded(
-            child: Column(children: <Widget>[
-              _buildTopBar(isWide),
-              Expanded(child: _buildCurrentPage()),
-            ]),
+            child: Column(
+              children: [
+                _buildTopBar(isWide),
+                Expanded(child: _buildCurrentPage()),
+              ],
+            ),
           ),
-        ]),
-        // Bottom nav — only on narrow screens
-        bottomNavigationBar: isWide ? null : _buildBottomNav(),
+        ],
       ),
+      // Bottom nav — only on narrow screens
+      bottomNavigationBar: isWide ? null : _buildBottomNav(),
     );
   }
 

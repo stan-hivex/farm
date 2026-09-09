@@ -9,6 +9,8 @@ class EscrowModel {
   final String? sellerId;
   final String? sellerUsername;
   final String? sellerName;
+  final String? title;
+  final String? description;
 
   EscrowModel({
     required this.id,
@@ -21,6 +23,8 @@ class EscrowModel {
     this.sellerId,
     this.sellerUsername,
     this.sellerName,
+    this.title,
+    this.description,
   });
 
   bool isBuyer(String userId) => buyerId != null && buyerId == userId;
@@ -34,7 +38,8 @@ class EscrowModel {
 
   String getCounterpartyDisplayName(String userId) {
     if (isBuyer(userId)) {
-      final displayName = sellerUsername?.trim().replaceFirst(RegExp(r'^@'), '');
+      final displayName =
+          sellerUsername?.trim().replaceFirst(RegExp(r'^@'), '');
       if (displayName != null && displayName.isNotEmpty) {
         return displayName;
       }
@@ -58,8 +63,10 @@ class EscrowModel {
             ? json['users_escrow_contracts_seller_idTousers'] as Map
             : null);
 
-    final buyerId = buyerData?['id']?.toString() ?? json['buyer_id']?.toString();
-    final sellerId = sellerData?['id']?.toString() ?? json['seller_id']?.toString();
+    final buyerId =
+        buyerData?['id']?.toString() ?? json['buyer_id']?.toString();
+    final sellerId =
+        sellerData?['id']?.toString() ?? json['seller_id']?.toString();
 
     final buyerFirstName = buyerData?['first_name']?.toString();
     final buyerLastName = buyerData?['last_name']?.toString();
@@ -85,12 +92,14 @@ class EscrowModel {
 
     final derivedBuyerName = (buyerFullName?.trim().isNotEmpty == true)
         ? buyerFullName!.trim()
-        : ((buyerFirstName?.trim().isNotEmpty == true || buyerLastName?.trim().isNotEmpty == true)
+        : ((buyerFirstName?.trim().isNotEmpty == true ||
+                buyerLastName?.trim().isNotEmpty == true)
             ? '${buyerFirstName ?? ''} ${buyerLastName ?? ''}'.trim()
             : null);
     final derivedSellerName = (sellerFullName?.trim().isNotEmpty == true)
         ? sellerFullName!.trim()
-        : ((sellerFirstName?.trim().isNotEmpty == true || sellerLastName?.trim().isNotEmpty == true)
+        : ((sellerFirstName?.trim().isNotEmpty == true ||
+                sellerLastName?.trim().isNotEmpty == true)
             ? '${sellerFirstName ?? ''} ${sellerLastName ?? ''}'.trim()
             : null);
 
@@ -105,6 +114,8 @@ class EscrowModel {
       sellerId: sellerId,
       sellerUsername: sellerUsername,
       sellerName: derivedSellerName,
+      title: json['title']?.toString() ?? json['name']?.toString(),
+      description: json['description']?.toString(),
     );
   }
 }

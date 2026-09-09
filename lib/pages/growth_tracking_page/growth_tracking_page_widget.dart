@@ -1,5 +1,5 @@
-
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '/backend/services/api_service.dart';
@@ -66,16 +66,22 @@ class _GrowthTrackingPageWidgetState extends State<GrowthTrackingPageWidget> {
       }[_selectedPeriod]!;
 
       final payload = await ApiService.getGrowthHistory(days: period);
-      final history = payload['data'] is List ? payload['data'] as List : <dynamic>[];
+      final history =
+          payload['data'] is List ? payload['data'] as List : <dynamic>[];
 
       // normalize entries to (date, value)
       final entries = <Map<String, dynamic>>[];
       for (final item in history) {
         if (item is! Map<String, dynamic> && item is! Map) continue;
-        final raw = item is Map<String, dynamic> ? item : Map<String, dynamic>.from(item as Map);
+        final raw = item is Map<String, dynamic>
+            ? item
+            : Map<String, dynamic>.from(item as Map);
         final rawValue = raw['total'] ?? raw['value'] ?? raw['amount'] ?? 0;
         final value = double.tryParse(rawValue.toString()) ?? 0.0;
-        final rawDateStr = raw['date']?.toString() ?? raw['day']?.toString() ?? raw['label']?.toString() ?? '';
+        final rawDateStr = raw['date']?.toString() ??
+            raw['day']?.toString() ??
+            raw['label']?.toString() ??
+            '';
         DateTime? parsed;
         try {
           parsed = DateTime.tryParse(rawDateStr);
@@ -83,16 +89,19 @@ class _GrowthTrackingPageWidgetState extends State<GrowthTrackingPageWidget> {
           parsed = null;
         }
         if (parsed == null) {
-          final m = RegExp(r"(\d{4})[-/](\d{1,2})[-/](\d{1,2})").firstMatch(rawDateStr);
+          final m = RegExp(r"(\d{4})[-/](\d{1,2})[-/](\d{1,2})")
+              .firstMatch(rawDateStr);
           if (m != null) {
-            parsed = DateTime(int.parse(m.group(1)!), int.parse(m.group(2)!), int.parse(m.group(3)!));
+            parsed = DateTime(int.parse(m.group(1)!), int.parse(m.group(2)!),
+                int.parse(m.group(3)!));
           }
         }
         if (parsed == null) continue;
         entries.add({'date': parsed.toUtc(), 'value': value});
       }
 
-      entries.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
+      entries.sort(
+          (a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
 
       final List<double> values = [];
       final List<String> labels = [];
@@ -118,8 +127,12 @@ class _GrowthTrackingPageWidgetState extends State<GrowthTrackingPageWidget> {
           }
         }
       } else if (_selectedPeriod == 'monthly') {
-        DateTime selectedMonth = _selectedMonth ?? (entries.isNotEmpty ? (entries.last['date'] as DateTime) : DateTime.now());
-        selectedMonth = DateTime(selectedMonth.year, selectedMonth.month, 1).toUtc();
+        DateTime selectedMonth = _selectedMonth ??
+            (entries.isNotEmpty
+                ? (entries.last['date'] as DateTime)
+                : DateTime.now());
+        selectedMonth =
+            DateTime(selectedMonth.year, selectedMonth.month, 1).toUtc();
         final monthEntries = entries.where((e) {
           final d = e['date'] as DateTime;
           return d.year == selectedMonth.year && d.month == selectedMonth.month;
@@ -129,11 +142,18 @@ class _GrowthTrackingPageWidgetState extends State<GrowthTrackingPageWidget> {
         for (final e in monthEntries) {
           final d = e['date'] as DateTime;
           final day = d.day;
-          final bucketIndex = (day <= 7) ? 0 : (day <= 14) ? 1 : (day <= 21) ? 2 : 3;
+          final bucketIndex = (day <= 7)
+              ? 0
+              : (day <= 14)
+                  ? 1
+                  : (day <= 21)
+                      ? 2
+                      : 3;
           buckets[bucketIndex].add(e);
         }
         for (var i = 0; i < 4; i++) {
-          final sum = buckets[i].fold<double>(0.0, (p, c) => p + (c['value'] as double));
+          final sum = buckets[i]
+              .fold<double>(0.0, (p, c) => p + (c['value'] as double));
           values.add(sum);
           labels.add('Week ${i + 1}');
         }
@@ -151,7 +171,10 @@ class _GrowthTrackingPageWidgetState extends State<GrowthTrackingPageWidget> {
         }
       }
 
-      final growth = (values.length > 1 && values.isNotEmpty && values.first > 0) ? ((values.last - values.first) / values.first) * 100 : 0.0;
+      final growth =
+          (values.length > 1 && values.isNotEmpty && values.first > 0)
+              ? ((values.last - values.first) / values.first) * 100
+              : 0.0;
 
       if (!mounted) return;
       setState(() {
@@ -178,7 +201,7 @@ class _GrowthTrackingPageWidgetState extends State<GrowthTrackingPageWidget> {
     return Scaffold(
       backgroundColor: theme.primaryBackground,
       appBar: AppBar(
-        title: Text('Growth Tracking'),
+        title: Text('misc.growth_tracking'.tr()),
         backgroundColor: theme.primaryBackground,
         elevation: 0,
       ),
@@ -189,7 +212,7 @@ class _GrowthTrackingPageWidgetState extends State<GrowthTrackingPageWidget> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Your growth overview',
+              Text('misc.growth_overview'.tr(),
                   style:
                       theme.titleMedium.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: 12),
@@ -197,13 +220,14 @@ class _GrowthTrackingPageWidgetState extends State<GrowthTrackingPageWidget> {
               if (_selectedPeriod == 'monthly')
                 Builder(builder: (context) {
                   final now = DateTime.now();
-                  final months = List<DateTime>.generate(12, (i) => DateTime(now.year, now.month - i, 1));
+                  final months = List<DateTime>.generate(
+                      12, (i) => DateTime(now.year, now.month - i, 1));
                   final selected = _selectedMonth ?? months.first;
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: Row(
                       children: [
-                        const Text('Month:'),
+                        Text('common.month'.tr()),
                         const SizedBox(width: 8),
                         DropdownButton<DateTime>(
                           value: selected,
@@ -226,10 +250,10 @@ class _GrowthTrackingPageWidgetState extends State<GrowthTrackingPageWidget> {
               Wrap(
                 spacing: 8,
                 children: [
-                  _periodChip('Daily', 'daily'),
-                  _periodChip('Weekly', 'weekly'),
-                  _periodChip('Monthly', 'monthly'),
-                  _periodChip('Yearly', 'yearly'),
+                  _periodChip('common.daily'.tr(), 'daily'),
+                  _periodChip('common.weekly'.tr(), 'weekly'),
+                  _periodChip('common.monthly'.tr(), 'monthly'),
+                  _periodChip('common.yearly'.tr(), 'yearly'),
                 ],
               ),
               const SizedBox(height: 16),
@@ -269,10 +293,10 @@ class _GrowthTrackingPageWidgetState extends State<GrowthTrackingPageWidget> {
                       ),
                       const SizedBox(height: 12),
                       if (RefreshLoadingState.shouldShowInitialLoading(
-                            isLoading: _loading,
-                            hasCompletedFirstLoad: _hasCompletedFirstLoad,
-                            hasContent: _values.isNotEmpty,
-                          ))
+                        isLoading: _loading,
+                        hasCompletedFirstLoad: _hasCompletedFirstLoad,
+                        hasContent: _values.isNotEmpty,
+                      ))
                         Center(
                             child: Padding(
                                 padding:
@@ -379,12 +403,16 @@ class _GrowthTrackingPageWidgetState extends State<GrowthTrackingPageWidget> {
         setState(() => _selectedPeriod = value);
         _loadGrowth();
       },
-      backgroundColor: isDarkMode ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05),
+      backgroundColor: isDarkMode
+          ? Colors.white.withValues(alpha: 0.08)
+          : Colors.black.withValues(alpha: 0.05),
       selectedColor: selectedFillColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(999),
         side: BorderSide(
-          color: selected ? selectedFillColor : (isDarkMode ? Colors.white24 : Colors.black12),
+          color: selected
+              ? selectedFillColor
+              : (isDarkMode ? Colors.white24 : Colors.black12),
           width: 1.2,
         ),
       ),

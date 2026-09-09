@@ -107,9 +107,9 @@ class AppSessionManager {
               FFAppState().firstName = profileData['first_name']?.toString() ?? FFAppState().firstName;
               FFAppState().userName = profileData['username']?.toString() ?? FFAppState().userName;
               FFAppState().phone = profileData['phone']?.toString() ?? FFAppState().phone;
-              FFAppState().email = profileData['email']?.toString() ?? FFAppState().email;
               FFAppState().kycStatus = profileData['kyc_status']?.toString() ?? FFAppState().kycStatus;
               FFAppState().emailVerified = profileData['email_verified'] == true;
+              FFAppState().role = profileData['role']?.toString() ?? FFAppState().role;
               if (profileData['profile_image'] != null) {
                 FFAppState().profileImageUrl = profileData['profile_image']?.toString() ?? FFAppState().profileImageUrl;
               }
@@ -146,7 +146,6 @@ class AppSessionManager {
             FFAppState().firstName = profileData['first_name']?.toString() ?? FFAppState().firstName;
             FFAppState().userName = profileData['username']?.toString() ?? FFAppState().userName;
             FFAppState().phone = profileData['phone']?.toString() ?? FFAppState().phone;
-            FFAppState().email = profileData['email']?.toString() ?? FFAppState().email;
             FFAppState().kycStatus = profileData['kyc_status']?.toString() ?? FFAppState().kycStatus;
             FFAppState().emailVerified = profileData['email_verified'] == true;
             FFAppState().role = profileData['role']?.toString() ?? FFAppState().role;
@@ -209,7 +208,7 @@ class AppSessionManager {
 
       // Launch background fetches without awaiting
       _spawnBackground('transactions', () => _safeFetch('/wallet/transactions?page=1&limit=5', () => ApiService.getTransactions(page: 1, limit: 5, timeoutSeconds: 4), timeoutSeconds: 4, background: true));
-      _spawnBackground('notifications', () => _safeFetch('/notifications', () => ApiService.getNotifications(timeoutSeconds: 4), timeoutSeconds: 4, background: true));
+      _spawnBackground('notifications', () => _safeFetch('/users/notifications', () => ApiService.getNotifications(timeoutSeconds: 4), timeoutSeconds: 4, background: true));
       _spawnBackground('escrows', () => _safeFetch('/escrow', () => ApiService.getEscrows(), timeoutSeconds: 5, background: true));
       _spawnBackground('investments', () => _safeFetch('/investments/my', () => ApiService.getMyInvestments(), timeoutSeconds: 5, background: true));
 
@@ -360,7 +359,6 @@ class AppSessionManager {
           FFAppState().firstName = profileData['first_name']?.toString() ?? FFAppState().firstName;
           FFAppState().userName = profileData['username']?.toString() ?? FFAppState().userName;
           FFAppState().phone = profileData['phone']?.toString() ?? FFAppState().phone;
-          FFAppState().email = profileData['email']?.toString() ?? FFAppState().email;
           FFAppState().kycStatus = profileData['kyc_status']?.toString() ?? FFAppState().kycStatus;
           FFAppState().emailVerified = profileData['email_verified'] == true;
           FFAppState().role = profileData['role']?.toString() ?? FFAppState().role;

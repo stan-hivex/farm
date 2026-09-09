@@ -12,6 +12,9 @@ class MerchantTransactionItemWidget extends StatefulWidget {
     String? customer,
     String? date,
     this.icon,
+    this.onTap,
+    this.reference,
+    this.onCopyReference,
     String? status,
   })  : amount = amount ?? '45.00',
         customer = customer ?? '@alice_green',
@@ -22,7 +25,10 @@ class MerchantTransactionItemWidget extends StatefulWidget {
   final String customer;
   final String date;
   final Widget? icon;
+  final VoidCallback? onTap;
   final String status;
+  final String? reference;
+  final VoidCallback? onCopyReference;
 
   @override
   State<MerchantTransactionItemWidget> createState() =>
@@ -54,154 +60,187 @@ class _MerchantTransactionItemWidgetState
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        shape: BoxShape.rectangle,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(0.0, 16.0, 0.0, 16.0),
-            child: Container(
-              child: Row(
-                mainAxisSize: MainAxisSize.max,
-                mainAxisAlignment: MainAxisAlignment.start,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 48.0,
-                    height: 48.0,
-                    decoration: BoxDecoration(
-                      color: FlutterFlowTheme.of(context).primaryBackground,
-                      borderRadius: BorderRadius.circular(9999.0),
-                      shape: BoxShape.rectangle,
+    return InkWell(
+      onTap: widget.onTap,
+      child: Container(
+        decoration: const BoxDecoration(
+          shape: BoxShape.rectangle,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding:
+                  const EdgeInsetsDirectional.fromSTEB(0.0, 16.0, 0.0, 16.0),
+              child: Container(
+                child: Row(
+                  mainAxisSize: MainAxisSize.max,
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 48.0,
+                      height: 48.0,
+                      decoration: BoxDecoration(
+                        color: FlutterFlowTheme.of(context).primaryBackground,
+                        borderRadius: BorderRadius.circular(9999.0),
+                        shape: BoxShape.rectangle,
+                      ),
+                      alignment: const AlignmentDirectional(0.0, 0.0),
+                      child: widget.icon!,
                     ),
-                    alignment: const AlignmentDirectional(0.0, 0.0),
-                    child: widget.icon!,
-                  ),
-                  Expanded(
-                    flex: 1,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          valueOrDefault<String>(
-                            widget.customer,
-                            '@alice_green',
-                          ),
-                          maxLines: 1,
-                          style: FlutterFlowTheme.of(context)
-                              .bodyLarge
-                              .override(
-                                font: GoogleFonts.inter(
+                    Expanded(
+                      flex: 1,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            valueOrDefault<String>(
+                              widget.customer,
+                              '@alice_green',
+                            ),
+                            maxLines: 1,
+                            style: FlutterFlowTheme.of(context)
+                                .bodyLarge
+                                .override(
+                                  font: GoogleFonts.inter(
+                                    fontWeight: FontWeight.w600,
+                                    fontStyle: FlutterFlowTheme.of(context)
+                                        .bodyLarge
+                                        .fontStyle,
+                                  ),
+                                  color:
+                                      FlutterFlowTheme.of(context).primaryText,
+                                  letterSpacing: 0.0,
                                   fontWeight: FontWeight.w600,
                                   fontStyle: FlutterFlowTheme.of(context)
                                       .bodyLarge
                                       .fontStyle,
+                                  lineHeight: 1.5,
                                 ),
-                                color: FlutterFlowTheme.of(context).primaryText,
-                                letterSpacing: 0.0,
-                                fontWeight: FontWeight.w600,
-                                fontStyle: FlutterFlowTheme.of(context)
-                                    .bodyLarge
-                                    .fontStyle,
-                                lineHeight: 1.5,
-                              ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          valueOrDefault<String>(
-                            widget.date,
-                            'Oct 24, 14:20',
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          style: FlutterFlowTheme.of(context)
-                              .labelMedium
-                              .override(
-                                font: GoogleFonts.plusJakartaSans(
+                          Text(
+                            valueOrDefault<String>(
+                              widget.date,
+                              'Oct 24, 14:20',
+                            ),
+                            style: FlutterFlowTheme.of(context)
+                                .labelMedium
+                                .override(
+                                  font: GoogleFonts.plusJakartaSans(
+                                    fontWeight: FlutterFlowTheme.of(context)
+                                        .labelMedium
+                                        .fontWeight,
+                                    fontStyle: FlutterFlowTheme.of(context)
+                                        .labelMedium
+                                        .fontStyle,
+                                  ),
+                                  color: FlutterFlowTheme.of(context)
+                                      .secondaryText,
+                                  letterSpacing: 0.0,
                                   fontWeight: FlutterFlowTheme.of(context)
                                       .labelMedium
                                       .fontWeight,
                                   fontStyle: FlutterFlowTheme.of(context)
                                       .labelMedium
                                       .fontStyle,
+                                  lineHeight: 1.3,
                                 ),
-                                color:
-                                    FlutterFlowTheme.of(context).secondaryText,
-                                letterSpacing: 0.0,
-                                fontWeight: FlutterFlowTheme.of(context)
-                                    .labelMedium
-                                    .fontWeight,
-                                fontStyle: FlutterFlowTheme.of(context)
-                                    .labelMedium
-                                    .fontStyle,
-                                lineHeight: 1.3,
-                              ),
-                        ),
-                      ].divide(const SizedBox(height: 2.0)),
+                          ),
+                        ].divide(const SizedBox(height: 2.0)),
+                      ),
                     ),
-                  ),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        '${widget.amount} FARM',
-                        style: FlutterFlowTheme.of(context).bodyLarge.override(
-                              font: GoogleFonts.inter(
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '${widget.amount} FARM',
+                          style: FlutterFlowTheme.of(context)
+                              .bodyLarge
+                              .override(
+                                font: GoogleFonts.inter(
+                                  fontWeight: FontWeight.bold,
+                                  fontStyle: FlutterFlowTheme.of(context)
+                                      .bodyLarge
+                                      .fontStyle,
+                                ),
+                                color: FlutterFlowTheme.of(context).primaryText,
+                                letterSpacing: 0.0,
                                 fontWeight: FontWeight.bold,
                                 fontStyle: FlutterFlowTheme.of(context)
                                     .bodyLarge
                                     .fontStyle,
+                                lineHeight: 1.5,
                               ),
-                              color: FlutterFlowTheme.of(context).primaryText,
-                              letterSpacing: 0.0,
-                              fontWeight: FontWeight.bold,
-                              fontStyle: FlutterFlowTheme.of(context)
-                                  .bodyLarge
-                                  .fontStyle,
-                              lineHeight: 1.5,
-                            ),
-                      ),
-                      Text(
-                        valueOrDefault<String>(
-                          widget.status,
-                          'COMPLETED',
                         ),
-                        style: FlutterFlowTheme.of(context).labelSmall.override(
-                              font: GoogleFonts.plusJakartaSans(
+                        Text(
+                          valueOrDefault<String>(
+                            widget.status,
+                            'COMPLETED',
+                          ),
+                          style: FlutterFlowTheme.of(context)
+                              .labelSmall
+                              .override(
+                                font: GoogleFonts.plusJakartaSans(
+                                  fontWeight: FontWeight.w600,
+                                  fontStyle: FlutterFlowTheme.of(context)
+                                      .labelSmall
+                                      .fontStyle,
+                                ),
+                                color:
+                                    FlutterFlowTheme.of(context).secondaryText,
+                                letterSpacing: 0.0,
                                 fontWeight: FontWeight.w600,
                                 fontStyle: FlutterFlowTheme.of(context)
                                     .labelSmall
                                     .fontStyle,
+                                lineHeight: 1.2,
                               ),
-                              color: FlutterFlowTheme.of(context).secondaryText,
-                              letterSpacing: 0.0,
-                              fontWeight: FontWeight.w600,
-                              fontStyle: FlutterFlowTheme.of(context)
+                        ),
+                        if (widget.reference?.isNotEmpty == true)
+                          SizedBox(
+                            width: 72,
+                            child: Text(
+                              widget.reference!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: FlutterFlowTheme.of(context)
                                   .labelSmall
-                                  .fontStyle,
-                              lineHeight: 1.2,
+                                  .copyWith(
+                                    color: FlutterFlowTheme.of(context)
+                                        .secondaryText,
+                                  ),
                             ),
-                      ),
-                    ].divide(const SizedBox(height: 2.0)),
-                  ),
-                ].divide(const SizedBox(width: 16.0)),
+                          ),
+                        if (widget.reference?.isNotEmpty == true)
+                          IconButton(
+                            tooltip: 'Copy transaction reference',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            icon: const Icon(Icons.copy, size: 16),
+                            onPressed: widget.onCopyReference,
+                          ),
+                      ].divide(const SizedBox(height: 2.0)),
+                    ),
+                  ].divide(const SizedBox(width: 16.0)),
+                ),
               ),
             ),
-          ),
-          Container(
-            height: 1.0,
-            decoration: BoxDecoration(
-              color: FlutterFlowTheme.of(context).alternate,
-              shape: BoxShape.rectangle,
+            Container(
+              height: 1.0,
+              decoration: BoxDecoration(
+                color: FlutterFlowTheme.of(context).alternate,
+                shape: BoxShape.rectangle,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

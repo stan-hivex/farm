@@ -7,7 +7,10 @@ DepositLifecycleStatus parseDepositLifecycleStatus(Object? value) {
     return DepositLifecycleStatus.completed;
   }
 
-  if (status == 'failed' || status == 'cancelled' || status == 'error' || status == 'declined') {
+  if (status == 'failed' ||
+      status == 'cancelled' ||
+      status == 'error' ||
+      status == 'declined') {
     return DepositLifecycleStatus.failed;
   }
 

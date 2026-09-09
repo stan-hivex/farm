@@ -1,4 +1,4 @@
-﻿import '/components/button/button_widget.dart';
+import '/components/button/button_widget.dart';
 import '/components/merchant_stat_card/merchant_stat_card_widget.dart';
 import '/components/merchant_transaction_item/merchant_transaction_item_widget.dart';
 import '/flutter_flow/flutter_flow_charts.dart';
@@ -8,12 +8,13 @@ import '/backend/services/api_service.dart';
 import '/core/app_config.dart';
 import '/services/qr_download_service.dart';
 import '/utils/merchant_qr_utils.dart';
+import '/pages/transaction_details/transaction_details_page.dart';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'dart:ui' as ui;
 
 import 'merchant_dashboard_model.dart';
+
 
 class MerchantDashboardWidget extends StatefulWidget {
   const MerchantDashboardWidget({super.key});
@@ -100,21 +101,20 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
         merchantNotFound = false;
       });
 
-      final resp =
-          await ApiService.request(method: 'GET', path: '/merchant/dashboard');
+      final resp = await ApiService.request(method: 'GET', path: '/merchant/dashboard');
       final data = resp['data'] ?? resp;
-      final transactions = data['recent_transactions'] ?? [];
-      setState(() {
-        merchant = data['merchant'];
-        stats = data['stats'];
-        recentTransactions = transactions;
-        weeklyData = _buildWeeklyData(data['stats'], transactions);
-        loading = false;
-      });
+        final transactions = data['recent_transactions'] ?? [];
+        setState(() {
+          merchant = data['merchant'];
+          stats = data['stats'];
+          recentTransactions = transactions;
+          weeklyData = _buildWeeklyData(data['stats'], transactions);
+          loading = false;
+        });
 
-      if (_merchantQrBase64 == null) {
-        await _fetchMerchantQr();
-      }
+        if (_merchantQrBase64 == null) {
+          await _fetchMerchantQr();
+        }
       // ApiService throws on non-2xx responses, but just in case handle missing data
       if (data == null) {
         setState(() {
@@ -133,9 +133,10 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
           });
           return;
         }
-        if (message.isNotEmpty) {
-          showError(message);
-        }
+        setState(() {
+          loading = false;
+        });
+        showError(message);
       }
     } catch (e) {
       setState(() {
@@ -174,28 +175,6 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
       totals[(date.weekday + 5) % 7] += amount;
     }
     return totals;
-  }
-
-  double _chartMaxY() {
-    final maximum =
-        weeklyData.isEmpty ? 0.0 : weeklyData.reduce((a, b) => a > b ? a : b);
-    if (maximum <= 0) return 100;
-    final step = maximum >= 1000
-        ? 500.0
-        : maximum >= 100
-            ? 100.0
-            : 50.0;
-    return ((maximum / step).ceil() * step).toDouble();
-  }
-
-  String _formatChartAmount(double value) {
-    if (value >= 1000000) {
-      return '${(value / 1000000).toStringAsFixed(1)}M';
-    }
-    if (value >= 1000) {
-      return '${(value / 1000).toStringAsFixed(value >= 10000 ? 0 : 1)}K';
-    }
-    return value.toStringAsFixed(value.truncateToDouble() == value ? 0 : 2);
   }
 
   String _formatMerchantTransactionDate(dynamic value) {
@@ -358,8 +337,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
 
     if (qrSource == null || qrSource.isEmpty) {
       if (mounted) {
-        showError(
-            'No QR code available to download yet. Please try again shortly.');
+        showError('No QR code available to download yet. Please try again shortly.');
       }
       return;
     }
@@ -370,13 +348,9 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
         throw Exception('QR payload could not be decoded');
       }
 
-      final merchantName =
-          (merchant?['business_name'] ?? 'merchant').toString().trim();
-      final labeledBytes = await _addMerchantNameToQr(bytes, merchantName);
-      final fileName =
-          'farm_${_safeFileName(merchantName)}_qr_${DateTime.now().millisecondsSinceEpoch}.png';
+      final fileName = 'farm_merchant_qr_${DateTime.now().millisecondsSinceEpoch}.png';
       final result = await QrDownloadService.instance.downloadQr(
-        labeledBytes,
+        Uint8List.fromList(bytes),
         fileName: fileName,
       );
 
@@ -414,70 +388,10 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
         throw Exception('QR payload could not be decoded');
       }
 
-      final merchantName =
-          (merchant?['business_name'] ?? 'merchant').toString().trim();
-      final labeledBytes = await _addMerchantNameToQr(bytes, merchantName);
-      await QrDownloadService.instance.shareQr(labeledBytes);
+      await QrDownloadService.instance.shareQr(Uint8List.fromList(bytes));
     } catch (e) {
       showError('Failed to share QR code: ${e.toString()}');
     }
-  }
-
-  Future<Uint8List> _addMerchantNameToQr(
-    List<int> qrBytes,
-    String merchantName,
-  ) async {
-    final codec = await ui.instantiateImageCodec(Uint8List.fromList(qrBytes));
-    final frame = await codec.getNextFrame();
-    final source = frame.image;
-    const bannerHeight = 96.0;
-    final output = ui.PictureRecorder();
-    final canvas = Canvas(output);
-    final width = source.width.toDouble();
-    final height = source.height.toDouble() + bannerHeight;
-
-    canvas.drawColor(Colors.white, BlendMode.src);
-    canvas.drawImageRect(
-      source,
-      Rect.fromLTWH(0, 0, source.width.toDouble(), source.height.toDouble()),
-      Rect.fromLTWH(0, bannerHeight, width, source.height.toDouble()),
-      Paint(),
-    );
-
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: merchantName.isEmpty ? 'Merchant' : merchantName,
-        style: const TextStyle(
-          color: Colors.black,
-          fontSize: 30,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      textAlign: TextAlign.center,
-      maxLines: 2,
-      ellipsis: '...',
-      textDirection: ui.TextDirection.ltr,
-    )..layout(maxWidth: width - 32);
-    textPainter.paint(
-      canvas,
-      Offset((width - textPainter.width) / 2,
-          (bannerHeight - textPainter.height) / 2),
-    );
-
-    final image =
-        await output.endRecording().toImage(width.ceil(), height.ceil());
-    final data = await image.toByteData(format: ui.ImageByteFormat.png);
-    source.dispose();
-    image.dispose();
-    if (data == null) throw Exception('Unable to encode labeled QR code');
-    return data.buffer.asUint8List();
-  }
-
-  String _safeFileName(String value) {
-    final sanitized = value
-        .replaceAll(RegExp(r'[^A-Za-z0-9]+'), '_')
-        .replaceAll(RegExp(r'^_+|_+$'), '');
-    return sanitized.isEmpty ? 'merchant' : sanitized;
   }
 
   Future<void> _openQrKit() async {
@@ -501,15 +415,15 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
         return AlertDialog(
           title: const Text('✓ QR Code Saved'),
           content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _shareQrKit();
-              },
-              child: const Text('SHARE'),
-            ),
-          ],
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _shareQrKit();
+                },
+                child: const Text('SHARE'),
+              ),
+            ],
         );
       },
     );
@@ -563,14 +477,12 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                   child: ElevatedButton(
                     onPressed: applyingMerchant ? null : applyMerchant,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          Theme.of(context).brightness == Brightness.dark
-                              ? Colors.white
-                              : Colors.black,
-                      foregroundColor:
-                          Theme.of(context).brightness == Brightness.dark
-                              ? Colors.black
-                              : Colors.white,
+                      backgroundColor: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white
+                          : Colors.black,
+                      foregroundColor: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.black
+                          : Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
@@ -651,21 +563,18 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                       child: ElevatedButton(
                         onPressed: payoutLoading ? null : requestPayout,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              Theme.of(context).brightness == Brightness.dark
-                                  ? Colors.white
-                                  : Colors.black,
-                          foregroundColor:
-                              Theme.of(context).brightness == Brightness.dark
-                                  ? Colors.black
-                                  : Colors.white,
+                          backgroundColor: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white
+                              : Colors.black,
+                          foregroundColor: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.black
+                              : Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
                         ),
                         child: payoutLoading
-                            ? const CircularProgressIndicator(
-                                color: Colors.white)
+                            ? const CircularProgressIndicator(color: Colors.white)
                             : const Text('Submit Payout Request'),
                       ),
                     ),
@@ -713,8 +622,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
       ),
       style: const TextStyle(color: Colors.white),
     );
@@ -743,9 +651,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                     width: 120,
                     height: 120,
                     decoration: BoxDecoration(
-                      color: FlutterFlowTheme.of(context)
-                          .primary
-                          .withValues(alpha: 0.14),
+                      color: FlutterFlowTheme.of(context).primary.withValues(alpha: 0.14),
                       borderRadius: BorderRadius.circular(32),
                     ),
                     child: Icon(
@@ -780,14 +686,12 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                     child: ElevatedButton(
                       onPressed: openApplyMerchantModal,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            Theme.of(context).brightness == Brightness.dark
-                                ? Colors.white
-                                : Colors.black,
-                        foregroundColor:
-                            Theme.of(context).brightness == Brightness.dark
-                                ? Colors.black
-                                : Colors.white,
+                        backgroundColor: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : Colors.black,
+                        foregroundColor: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.black
+                            : Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(18),
                         ),
@@ -974,8 +878,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
                                 Icon(
-                                  (stats?['monthly_growth_percentage'] ?? 0) >=
-                                          0
+                                  (stats?['monthly_growth_percentage'] ?? 0) >= 0
                                       ? Icons.trending_up_rounded
                                       : Icons.trending_down_rounded,
                                   color: FlutterFlowTheme.of(context).onPrimary,
@@ -1124,12 +1027,10 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                                           borderRadius:
                                               BorderRadius.circular(20),
                                           child: () {
-                                            final qrBytes =
-                                                resolveMerchantQrBytes(
+                                            final qrBytes = resolveMerchantQrBytes(
                                               _merchantQrBase64,
                                             );
-                                            if (qrBytes == null ||
-                                                qrBytes.isEmpty) {
+                                            if (qrBytes == null || qrBytes.isEmpty) {
                                               return const Center(
                                                 child: Icon(
                                                   Icons.qr_code_2_rounded,
@@ -1223,6 +1124,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                               ),
                             ),
                           ].divide(SizedBox(height: 24)),
+
                         ),
                       ),
                     ),
@@ -1298,18 +1200,6 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                                       barBorderRadius: BorderRadius.circular(4),
                                       groupSpace: 12,
                                       alignment: BarChartAlignment.spaceEvenly,
-                                      showBarValues: true,
-                                      barValueFormatter: _formatChartAmount,
-                                      barValueTextStyle:
-                                          FlutterFlowTheme.of(context)
-                                              .bodySmall
-                                              .override(
-                                                color:
-                                                    FlutterFlowTheme.of(context)
-                                                        .primaryText,
-                                                fontSize: 9,
-                                                fontWeight: FontWeight.w700,
-                                              ),
                                       chartStylingInfo: ChartStylingInfo(
                                         backgroundColor: Colors.transparent,
                                         showBorder: false,
@@ -1317,7 +1207,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                                       axisBounds: AxisBounds(
                                         minY: 0,
                                         maxX: 6,
-                                        maxY: _chartMaxY(),
+                                        maxY: 720,
                                       ),
                                       xAxisLabelInfo: AxisLabelInfo(
                                         showLabels: true,
@@ -1353,21 +1243,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                                         reservedSize: 20,
                                       ),
                                       yAxisLabelInfo: AxisLabelInfo(
-                                        showLabels: true,
-                                        labelInterval: _chartMaxY() / 4,
-                                        labelTextStyle: FlutterFlowTheme.of(
-                                                context)
-                                            .bodySmall
-                                            .override(
-                                              color:
-                                                  FlutterFlowTheme.of(context)
-                                                      .secondaryText,
-                                              fontSize: 9,
-                                            ),
-                                        labelFormatter: LabelFormatter(
-                                          numberFormat: _formatChartAmount,
-                                        ),
-                                        reservedSize: 38,
+                                        reservedSize: 0,
                                       ),
                                     ),
                                   ),
@@ -1438,48 +1314,55 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                               Center(
                                 child: Text(
                                   'No recent transactions',
-                                  style:
-                                      FlutterFlowTheme.of(context).bodyMedium,
+                                  style: FlutterFlowTheme.of(context)
+                                      .bodyMedium,
                                 ),
                               ),
                             ]
-                          : recentTransactions.asMap().entries.map((entry) {
-                              int index = entry.key;
-                              dynamic tx = entry.value;
-                              return wrapWithModel(
-                                model: index == 0
-                                    ? _model.merchantTransactionItemModel1
-                                    : index == 1
-                                        ? _model.merchantTransactionItemModel2
-                                        : index == 2
-                                            ? _model
-                                                .merchantTransactionItemModel3
-                                            : _model
-                                                .merchantTransactionItemModel4,
-                                updateCallback: () => safeSetState(() {}),
-                                child: MerchantTransactionItemWidget(
-                                  amount: '${tx['amount'] ?? 0}',
-                                  customer: tx['customer_name']
-                                              ?.toString()
-                                              .trim()
-                                              .isNotEmpty ==
-                                          true
-                                      ? tx['customer_name']
-                                      : '@user',
-                                  date: _formatMerchantTransactionDate(
-                                      tx['created_at'] ??
-                                          tx['createdAt'] ??
-                                          tx['timestamp']),
-                                  icon: Icon(
-                                    Icons.person_rounded,
-                                    color: FlutterFlowTheme.of(context)
-                                        .primaryText,
-                                    size: 24,
+                          : recentTransactions
+                              .asMap()
+                              .entries
+                              .map((entry) {
+                                int index = entry.key;
+                                dynamic tx = entry.value;
+                                return wrapWithModel(
+                                  model: index == 0
+                                      ? _model.merchantTransactionItemModel1
+                                      : index == 1
+                                          ? _model.merchantTransactionItemModel2
+                                          : index == 2
+                                              ? _model
+                                                  .merchantTransactionItemModel3
+                                              : _model
+                                                  .merchantTransactionItemModel4,
+                                  updateCallback: () => safeSetState(() {}),
+                                  child: MerchantTransactionItemWidget(
+                                    amount: '${tx['amount'] ?? 0}',
+                                    customer: tx['customer_name']?.toString().trim().isNotEmpty == true
+                                        ? tx['customer_name']
+                                        : '@user',
+                                    date: _formatMerchantTransactionDate(tx['created_at'] ?? tx['createdAt'] ?? tx['timestamp']),
+                                    icon: Icon(
+                                      Icons.person_rounded,
+                                      color: FlutterFlowTheme.of(context)
+                                          .primaryText,
+                                      size: 24,
+                                    ),
+                                    status: tx['status'] ?? 'COMPLETED',
+                                    onTap: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => TransactionDetailsPage(
+                                            transaction:
+                                                Map<String, dynamic>.from(tx),
+                                          ),
+                                        ),
+                                      );
+                                    },
                                   ),
-                                  status: tx['status'] ?? 'COMPLETED',
-                                ),
-                              );
-                            }).toList(),
+                                );
+                              })
+                              .toList(),
                     ),
                   ].divide(SizedBox(height: 16)),
                 ),

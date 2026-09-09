@@ -17,21 +17,28 @@ class NormalizedNotification {
 
   factory NormalizedNotification.fromMap(Map<String, dynamic> map) {
     final metadata = map['metadata'];
-    final metadataEvent = metadata is Map<String, dynamic> ? metadata['event']?.toString() : null;
+    final metadataEvent =
+        metadata is Map<String, dynamic> ? metadata['event']?.toString() : null;
     return NormalizedNotification(
       id: map['id']?.toString() ?? '',
       title: map['title']?.toString() ?? '',
       body: map['body']?.toString() ?? '',
-      source: metadataEvent ?? map['source']?.toString() ?? map['type']?.toString() ?? 'Notification',
+      source: metadataEvent ??
+          map['source']?.toString() ??
+          map['type']?.toString() ??
+          'Notification',
       isRead: map['is_read'] == true || map['isRead'] == true,
-      timestamp: map['timestamp']?.toString() ?? map['created_at']?.toString() ?? '',
+      timestamp:
+          map['timestamp']?.toString() ?? map['created_at']?.toString() ?? '',
     );
   }
 }
 
-NormalizedNotification normalizeNotificationPayload(Map<String, dynamic> payload) {
+NormalizedNotification normalizeNotificationPayload(
+    Map<String, dynamic> payload) {
   if (payload.containsKey('data') && payload['data'] is Map<String, dynamic>) {
-    return NormalizedNotification.fromMap(payload['data'] as Map<String, dynamic>);
+    return NormalizedNotification.fromMap(
+        payload['data'] as Map<String, dynamic>);
   }
   return NormalizedNotification.fromMap(payload);
 }

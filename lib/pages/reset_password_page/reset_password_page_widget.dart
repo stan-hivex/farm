@@ -21,7 +21,8 @@ class ResetPasswordPageWidget extends StatefulWidget {
   final String email;
 
   @override
-  State<ResetPasswordPageWidget> createState() => _ResetPasswordPageWidgetState();
+  State<ResetPasswordPageWidget> createState() =>
+      _ResetPasswordPageWidgetState();
 }
 
 class _ResetPasswordPageWidgetState extends State<ResetPasswordPageWidget> {
@@ -40,8 +41,12 @@ class _ResetPasswordPageWidgetState extends State<ResetPasswordPageWidget> {
   @override
   void initState() {
     super.initState();
-    _token = widget.token.isNotEmpty ? widget.token : Uri.base.queryParameters['token'] ?? '';
-    _email = widget.email.isNotEmpty ? widget.email : Uri.base.queryParameters['email'] ?? '';
+    _token = widget.token.isNotEmpty
+        ? widget.token
+        : Uri.base.queryParameters['token'] ?? '';
+    _email = widget.email.isNotEmpty
+        ? widget.email
+        : Uri.base.queryParameters['email'] ?? '';
     if (_token.isEmpty) {
       _token = Uri.base.queryParameters['oobCode'] ?? '';
     }
@@ -75,8 +80,8 @@ class _ResetPasswordPageWidgetState extends State<ResetPasswordPageWidget> {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Password reset successful. You can now sign in with your new password.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('auth_password_reset.success'.tr()),
         backgroundColor: Colors.green,
       ));
       if (mounted) context.goNamed(LoginpageWidget.routeName);
@@ -137,7 +142,7 @@ class _ResetPasswordPageWidgetState extends State<ResetPasswordPageWidget> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create New Password'),
+        title: Text('auth_password_reset.new_password'.tr()),
         backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
         foregroundColor: FlutterFlowTheme.of(context).primaryText,
         elevation: 0,
@@ -150,9 +155,11 @@ class _ResetPasswordPageWidgetState extends State<ResetPasswordPageWidget> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('auth_password_reset.title'.tr(), style: FlutterFlowTheme.of(context).headlineSmall),
+                Text('auth_password_reset.title'.tr(),
+                    style: FlutterFlowTheme.of(context).headlineSmall),
                 const SizedBox(height: 16),
-                Text(_linkMessage.tr(), style: FlutterFlowTheme.of(context).bodyMedium),
+                Text(_linkMessage.tr(),
+                    style: FlutterFlowTheme.of(context).bodyMedium),
                 if (_isCheckingLink) ...[
                   const SizedBox(height: 32),
                   const Center(child: CircularProgressIndicator()),
@@ -165,12 +172,17 @@ class _ResetPasswordPageWidgetState extends State<ResetPasswordPageWidget> {
                       labelText: 'auth_password_reset.new_password'.tr(),
                       border: const OutlineInputBorder(),
                       suffixIcon: IconButton(
-                        icon: Icon(_showPassword ? Icons.visibility_off : Icons.visibility),
-                        onPressed: () => setState(() => _showPassword = !_showPassword),
+                        icon: Icon(_showPassword
+                            ? Icons.visibility_off
+                            : Icons.visibility),
+                        onPressed: () =>
+                            setState(() => _showPassword = !_showPassword),
                       ),
                     ),
                     validator: (value) {
-                      if (value == null || !RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\da-zA-Z]).{12,}$').hasMatch(value)) {
+                      if (value == null ||
+                          !RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\da-zA-Z]).{12,}$')
+                              .hasMatch(value)) {
                         return 'auth_password_reset.requirements'.tr();
                       }
                       return null;
@@ -184,25 +196,37 @@ class _ResetPasswordPageWidgetState extends State<ResetPasswordPageWidget> {
                       labelText: 'auth_password_reset.confirm_password'.tr(),
                       border: const OutlineInputBorder(),
                       suffixIcon: IconButton(
-                        icon: Icon(_showConfirmPassword ? Icons.visibility_off : Icons.visibility),
-                        onPressed: () => setState(() => _showConfirmPassword = !_showConfirmPassword),
+                        icon: Icon(_showConfirmPassword
+                            ? Icons.visibility_off
+                            : Icons.visibility),
+                        onPressed: () => setState(
+                            () => _showConfirmPassword = !_showConfirmPassword),
                       ),
                     ),
                     validator: (value) {
-                      if (value != _passwordController.text) return 'auth_password_reset.password_mismatch'.tr();
+                      if (value != _passwordController.text)
+                        return 'auth_password_reset.password_mismatch'.tr();
                       return null;
                     },
                   ),
                   const SizedBox(height: 24),
                   FilledButton.icon(
                     onPressed: _isSubmitting ? null : _submit,
-                    icon: _isSubmitting ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.lock_reset),
-                    label: Text(_isSubmitting ? 'auth_password_reset.updating'.tr() : 'auth_password_reset.reset'.tr()),
+                    icon: _isSubmitting
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.lock_reset),
+                    label: Text(_isSubmitting
+                        ? 'auth_password_reset.updating'.tr()
+                        : 'auth_password_reset.reset'.tr()),
                   ),
                 ] else ...[
                   const SizedBox(height: 24),
                   FilledButton.icon(
-                    onPressed: () => context.goNamed(ForgotPasswordPageWidget.routeName),
+                    onPressed: () =>
+                        context.goNamed(ForgotPasswordPageWidget.routeName),
                     icon: const Icon(Icons.mark_email_read_outlined),
                     label: Text('auth_password_reset.request_new'.tr()),
                   ),

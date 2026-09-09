@@ -54,17 +54,18 @@ class PaymentRequestApiService {
     bool? biometricAuth,
     String? deviceFingerprint,
   }) async {
-    return ApiService.request(
-      method: 'POST',
-      path: '/payment-requests/accept-batch',
-      body: {
-        'request_ids': requestIds,
-        if (pin != null) 'pin': pin,
-        if (biometricAuth == true) 'biometric_auth': true,
-        if (deviceFingerprint != null) 'device_fingerprint': deviceFingerprint,
-      },
-      requiresAuth: true,
-    );
+    for (final requestId in requestIds) {
+      await acceptPaymentRequest(
+        requestId: requestId,
+        pin: pin,
+        biometricAuth: biometricAuth,
+        deviceFingerprint: deviceFingerprint,
+      );
+    }
+
+    return {
+      'message': '${requestIds.length} payment requests completed',
+    };
   }
 
   static Future<Map<String, dynamic>> rejectPaymentRequest({

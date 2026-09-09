@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
@@ -15,7 +14,6 @@ class SocketService {
 
   io.Socket? _socket;
   bool _initialized = false;
-  Timer? _refreshTimer;
 
   static Future<void> initialize() async {
     final service = SocketService();
@@ -60,12 +58,12 @@ class SocketService {
 
     _socket!.on('transaction:update', (data) {
       debugPrint('[Socket] transaction:update: $data');
-      _scheduleAppRefresh();
+      AppSessionManager().refreshAppData();
     });
 
     _socket!.on('balance:update', (data) {
       debugPrint('[Socket] balance:update: $data');
-      _scheduleAppRefresh();
+      AppSessionManager().refreshAppData();
     });
 
     _socket!.on('error', (data) {
@@ -73,13 +71,6 @@ class SocketService {
     });
 
     _socket!.connect();
-  }
-
-  void _scheduleAppRefresh() {
-    _refreshTimer?.cancel();
-    _refreshTimer = Timer(const Duration(seconds: 1), () {
-      AppSessionManager().refreshAppData();
-    });
   }
 
   Future<void> _identify() async {

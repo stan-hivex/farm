@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:go_router/go_router.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 
@@ -15,7 +16,6 @@ class SupportHelpCenterPageWidget extends StatefulWidget {
 
 class _SupportHelpCenterPageWidgetState
     extends State<SupportHelpCenterPageWidget> {
-
   void safeNavigate(String routeName) {
     try {
       context.pushNamed(routeName);
@@ -35,26 +35,20 @@ class _SupportHelpCenterPageWidgetState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-          FlutterFlowTheme.of(context).primaryBackground,
-
+      backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
       appBar: AppBar(
-        backgroundColor:
-            FlutterFlowTheme.of(context).primaryBackground,
-        title: Text('Support & Help Center'),
+        backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
+        title: Text('support.title'.tr()),
         elevation: 0,
       ),
-
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
             Text(
-              'How can we help you?',
-              style:
-                  FlutterFlowTheme.of(context).titleMedium,
+              'support.title'.tr(),
+              style: FlutterFlowTheme.of(context).titleMedium,
             ),
 
             const SizedBox(height: 16),
@@ -65,7 +59,7 @@ class _SupportHelpCenterPageWidgetState
                 Icons.question_answer_rounded,
                 color: FlutterFlowTheme.of(context).primary,
               ),
-              title: Text('FAQs'),
+              title: Text('support.faq'.tr()),
               subtitle: Text(
                 'Browse frequently asked questions',
               ),
@@ -85,7 +79,7 @@ class _SupportHelpCenterPageWidgetState
                 Icons.chat_rounded,
                 color: FlutterFlowTheme.of(context).primary,
               ),
-              title: Text('Live Chat'),
+              title: Text('support.live_chat'.tr()),
               subtitle: Text(
                 'Chat with support team',
               ),
@@ -105,7 +99,7 @@ class _SupportHelpCenterPageWidgetState
                 Icons.email_rounded,
                 color: FlutterFlowTheme.of(context).primary,
               ),
-              title: Text('Email Support'),
+              title: Text('support.email_support'.tr()),
               subtitle: Text(
                 'Send a support request',
               ),
@@ -124,8 +118,7 @@ class _SupportHelpCenterPageWidgetState
             Center(
               child: Text(
                 'Support is available 24/7',
-                style:
-                    FlutterFlowTheme.of(context).bodySmall,
+                style: FlutterFlowTheme.of(context).bodySmall,
               ),
             ),
           ],

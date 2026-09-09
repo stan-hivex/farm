@@ -1,12 +1,14 @@
 import '/flutter_flow/flutter_flow_util.dart';
-import '/core/theme_extensions.dart';
 import 'package:flutter/foundation.dart';
-import 'package:local_auth/local_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
-import '/services/biometric_lock_service.dart';
+import 'package:local_auth/local_auth.dart';
+
+import '/services/device_fingerprint_service.dart';
+import '/services/secure_storage_service.dart';
+import '/backend/api_requests/biometric_api_service.dart';
 import '../dashboard/dashboard_widget.dart';
 import 'biometric_security_page_model.dart';
 
@@ -29,17 +31,17 @@ class BiometricSecurityPageWidget extends StatefulWidget {
 }
 
 class _BiometricSecurityPageWidgetState
-    extends State<BiometricSecurityPageWidget>
-    with TickerProviderStateMixin {
+    extends State<BiometricSecurityPageWidget> with TickerProviderStateMixin {
   late BiometricSecurityPageModel _model;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
+
+  final LocalAuthentication auth = LocalAuthentication();
 
   bool isLoading = false;
   bool biometricAvailable = false;
   bool isFaceSupported = false;
   bool isFingerprintSupported = false;
-  String selectedBiometricMethod = 'faceID';
 
   bool get _supportsPlatformBiometrics {
     return !kIsWeb &&
@@ -88,34 +90,24 @@ class _BiometricSecurityPageWidgetState
             biometricAvailable = false;
             isFaceSupported = false;
             isFingerprintSupported = false;
-            selectedBiometricMethod = 'faceID';
           });
         }
         return;
       }
 
-      final biometricService = BiometricLockService();
-      final canCheck = await biometricService.canUseBiometrics();
-      final available = await biometricService.getAvailableBiometrics();
+      final canCheck = await auth.canCheckBiometrics;
+      final available = await auth.getAvailableBiometrics();
 
       if (mounted) {
         setState(() {
           biometricAvailable = canCheck;
           isFaceSupported = available.contains(BiometricType.face);
-          isFingerprintSupported = available.contains(BiometricType.fingerprint);
-
-          if (!isFaceSupported && !isFingerprintSupported) {
-            selectedBiometricMethod = 'faceID';
-          } else if (!isFaceSupported && selectedBiometricMethod == 'faceID') {
-            selectedBiometricMethod = 'fingerprint';
-          } else if (!isFingerprintSupported && selectedBiometricMethod == 'fingerprint') {
-            selectedBiometricMethod = 'faceID';
-          }
+          isFingerprintSupported =
+              available.contains(BiometricType.fingerprint);
         });
       }
-    } catch (e, stack) {
+    } catch (e) {
       debugPrint("BIOMETRIC CHECK ERROR: $e");
-      debugPrint(stack.toString());
       if (mounted) {
         setState(() {
           biometricAvailable = false;
@@ -128,25 +120,164 @@ class _BiometricSecurityPageWidgetState
 
   Future<void> enableBiometrics() async {
     HapticFeedback.mediumImpact();
+
     setState(() {
       isLoading = true;
     });
 
     try {
-      final biometricService = BiometricLockService();
-      final ok = await biometricService.enableBiometrics();
-      if (ok) {
+      if (!_supportsPlatformBiometrics) {
+        final deviceFingerprint =
+            await DeviceFingerprintService.getDeviceFingerprint();
+
+        final result = await BiometricApiService.enableBiometrics(
+          deviceFingerprint: deviceFingerprint,
+          biometricType: 'unsupported-platform',
+        );
+
+        if (result['success'] == false) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                backgroundColor: Colors.red.shade900,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                content: Text(
+                  'Backend error: ${result['message']}',
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+            );
+          }
+          setState(() => isLoading = false);
+          return;
+        }
+
+        await SecureStorageService.writeDeviceFingerprint(deviceFingerprint);
+        FFAppState().biometricsEnabled = true;
+        if (result['deviceId'] != null) {
+          await SecureStorageService.writeDeviceId(result['deviceId']);
+        }
+
+        await SecureStorageService.writeBiometricLastVerified(
+          DateTime.now().toIso8601String(),
+        );
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              backgroundColor: context.background,
+              backgroundColor: Colors.black,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
-              content: Text(
+              content: const Text(
+                'Biometric security enabled for this device. Backend registration completed.',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          );
+
+          final destination = widget.returnPath ?? DashboardWidget.routePath;
+          context.go(destination);
+        }
+
+        setState(() => isLoading = false);
+        return;
+      }
+
+      final canCheck = await auth.canCheckBiometrics;
+
+      if (!canCheck) {
+        setState(() => isLoading = false);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.black,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            content: const Text(
+              'Biometrics not available on this device.',
+              style: TextStyle(
+                color: Colors.white,
+              ),
+            ),
+          ),
+        );
+
+        return;
+      }
+
+      final authenticated = await auth.authenticate(
+        localizedReason:
+            'Confirm your identity to view your FARM wallet and authorize secure transactions.',
+        options: const AuthenticationOptions(
+          biometricOnly: true,
+          stickyAuth: true,
+          useErrorDialogs: true,
+        ),
+      );
+
+      if (authenticated) {
+        final deviceFingerprint =
+            await DeviceFingerprintService.getDeviceFingerprint();
+
+        // Call backend to register biometric
+        final result = await BiometricApiService.enableBiometrics(
+          deviceFingerprint: deviceFingerprint,
+          biometricType: isFaceSupported ? 'faceID' : 'fingerprint',
+        );
+
+        if (result['success'] == false) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                backgroundColor: Colors.red.shade900,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                content: Text(
+                  'Backend error: ${result['message']}',
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+            );
+          }
+          setState(() => isLoading = false);
+          return;
+        }
+
+        await SecureStorageService.writeDeviceFingerprint(deviceFingerprint);
+        FFAppState().biometricsEnabled = true;
+        // Store device ID from backend
+        if (result['deviceId'] != null) {
+          await SecureStorageService.writeDeviceId(result['deviceId']);
+        }
+
+        // Store verification timestamp
+        await SecureStorageService.writeBiometricLastVerified(
+          DateTime.now().toIso8601String(),
+        );
+
+        await Future.delayed(
+          const Duration(milliseconds: 1200),
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: Colors.black,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              content: const Text(
                 'Biometric Security Enabled',
                 style: TextStyle(
-                  color: context.onSurface,
+                  color: Colors.white,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -157,28 +288,28 @@ class _BiometricSecurityPageWidgetState
           context.go(destination);
         }
       }
-    } catch (e, stack) {
-      debugPrint('BIOMETRIC ERROR: $e');
-      debugPrint(stack.toString());
+    } catch (e) {
+      debugPrint("BIOMETRIC ERROR: $e");
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          backgroundColor: context.errorColor,
+          backgroundColor: Colors.red.shade900,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
           content: Text(
             'Biometric Error: $e',
-            style: TextStyle(
-              color: context.onSurface,
+            style: const TextStyle(
+              color: Colors.white,
             ),
           ),
         ),
       );
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
     }
+
+    setState(() {
+      isLoading = false;
+    });
   }
 
   Widget buildFeatureCard({
@@ -189,14 +320,14 @@ class _BiometricSecurityPageWidgetState
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: context.surface,
+        color: const Color(0xFF111111),
         borderRadius: BorderRadius.circular(28),
         border: Border.all(
-          color: context.onSurface.withOpacity(0.08),
+          color: Colors.white.withOpacity(0.08),
         ),
         boxShadow: [
           BoxShadow(
-            color: context.onSurface.withOpacity(0.02),
+            color: Colors.white.withOpacity(0.02),
             blurRadius: 40,
             spreadRadius: 0,
             offset: const Offset(0, 20),
@@ -211,28 +342,27 @@ class _BiometricSecurityPageWidgetState
               width: 58,
               height: 58,
               decoration: BoxDecoration(
-                color: context.onSurface.withOpacity(0.06),
+                color: Colors.white.withOpacity(0.06),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: context.onSurface.withOpacity(0.08),
+                  color: Colors.white.withOpacity(0.08),
                 ),
               ),
               child: Icon(
                 icon,
-                color: context.onSurface,
+                color: Colors.white,
                 size: 26,
               ),
             ),
             const SizedBox(width: 18),
             Expanded(
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
                     style: GoogleFonts.plusJakartaSans(
-                      color: context.onSurface,
+                      color: Colors.white,
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                     ),
@@ -241,7 +371,7 @@ class _BiometricSecurityPageWidgetState
                   Text(
                     subtitle,
                     style: GoogleFonts.inter(
-                      color: context.onSurface.withOpacity(0.7),
+                      color: Colors.white70,
                       fontSize: 13,
                       height: 1.6,
                     ),
@@ -263,22 +393,21 @@ class _BiometricSecurityPageWidgetState
       child: Container(
         height: 120,
         decoration: BoxDecoration(
-          color: context.surface,
+          color: const Color(0xFF111111),
           borderRadius: BorderRadius.circular(28),
           border: Border.all(
-            color: context.onSurface.withOpacity(0.06),
+            color: Colors.white.withOpacity(0.06),
           ),
         ),
         child: Padding(
           padding: const EdgeInsets.all(22),
           child: Column(
-            mainAxisAlignment:
-                MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
                 value,
                 style: GoogleFonts.plusJakartaSans(
-                  color: context.onSurface,
+                  color: Colors.white,
                   fontWeight: FontWeight.w900,
                   fontSize: 28,
                 ),
@@ -288,7 +417,7 @@ class _BiometricSecurityPageWidgetState
                 label,
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
-                  color: context.onSurface.withOpacity(0.7),
+                  color: Colors.white70,
                   fontSize: 12,
                   height: 1.4,
                 ),
@@ -308,12 +437,11 @@ class _BiometricSecurityPageWidgetState
       },
       child: Scaffold(
         key: scaffoldKey,
-        backgroundColor: context.background,
+        backgroundColor: Colors.black,
         body: SafeArea(
           child: SingleChildScrollView(
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(
+              padding: const EdgeInsets.symmetric(
                 horizontal: 24,
                 vertical: 24,
               ),
@@ -321,8 +449,7 @@ class _BiometricSecurityPageWidgetState
                 children: [
                   /// TOP HEADER
                   Row(
-                    mainAxisAlignment:
-                        MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Row(
                         children: [
@@ -330,18 +457,15 @@ class _BiometricSecurityPageWidgetState
                             width: 56,
                             height: 56,
                             decoration: BoxDecoration(
-                              color: context.onSurface,
-                              borderRadius:
-                                  BorderRadius.circular(18),
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(18),
                             ),
                             child: Center(
                               child: Text(
                                 "F",
-                                style:
-                                    GoogleFonts.plusJakartaSans(
-                                  color: context.background,
-                                  fontWeight:
-                                      FontWeight.w900,
+                                style: GoogleFonts.plusJakartaSans(
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.w900,
                                   fontSize: 30,
                                 ),
                               ),
@@ -349,16 +473,13 @@ class _BiometricSecurityPageWidgetState
                           ),
                           const SizedBox(width: 14),
                           Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 "FARM",
-                                style:
-                                    GoogleFonts.plusJakartaSans(
-                                  color: context.onSurface,
-                                  fontWeight:
-                                      FontWeight.w900,
+                                style: GoogleFonts.plusJakartaSans(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w900,
                                   fontSize: 28,
                                   letterSpacing: 2,
                                 ),
@@ -366,7 +487,7 @@ class _BiometricSecurityPageWidgetState
                               Text(
                                 "SECURE DIGITAL BANKING",
                                 style: GoogleFonts.inter(
-                                  color: context.onSurface.withOpacity(0.54),
+                                  color: Colors.white54,
                                   fontSize: 10,
                                   letterSpacing: 2,
                                 ),
@@ -376,36 +497,31 @@ class _BiometricSecurityPageWidgetState
                         ],
                       ),
                       Container(
-                        padding:
-                            const EdgeInsets.symmetric(
+                        padding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 10,
                         ),
                         decoration: BoxDecoration(
-                          color: context.onSurface
-                              .withOpacity(0.06),
-                          borderRadius:
-                              BorderRadius.circular(20),
+                          color: Colors.white.withOpacity(0.06),
+                          borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: context.onSurface
-                                .withOpacity(0.08),
+                            color: Colors.white.withOpacity(0.08),
                           ),
                         ),
                         child: Row(
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.shield_rounded,
-                              color: context.onSurface,
+                              color: Colors.white,
                               size: 16,
                             ),
                             const SizedBox(width: 8),
                             Text(
                               "Protected",
                               style: GoogleFonts.inter(
-                                color: context.onSurface,
+                                color: Colors.white,
                                 fontSize: 12,
-                                fontWeight:
-                                    FontWeight.w600,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
@@ -421,10 +537,7 @@ class _BiometricSecurityPageWidgetState
                     animation: pulseController,
                     builder: (context, child) {
                       return Transform.scale(
-                        scale:
-                            1 +
-                                (pulseController.value *
-                                    0.03),
+                        scale: 1 + (pulseController.value * 0.03),
                         child: child,
                       );
                     },
@@ -435,10 +548,8 @@ class _BiometricSecurityPageWidgetState
                         shape: BoxShape.circle,
                         gradient: RadialGradient(
                           colors: [
-                            context.onSurface
-                                .withOpacity(0.12),
-                            context.onSurface
-                                .withOpacity(0.03),
+                            Colors.white.withOpacity(0.12),
+                            Colors.white.withOpacity(0.03),
                             Colors.transparent,
                           ],
                         ),
@@ -452,8 +563,7 @@ class _BiometricSecurityPageWidgetState
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: context.onSurface
-                                    .withOpacity(0.06),
+                                color: Colors.white.withOpacity(0.06),
                               ),
                             ),
                           ),
@@ -463,8 +573,7 @@ class _BiometricSecurityPageWidgetState
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: context.onSurface
-                                    .withOpacity(0.08),
+                                color: Colors.white.withOpacity(0.08),
                               ),
                             ),
                           ),
@@ -477,21 +586,18 @@ class _BiometricSecurityPageWidgetState
                               ),
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: context.onSurface
-                                    .withOpacity(0.12),
+                                color: Colors.white.withOpacity(0.12),
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: context.onSurface
-                                      .withOpacity(0.03),
+                                  color: Colors.white.withOpacity(0.03),
                                   blurRadius: 40,
                                   spreadRadius: 10,
                                 ),
                               ],
                             ),
                             child: Padding(
-                              padding:
-                                  const EdgeInsets.all(28),
+                              padding: const EdgeInsets.all(28),
                               child: Lottie.network(
                                 'https://assets2.lottiefiles.com/packages/lf20_touohxv0.json',
                                 fit: BoxFit.contain,
@@ -510,9 +616,8 @@ class _BiometricSecurityPageWidgetState
                   Text(
                     'Enable Biometric Security',
                     textAlign: TextAlign.center,
-                    style:
-                        GoogleFonts.plusJakartaSans(
-                      color: context.onSurface,
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.white,
                       fontWeight: FontWeight.w900,
                       fontSize: 38,
                       height: 1.2,
@@ -526,7 +631,7 @@ class _BiometricSecurityPageWidgetState
                     'Secure your FARM account using advanced biometric authentication technology. Protect transactions, wallet access, savings vaults, investments, transfers, and sensitive financial operations with Face ID and fingerprint verification.',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.inter(
-                      color: context.onSurface.withOpacity(0.7),
+                      color: Colors.white70,
                       fontSize: 16,
                       height: 1.9,
                     ),
@@ -539,14 +644,12 @@ class _BiometricSecurityPageWidgetState
                     children: [
                       buildSecurityMetric(
                         value: "256-BIT",
-                        label:
-                            "Military Grade Encryption",
+                        label: "Military Grade Encryption",
                       ),
                       const SizedBox(width: 14),
                       buildSecurityMetric(
                         value: "<1 SEC",
-                        label:
-                            "Authentication Speed",
+                        label: "Authentication Speed",
                       ),
                     ],
                   ),
@@ -557,14 +660,12 @@ class _BiometricSecurityPageWidgetState
                     children: [
                       buildSecurityMetric(
                         value: "99.9%",
-                        label:
-                            "Fraud Prevention Accuracy",
+                        label: "Fraud Prevention Accuracy",
                       ),
                       const SizedBox(width: 14),
                       buildSecurityMetric(
                         value: "24/7",
-                        label:
-                            "Real-Time Threat Monitoring",
+                        label: "Real-Time Threat Monitoring",
                       ),
                     ],
                   ),
@@ -574,8 +675,7 @@ class _BiometricSecurityPageWidgetState
                   /// FEATURE CARDS
                   buildFeatureCard(
                     icon: Icons.shield_outlined,
-                    title:
-                        "Bank-Level Device Encryption",
+                    title: "Bank-Level Device Encryption",
                     subtitle:
                         "Your biometric credentials never leave your phone and remain protected by secure hardware-level encryption.",
                   ),
@@ -584,8 +684,7 @@ class _BiometricSecurityPageWidgetState
 
                   buildFeatureCard(
                     icon: Icons.bolt_rounded,
-                    title:
-                        "Instant Secure Authentication",
+                    title: "Instant Secure Authentication",
                     subtitle:
                         "Login and authorize transactions in under one second with seamless biometric authentication.",
                   ),
@@ -594,8 +693,7 @@ class _BiometricSecurityPageWidgetState
 
                   buildFeatureCard(
                     icon: Icons.verified_user_rounded,
-                    title:
-                        "Fraud & Intrusion Protection",
+                    title: "Fraud & Intrusion Protection",
                     subtitle:
                         "Advanced biometric identity verification blocks unauthorized account access and suspicious activity.",
                   ),
@@ -604,8 +702,7 @@ class _BiometricSecurityPageWidgetState
 
                   buildFeatureCard(
                     icon: Icons.lock_clock_rounded,
-                    title:
-                        "Continuous Session Protection",
+                    title: "Continuous Session Protection",
                     subtitle:
                         "Sensitive account actions require biometric confirmation for an additional layer of security.",
                   ),
@@ -614,8 +711,7 @@ class _BiometricSecurityPageWidgetState
 
                   buildFeatureCard(
                     icon: Icons.phonelink_lock_rounded,
-                    title:
-                        "Device-Based Security Binding",
+                    title: "Device-Based Security Binding",
                     subtitle:
                         "Biometric security is uniquely tied to your personal trusted device for maximum protection.",
                   ),
@@ -627,16 +723,13 @@ class _BiometricSecurityPageWidgetState
                     width: double.infinity,
                     decoration: BoxDecoration(
                       color: const Color(0xFF0F0F0F),
-                      borderRadius:
-                          BorderRadius.circular(32),
+                      borderRadius: BorderRadius.circular(32),
                       border: Border.all(
-                        color:
-                            context.onSurface.withOpacity(0.08),
+                        color: Colors.white.withOpacity(0.08),
                       ),
                     ),
                     child: Padding(
-                      padding:
-                          const EdgeInsets.all(28),
+                      padding: const EdgeInsets.all(28),
                       child: Column(
                         children: [
                           Row(
@@ -645,49 +738,37 @@ class _BiometricSecurityPageWidgetState
                                 width: 54,
                                 height: 54,
                                 decoration: BoxDecoration(
-                                  color: context.onSurface
-                                      .withOpacity(0.06),
-                                  borderRadius:
-                                      BorderRadius.circular(
+                                  color: Colors.white.withOpacity(0.06),
+                                  borderRadius: BorderRadius.circular(
                                     18,
                                   ),
                                 ),
-                                child: Icon(
+                                child: const Icon(
                                   Icons.fingerprint_rounded,
-                                  color: context.onSurface,
+                                  color: Colors.white,
                                   size: 28,
                                 ),
                               ),
                               const SizedBox(width: 16),
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment
-                                          .start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       "Biometric Compatibility",
-                                      style:
-                                          GoogleFonts.plusJakartaSans(
-                                        color:
-                                            context.onSurface,
-                                        fontWeight:
-                                            FontWeight
-                                                .w700,
+                                      style: GoogleFonts.plusJakartaSans(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w700,
                                         fontSize: 18,
                                       ),
                                     ),
-                                    const SizedBox(
-                                        height: 6),
+                                    const SizedBox(height: 6),
                                     Text(
                                       biometricAvailable
                                           ? "Your device supports secure biometric authentication."
                                           : "Biometric authentication unavailable.",
-                                      style:
-                                          GoogleFonts
-                                              .inter(
-                                        color:
-                                            context.onSurface.withOpacity(0.7),
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white70,
                                         fontSize: 13,
                                         height: 1.6,
                                       ),
@@ -697,26 +778,19 @@ class _BiometricSecurityPageWidgetState
                               ),
                             ],
                           ),
-
                           const SizedBox(height: 24),
-
                           Row(
                             children: [
                               Expanded(
                                 child: Container(
-                                  padding:
-                                      const EdgeInsets.all(
+                                  padding: const EdgeInsets.all(
                                     18,
                                   ),
-                                  decoration:
-                                      BoxDecoration(
-                                    color: context.onSurface
-                                        .withOpacity(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(
                                       0.03,
                                     ),
-                                    borderRadius:
-                                        BorderRadius
-                                            .circular(
+                                    borderRadius: BorderRadius.circular(
                                       20,
                                     ),
                                   ),
@@ -724,26 +798,17 @@ class _BiometricSecurityPageWidgetState
                                     children: [
                                       Icon(
                                         Icons.face_rounded,
-                                        color:
-                                            isFaceSupported
-                                                ? Colors
-                                                    .white
-                                                : Colors
-                                                    .white24,
+                                        color: isFaceSupported
+                                            ? Colors.white
+                                            : Colors.white24,
                                         size: 32,
                                       ),
-                                      const SizedBox(
-                                          height: 12),
+                                      const SizedBox(height: 12),
                                       Text(
                                         "Face ID",
-                                        style:
-                                            GoogleFonts
-                                                .inter(
-                                          color: Colors
-                                              .white,
-                                          fontWeight:
-                                              FontWeight
-                                                  .w600,
+                                        style: GoogleFonts.inter(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                     ],
@@ -753,47 +818,32 @@ class _BiometricSecurityPageWidgetState
                               const SizedBox(width: 14),
                               Expanded(
                                 child: Container(
-                                  padding:
-                                      const EdgeInsets.all(
+                                  padding: const EdgeInsets.all(
                                     18,
                                   ),
-                                  decoration:
-                                      BoxDecoration(
-                                    color: context.onSurface
-                                        .withOpacity(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(
                                       0.03,
                                     ),
-                                    borderRadius:
-                                        BorderRadius
-                                            .circular(
+                                    borderRadius: BorderRadius.circular(
                                       20,
                                     ),
                                   ),
                                   child: Column(
                                     children: [
                                       Icon(
-                                        Icons
-                                            .fingerprint_rounded,
-                                        color:
-                                            isFingerprintSupported
-                                                ? Colors
-                                                    .white
-                                                : Colors
-                                                    .white24,
+                                        Icons.fingerprint_rounded,
+                                        color: isFingerprintSupported
+                                            ? Colors.white
+                                            : Colors.white24,
                                         size: 32,
                                       ),
-                                      const SizedBox(
-                                          height: 12),
+                                      const SizedBox(height: 12),
                                       Text(
                                         "Fingerprint",
-                                        style:
-                                            GoogleFonts
-                                                .inter(
-                                          color: Colors
-                                              .white,
-                                          fontWeight:
-                                              FontWeight
-                                                  .w600,
+                                        style: GoogleFonts.inter(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                     ],
@@ -807,162 +857,51 @@ class _BiometricSecurityPageWidgetState
                     ),
                   ),
 
-                  const SizedBox(height: 28),
-
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0F0F0F),
-                      borderRadius: BorderRadius.circular(28),
-                      border: Border.all(
-                        color: context.onSurface.withOpacity(0.08),
-                      ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(22),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Choose your biometric placeholder',
-                            style: GoogleFonts.plusJakartaSans(
-                              color: context.onSurface,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 18,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            'Select the unlock method you want to enroll for this device. The app will save the fallback reference and use it for future re-auth after inactivity.',
-                            style: GoogleFonts.inter(
-                              color: context.onSurface.withOpacity(0.7),
-                              fontSize: 13,
-                              height: 1.6,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Wrap(
-                            spacing: 12,
-                            runSpacing: 10,
-                            children: [
-                              ChoiceChip(
-                                label: Text('Face ID'),
-                                selected: selectedBiometricMethod == 'faceID',
-                                selectedColor: context.onSurface,
-                                backgroundColor: context.onSurface.withOpacity(0.06),
-                                labelStyle: TextStyle(
-                                  color: selectedBiometricMethod == 'faceID'
-                                      ? context.background
-                                      : context.onSurface,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                onSelected: (_) {
-                                  setState(() {
-                                    selectedBiometricMethod = 'faceID';
-                                  });
-                                },
-                              ),
-                              ChoiceChip(
-                                label: Text('Fingerprint'),
-                                selected: selectedBiometricMethod == 'fingerprint',
-                                selectedColor: context.onSurface,
-                                backgroundColor: context.onSurface.withOpacity(0.06),
-                                labelStyle: TextStyle(
-                                  color: selectedBiometricMethod == 'fingerprint'
-                                      ? context.background
-                                      : context.onSurface,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                onSelected: (_) {
-                                  setState(() {
-                                    selectedBiometricMethod = 'fingerprint';
-                                  });
-                                },
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            selectedBiometricMethod == 'faceID'
-                                ? 'Face ID will be used when available on this device.'
-                                : 'Fingerprint will be used when available on this device.',
-                            style: GoogleFonts.inter(
-                              color: context.onSurface.withOpacity(0.54),
-                              fontSize: 12,
-                              height: 1.6,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 50),
 
                   /// BUTTONS
                   SizedBox(
                     width: double.infinity,
                     height: 62,
                     child: ElevatedButton(
-                      onPressed:
-                          isLoading
-                              ? null
-                              : enableBiometrics,
-                      style:
-                          ElevatedButton.styleFrom(
-                        backgroundColor:
-                            context.onSurface,
+                      onPressed: isLoading ? null : enableBiometrics,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
                         elevation: 0,
-                        shape:
-                            RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
                             24,
                           ),
                         ),
                       ),
-                      child:
-                          isLoading
-                              ? SizedBox(
-                                width: 26,
-                                height: 26,
-                                child:
-                                    CircularProgressIndicator(
-                                  strokeWidth: 2.6,
-                                  color: context.background,
-                                ),
-                              )
-                              : Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment
-                                        .center,
-                                children: [
-                                  Icon(
-                                    Icons
-                                        .fingerprint_rounded,
-                                    color:
-                                        context.background,
-                                    size: 24,
-                                  ),
-                                  const SizedBox(
-                                      width: 12),
-                                  Text(
-                                    FFAppState().biometricsEnabled
-                                        ? 'Activate Biometric Access'
-                                        : 'Enroll Biometric Access',
-                                    style:
-                                        GoogleFonts
-                                            .plusJakartaSans(
-                                      color:
-                                          context.background,
-                                      fontWeight:
-                                          FontWeight
-                                              .w800,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ],
+                      child: isLoading
+                          ? SizedBox(
+                              width: 26,
+                              height: 26,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.6,
+                                color: Colors.black,
                               ),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.fingerprint_rounded,
+                                  color: Colors.black,
+                                  size: 24,
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Enable Biometric Security',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ],
+                            ),
                     ),
                   ),
 
@@ -974,20 +913,15 @@ class _BiometricSecurityPageWidgetState
                     child: OutlinedButton(
                       onPressed: () {
                         context.goNamed(
-                          DashboardWidget
-                              .routeName,
+                          DashboardWidget.routeName,
                         );
                       },
-                      style:
-                          OutlinedButton.styleFrom(
+                      style: OutlinedButton.styleFrom(
                         side: BorderSide(
-                          color: context.onSurface
-                              .withOpacity(0.12),
+                          color: Colors.white.withOpacity(0.12),
                         ),
-                        shape:
-                            RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
                             24,
                           ),
                         ),
@@ -995,9 +929,8 @@ class _BiometricSecurityPageWidgetState
                       child: Text(
                         "Skip For Now",
                         style: GoogleFonts.inter(
-                          color: context.onSurface,
-                          fontWeight:
-                              FontWeight.w600,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
                           fontSize: 15,
                         ),
                       ),
@@ -1011,7 +944,7 @@ class _BiometricSecurityPageWidgetState
                     'Biometric settings can be updated anytime from your security dashboard.',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.inter(
-                      color: context.onSurface.withOpacity(0.38),
+                      color: Colors.white38,
                       fontSize: 12,
                       height: 1.7,
                     ),

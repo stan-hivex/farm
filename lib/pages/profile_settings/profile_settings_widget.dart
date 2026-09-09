@@ -1,12 +1,16 @@
+// ignore_for_file: unused_element
+
 import 'dart:async';
 
-import 'package:easy_localization/easy_localization.dart';
 import '/backend/services/api_service.dart';
 import '/components/button/button_widget.dart';
 import '/components/profile_info_tile/profile_info_tile_widget.dart';
+import '/components/settings_action_tile/settings_action_tile_widget.dart';
+// removed duplicate import
 import '/services/app_session_manager.dart';
 import '/services/auth/auth_service.dart';
-import '/services/localization_service.dart';
+import '/services/biometric_lock_service.dart';
+import '/pages/settings/delete_account_page.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/core/theme_extensions.dart';
@@ -160,8 +164,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
 
   Future<void> fetchSecuritySettings() async {
     try {
-      final resp =
-          await ApiService.request(method: 'GET', path: '/security/settings');
+      final resp = await ApiService.request(method: 'GET', path: '/security/settings');
       final data = Map<String, dynamic>.from(resp['data'] ?? resp);
       final resolvedBiometricsEnabled = FFAppState().biometricsEnabled;
       final remoteHasPin = data['has_pin'] ?? false;
@@ -291,11 +294,6 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
   Future<void> logoutUser() async {
     try {
       await AuthService().logout();
-
-      // Reset locale to English on logout
-      if (mounted) {
-        await LocalizationService.resetLocaleToEnglish(context);
-      }
     } catch (e) {
       debugPrint('Logout failed: $e');
     }
@@ -504,7 +502,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                         24.0, 24.0, 24.0, 8.0),
                     child: Container(
                       child: Text(
-                        'settings.personal_information'.tr(),
+                        'Personal Information',
                         style: FlutterFlowTheme.of(context).labelLarge.override(
                               font: GoogleFonts.plusJakartaSans(
                                 fontWeight: FontWeight.bold,
@@ -555,21 +553,13 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                         .primaryText,
                                     size: 20.0,
                                   ),
-                                  label: 'settings.email'.tr(),
-                                  show_arrow: true,
+                                  label: 'Email Address',
+                                  show_arrow: false,
                                   value: isProfileLoading
                                       ? 'Loading...'
                                       : (email.isNotEmpty
                                           ? email
                                           : 'Not available'),
-                                  onTap: isProfileLoading
-                                      ? null
-                                      : () => _showEditContactDialog(
-                                            title: 'Update Email Address',
-                                            label: 'New Email Address',
-                                            currentValue: email,
-                                            fieldType: 'email',
-                                          ),
                                 ),
                               ),
                               wrapWithModel(
@@ -582,36 +572,22 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                         .primaryText,
                                     size: 20.0,
                                   ),
-                                  label: 'settings.phone'.tr(),
-                                  show_arrow: true,
+                                  label: 'Phone Number',
+                                  show_arrow: false,
                                   value: phone.isNotEmpty
                                       ? phone
                                       : 'Not available',
-                                  onTap: () => _showEditContactDialog(
-                                    title: 'Update Phone Number',
-                                    label: 'New Phone Number',
-                                    currentValue: phone,
-                                    fieldType: 'phone',
-                                  ),
                                 ),
                               ),
                               wrapWithModel(
                                 model: _model.profileInfoTileModel3,
                                 updateCallback: () => safeSetState(() {}),
                                 child: GestureDetector(
-                                  onTap:
-                                      (kycStatus.trim().toLowerCase() ==
-                                                  'verified' ||
-                                              kycStatus.trim().toLowerCase() ==
-                                                  'approved' ||
-                                              kycStatus.trim().toLowerCase() ==
-                                                  'complete' ||
-                                              kycStatus.trim().toLowerCase() ==
-                                                  'success')
-                                          ? null
-                                          : () {
-                                              context.pushNamed('KYCPAGE');
-                                            },
+                                  onTap: (kycStatus.trim().toLowerCase()=='verified' || kycStatus.trim().toLowerCase()=='approved' || kycStatus.trim().toLowerCase()=='complete' || kycStatus.trim().toLowerCase()=='success')
+                                      ? null
+                                      : () {
+                                          context.pushNamed('KYCPAGE');
+                                        },
                                   child: ProfileInfoTileWidget(
                                     icon: Icon(
                                       Icons.fingerprint_rounded,
@@ -619,7 +595,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                           .primaryText,
                                       size: 20.0,
                                     ),
-                                    label: 'settings.kyc_status'.tr(),
+                                    label: 'KYC Status',
                                     show_arrow: true,
                                     value: kycStatus.toUpperCase(),
                                   ),
@@ -643,7 +619,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                         24.0, 24.0, 24.0, 8.0),
                     child: Container(
                       child: Text(
-                        'settings.preferences'.tr(),
+                        'Preferences',
                         style: FlutterFlowTheme.of(context).labelLarge.override(
                               font: GoogleFonts.plusJakartaSans(
                                 fontWeight: FontWeight.bold,
@@ -687,8 +663,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
 // SECURITY & PIN
                               GestureDetector(
                                 onTap: () async {
-                                  final result =
-                                      await context.pushNamed('pin_setup_page');
+                                  final result = await context.pushNamed('pin_setup_page');
                                   if (result == true) {
                                     await fetchSecuritySettings();
                                   }
@@ -719,7 +694,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                               CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              'security.title'.tr(),
+                                              'Security & PIN',
                                               style:
                                                   FlutterFlowTheme.of(context)
                                                       .bodyMedium
@@ -733,7 +708,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                             const SizedBox(height: 4),
                                             if (securityLoading)
                                               Text(
-                                                'security.loading'.tr(),
+                                                'Loading security status...',
                                                 style: TextStyle(
                                                   color: FlutterFlowTheme.of(
                                                           context)
@@ -744,12 +719,10 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                             else
                                               Text(
                                                 accountLocked
-                                                    ? 'security.locked'.tr()
+                                                    ? 'Account Locked'
                                                     : hasPin
-                                                        ? 'security.pin_configured'
-                                                            .tr()
-                                                        : 'security.no_pin'
-                                                            .tr(),
+                                                        ? 'PIN already set'
+                                                        : 'No PIN Configured',
                                                 style: TextStyle(
                                                   color: accountLocked
                                                       ? context.errorColor
@@ -792,7 +765,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                           color: context.background),
                                       const SizedBox(width: 12),
                                       Text(
-                                        'security.change_pin'.tr(),
+                                        'Change PIN',
                                         style: TextStyle(
                                             color: context.background),
                                       ),
@@ -825,7 +798,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                           color: context.background),
                                       const SizedBox(width: 12),
                                       Text(
-                                        'security.forgot_pin'.tr(),
+                                        'Forgot PIN',
                                         style: TextStyle(
                                             color: context.background),
                                       ),
@@ -852,12 +825,12 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                         : ThemeMode.light);
                                   });
                                 },
-                                title: Text('settings.dark_mode'.tr()),
+                                title: Text('Dark Mode'),
                                 subtitle: Text(
                                   Theme.of(context).brightness ==
                                           Brightness.dark
-                                      ? 'settings.dark_theme'.tr()
-                                      : 'settings.light_theme'.tr(),
+                                      ? 'Dark theme enabled'
+                                      : 'Light theme enabled',
                                 ),
                               ),
 
@@ -869,59 +842,57 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                 activeThumbColor: Colors.green,
                                 value: biometricsEnabled,
                                 onChanged: (value) async {
-                                  // BiometricLockService not implemented yet
-                                  // To implement: import biometric service and enable/disable biometrics
-                                  setState(() {
-                                    biometricsEnabled = value;
-                                  });
+                                  // Do not change the UI until operation succeeds
+                                  final biometricLockService = BiometricLockService();
                                   try {
                                     if (value) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(
-                                            content: Text(
-                                                'security.biometric_enabled'
-                                                    .tr())),
-                                      );
+                                      final ok = await biometricLockService.enableBiometrics();
+                                      if (ok) {
+                                        setState(() {
+                                          biometricsEnabled = true;
+                                        });
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Biometrics enabled')),
+                                        );
+                                      }
                                     } else {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(
-                                            content: Text(
-                                                'security.biometric_disabled'
-                                                    .tr())),
-                                      );
+                                      // turning off
+                                      final ok = await biometricLockService.disableBiometrics();
+                                      if (ok) {
+                                        setState(() {
+                                          biometricsEnabled = false;
+                                        });
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Biometrics disabled')),
+                                        );
+                                      }
                                     }
                                   } catch (e, stack) {
                                     if (mounted) {
                                       setState(() {
-                                        biometricsEnabled =
-                                            FFAppState().biometricsEnabled;
+                                        biometricsEnabled = FFAppState().biometricsEnabled;
                                       });
                                       debugPrint('===== BIOMETRIC ERROR =====');
                                       debugPrint(e.toString());
                                       debugPrint(stack.toString());
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
+                                      ScaffoldMessenger.of(context).showSnackBar(
                                         SnackBar(content: Text(e.toString())),
                                       );
                                     }
                                   }
                                 },
-                                title: Text('settings.biometrics'.tr()),
+                                title: Text('Enable Biometrics'),
                                 subtitle: Text(
                                   biometricsEnabled
-                                      ? 'settings.biometrics_enabled'.tr()
-                                      : 'settings.biometrics_disabled'.tr(),
+                                      ? 'Face ID / Fingerprint active'
+                                      : 'Biometric authentication disabled',
                                 ),
                               ),
                               ListTile(
                                 contentPadding: EdgeInsets.zero,
-                                title: Text(
-                                    'settings.biometric_lock_timeout'.tr()),
+                                title: Text('Biometric lock timeout'),
                                 subtitle: Text(
-                                  'settings.unlock_after'.tr() +
-                                      ' ${formatBiometricLockTimeoutLabel(biometricLockTimeoutSeconds)}',
+                                  'Unlock after ${formatBiometricLockTimeoutLabel(biometricLockTimeoutSeconds)}',
                                 ),
                                 trailing: SizedBox(
                                   width: 140,
@@ -932,8 +903,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                           (value) => DropdownMenuItem<int>(
                                             value: value,
                                             child: Text(
-                                              formatBiometricLockTimeoutLabel(
-                                                  value),
+                                              formatBiometricLockTimeoutLabel(value),
                                             ),
                                           ),
                                         )
@@ -942,11 +912,9 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                         ? (value) {
                                             if (value == null) return;
                                             setState(() {
-                                              biometricLockTimeoutSeconds =
-                                                  value;
+                                              biometricLockTimeoutSeconds = value;
                                             });
-                                            FFAppState()
-                                                    .biometricLockTimeoutSeconds =
+                                            FFAppState().biometricLockTimeoutSeconds =
                                                 value;
                                           }
                                         : null,
@@ -958,60 +926,79 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                   ),
                                 ),
                               ),
-                              ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: Icon(Icons.notifications_outlined,
-                                    color:
-                                        FlutterFlowTheme.of(context).primary),
-                                title: Text('settings.notifications'.tr()),
-                                trailing:
-                                    const Icon(Icons.chevron_right_rounded),
-                                onTap: () => context
-                                    .pushNamed('NotificationSettingsPage'),
+                              // NOTIFICATIONS
+                              GestureDetector(
+                                onTap: () {
+                                  context.pushNamed('NotificationSettingsPage');
+                                },
+                                child: SettingsActionTileWidget(
+                                  icon: Icon(
+                                    Icons.notifications_none_rounded,
+                                    color: FlutterFlowTheme.of(context)
+                                        .primaryText,
+                                  ),
+                                  label: 'Notification Settings',
+                                ),
                               ),
-                              ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: Icon(Icons.language_outlined,
-                                    color:
-                                        FlutterFlowTheme.of(context).primary),
-                                title: Text('language.label'.tr()),
-                                trailing:
-                                    const Icon(Icons.chevron_right_rounded),
-                                onTap: () =>
-                                    context.pushNamed('LanguageSettingsPage'),
+
+// LANGUAGE
+                              GestureDetector(
+                                onTap: () {
+                                  context.pushNamed('LanguageSettingsPage');
+                                },
+                                child: SettingsActionTileWidget(
+                                  icon: Icon(
+                                    Icons.language_rounded,
+                                    color: FlutterFlowTheme.of(context)
+                                        .primaryText,
+                                  ),
+                                  label: 'Language',
+                                ),
                               ),
-                              ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: Icon(Icons.privacy_tip_outlined,
-                                    color:
-                                        FlutterFlowTheme.of(context).primary),
-                                title: Text('settings.privacy_policy'.tr()),
-                                trailing:
-                                    const Icon(Icons.chevron_right_rounded),
-                                onTap: () =>
-                                    context.pushNamed('PrivacyPolicyPage'),
+
+// PRIVACY POLICY
+                              GestureDetector(
+                                onTap: () {
+                                  context.pushNamed('PrivacyPolicyPage');
+                                },
+                                child: SettingsActionTileWidget(
+                                  icon: Icon(
+                                    Icons.privacy_tip_outlined,
+                                    color: FlutterFlowTheme.of(context)
+                                        .primaryText,
+                                  ),
+                                  label: 'Privacy Policy',
+                                ),
                               ),
-                              ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: Icon(Icons.description_outlined,
-                                    color:
-                                        FlutterFlowTheme.of(context).primary),
-                                title: Text('settings.terms_of_service'.tr()),
-                                trailing:
-                                    const Icon(Icons.chevron_right_rounded),
-                                onTap: () =>
-                                    context.pushNamed('TermsOfServicePage'),
+
+// TERMS OF SERVICE
+                              GestureDetector(
+                                onTap: () {
+                                  context.pushNamed('TermsOfServicePage');
+                                },
+                                child: SettingsActionTileWidget(
+                                  icon: Icon(
+                                    Icons.description_outlined,
+                                    color: FlutterFlowTheme.of(context)
+                                        .primaryText,
+                                  ),
+                                  label: 'Terms of Service',
+                                ),
                               ),
-                              ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: Icon(Icons.support_agent_outlined,
-                                    color:
-                                        FlutterFlowTheme.of(context).primary),
-                                title: Text('settings.support'.tr()),
-                                trailing:
-                                    const Icon(Icons.chevron_right_rounded),
-                                onTap: () =>
-                                    context.pushNamed('SupportHelpCenterPage'),
+
+// SUPPORT / HELP CENTER
+                              GestureDetector(
+                                onTap: () {
+                                  context.pushNamed('SupportHelpCenterPage');
+                                },
+                                child: SettingsActionTileWidget(
+                                  icon: Icon(
+                                    Icons.help_outline_rounded,
+                                    color: FlutterFlowTheme.of(context)
+                                        .primaryText,
+                                  ),
+                                  label: 'Support & Help Center',
+                                ),
                               ),
                             ],
                           ),
@@ -1065,13 +1052,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                             icon_end_present: false,
                             on_tap: '',
                             onTapCallback: () {
-                              // DeleteAccountPageWidget not implemented yet
-                              // To implement: create delete account page and route
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                    content: Text(
-                                        'misc.feature_not_available'.tr())),
-                              );
+                              context.pushNamed(DeleteAccountPageWidget.routeName);
                             },
                             variant: 'destructive',
                             size: 'medium',
@@ -1085,7 +1066,97 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                   ),
                 ),
               ),
-              const SizedBox(height: 24.0),
+              Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.max,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 24.0,
+                          height: 24.0,
+                          decoration: BoxDecoration(
+                            color: FlutterFlowTheme.of(context).primaryText,
+                            borderRadius: BorderRadius.circular(6.0),
+                            shape: BoxShape.rectangle,
+                          ),
+                          alignment: const AlignmentDirectional(0.0, 0.0),
+                          child: Text(
+                            'F',
+                            style: FlutterFlowTheme.of(context)
+                                .bodyMedium
+                                .override(
+                                  font: GoogleFonts.inter(
+                                    fontWeight: FontWeight.bold,
+                                    fontStyle: FlutterFlowTheme.of(context)
+                                        .bodyMedium
+                                        .fontStyle,
+                                  ),
+                                  color: FlutterFlowTheme.of(context)
+                                      .primaryBackground,
+                                  fontSize: 14.0,
+                                  letterSpacing: 0.0,
+                                  fontWeight: FontWeight.bold,
+                                  fontStyle: FlutterFlowTheme.of(context)
+                                      .bodyMedium
+                                      .fontStyle,
+                                  lineHeight: 1.5,
+                                ),
+                          ),
+                        ),
+                        Text(
+                          'FARM',
+                          style: FlutterFlowTheme.of(context)
+                              .titleMedium
+                              .override(
+                                font: GoogleFonts.plusJakartaSans(
+                                  fontWeight: FontWeight.bold,
+                                  fontStyle: FlutterFlowTheme.of(context)
+                                      .titleMedium
+                                      .fontStyle,
+                                ),
+                                color: FlutterFlowTheme.of(context).primaryText,
+                                letterSpacing: 0.0,
+                                fontWeight: FontWeight.bold,
+                                fontStyle: FlutterFlowTheme.of(context)
+                                    .titleMedium
+                                    .fontStyle,
+                                lineHeight: 1.4,
+                              ),
+                        ),
+                      ].divide(const SizedBox(width: 4.0)),
+                    ),
+                    Text(
+                      'a loop of growth',
+                      style: FlutterFlowTheme.of(context).labelSmall.override(
+                            font: GoogleFonts.plusJakartaSans(
+                              fontWeight: FlutterFlowTheme.of(context)
+                                  .labelSmall
+                                  .fontWeight,
+                              fontStyle: FlutterFlowTheme.of(context)
+                                  .labelSmall
+                                  .fontStyle,
+                            ),
+                            color: FlutterFlowTheme.of(context).onSurface,
+                            letterSpacing: 0.0,
+                            fontWeight: FlutterFlowTheme.of(context)
+                                .labelSmall
+                                .fontWeight,
+                            fontStyle: FlutterFlowTheme.of(context)
+                                .labelSmall
+                                .fontStyle,
+                            lineHeight: 1.2,
+                          ),
+                    ),
+                  ].divide(const SizedBox(height: 4.0)),
+                ),
+              ),
             ],
           ),
         ),

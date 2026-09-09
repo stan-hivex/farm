@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 import '/backend/services/api_service.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
@@ -38,28 +39,28 @@ class _ForgotPinPageWidgetState extends State<ForgotPinPageWidget> {
 
     if (contact.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter your phone number or email')),
+        SnackBar(content: Text('validation.required'.tr())),
       );
       return;
     }
 
     if (newPin.length < 4 || confirmPin.length < 4) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('PIN must be at least 4 digits')),
+        SnackBar(content: Text('validation.enter_pin'.tr())),
       );
       return;
     }
 
     if (newPin != confirmPin) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('PINs do not match')),
+        SnackBar(content: Text('validation.password_mismatch'.tr())),
       );
       return;
     }
 
     if (password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter your password to continue')),
+        SnackBar(content: Text('auth.invalid_password'.tr())),
       );
       return;
     }
@@ -99,7 +100,7 @@ class _ForgotPinPageWidgetState extends State<ForgotPinPageWidget> {
     return Scaffold(
       backgroundColor: theme.primaryBackground,
       appBar: AppBar(
-        title: const Text('Forgot PIN'),
+        title: Text('security.forgot_pin'.tr()),
         backgroundColor: theme.primaryBackground,
         elevation: 0,
       ),
@@ -109,7 +110,7 @@ class _ForgotPinPageWidgetState extends State<ForgotPinPageWidget> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Reset your transaction PIN',
+              'security.change_pin'.tr(),
               style: theme.titleMedium.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
@@ -129,8 +130,8 @@ class _ForgotPinPageWidgetState extends State<ForgotPinPageWidget> {
                     TextField(
                       controller: _contactController,
                       keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        labelText: 'Phone or email',
+                      decoration: InputDecoration(
+                        labelText: 'profile.phone'.tr(),
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.contact_phone_outlined),
                       ),
@@ -141,8 +142,8 @@ class _ForgotPinPageWidgetState extends State<ForgotPinPageWidget> {
                       obscureText: true,
                       keyboardType: TextInputType.number,
                       maxLength: 6,
-                      decoration: const InputDecoration(
-                        labelText: 'New PIN',
+                      decoration: InputDecoration(
+                        labelText: 'security.change_pin'.tr(),
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.lock_outline),
                       ),
@@ -153,8 +154,8 @@ class _ForgotPinPageWidgetState extends State<ForgotPinPageWidget> {
                       obscureText: true,
                       keyboardType: TextInputType.number,
                       maxLength: 6,
-                      decoration: const InputDecoration(
-                        labelText: 'Confirm PIN',
+                      decoration: InputDecoration(
+                        labelText: 'payment.confirm_pin'.tr(),
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.lock_outline),
                       ),
@@ -163,8 +164,8 @@ class _ForgotPinPageWidgetState extends State<ForgotPinPageWidget> {
                     TextField(
                       controller: _passwordController,
                       obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Your password',
+                      decoration: InputDecoration(
+                        labelText: 'auth.login.password'.tr(),
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.password_outlined),
                       ),

@@ -76,13 +76,12 @@ class RouteGuardService {
       if (refreshed && state.accessToken.isNotEmpty && _isJwtValid(state.accessToken)) {
         return true;
       }
-      if (!RefreshManager().lastFailureWasRevocation) {
-        state.isLoggedIn = true;
-        return true;
-      }
     }
 
-    if (role.isEmpty) return false;
+    if (role.isEmpty) {
+      debugPrint('[RouteGuardService] hasValidBackendJwt role empty and no valid in-memory token');
+      return false;
+    }
 
     final persistedSession = await AuthSessionStore.readRoleSession(role);
     final persistedToken = persistedSession?.accessToken ?? '';
@@ -211,7 +210,6 @@ class RouteGuardService {
       '/reset-password',
       '/verify-email',
       '/otp',
-      '/otppage',
     ];
 
     return publicPaths.contains(path) ||
@@ -232,8 +230,7 @@ class RouteGuardService {
     final accessTokenLength = FFAppState().accessToken.length;
     final refreshTokenLength = FFAppState().refreshToken.length;
     final persistedSession = await AuthSessionStore.readRoleSession(role);
-    final sessionExists = persistedSession != null &&
-      (persistedSession.accessToken.isNotEmpty || persistedSession.refreshToken.isNotEmpty);
+    final sessionExists = persistedSession?.accessToken.isNotEmpty ?? false;
 
     print('AUTH GUARD CHECK');
     print('Current route: $currentPath');
@@ -256,14 +253,21 @@ class RouteGuardService {
           : role.isEmpty
               ? 'role.isEmpty'
               : 'no valid auth session';
-
       debugPrint('[RouteGuardService] verifyAndRedirect NOT authenticated');
       debugPrint('[RouteGuardService] role=$role loggedIn=$loggedIn currentPath=$currentPath');
       debugPrint('[RouteGuardService] redirect reason=$reason');
-      if (sessionExists && !RefreshManager().lastFailureWasRevocation) return null;
-      if (RefreshManager().lastFailureWasRevocation) {
-        await FFAppState().clearAuthCredentials('backend refresh session revoked');
-        await FFAppState().clearRoleSession(role);
+      // If we have a persisted session, try a forced refresh once before clearing
+      if (sessionExists) {
+        try {
+          final refreshed = await RefreshManager().refreshIfNeeded(force: true);
+          debugPrint('[RouteGuardService] forced refresh attempted, result=$refreshed');
+          if (refreshed) {
+            // Refresh succeeded; allow navigation to continue
+            return null;
+          }
+        } catch (e) {
+          debugPrint('[RouteGuardService] forced refresh failed: $e');
+        }
       }
       if (role == 'super_admin') {
         debugPrint('SUPER_ADMIN REDIRECTED TO LOGIN');

@@ -1,4 +1,3 @@
-
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -88,7 +87,8 @@ class NotificationService {
   }
 
   static Future<void> _initializeLocalNotifications() async {
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosSettings = DarwinInitializationSettings();
     const settings = InitializationSettings(
       android: androidSettings,
@@ -205,7 +205,9 @@ class NotificationService {
 
     final metadata = payload['metadata'];
     final type = metadata is Map<String, dynamic>
-        ? metadata['event']?.toString().toLowerCase() ?? payload['type']?.toString().toLowerCase() ?? 'general'
+        ? metadata['event']?.toString().toLowerCase() ??
+            payload['type']?.toString().toLowerCase() ??
+            'general'
         : payload['type']?.toString().toLowerCase() ?? 'general';
     String route;
     if (type.contains('transfer')) {

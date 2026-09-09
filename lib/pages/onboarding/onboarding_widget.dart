@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import '/components/button/button_widget.dart';
 import '/components/step_indicator/step_indicator_widget.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
@@ -13,7 +11,6 @@ import '/admin/core/admin_navigation.dart';
 import '/admin/pages/admin_shell.dart';
 import '/pages/superadmin/superadmin_dashboard_page.dart';
 import 'package:flutter/material.dart';
-import 'package:easy_localization/easy_localization.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -35,10 +32,8 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
   bool _isCheckingAuth = true;
-  bool _showMarketing = false;
   bool _showAuthActions = false;
-  Timer? _startupLogoTimer;
-  Timer? _marketingTimer;
+  bool _showAuthenticatedWelcome = false;
 
   @override
   void initState() {
@@ -55,8 +50,6 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
 
   @override
   void dispose() {
-    _startupLogoTimer?.cancel();
-    _marketingTimer?.cancel();
     _model.dispose();
 
     super.dispose();
@@ -71,28 +64,8 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
 
     setState(() {
       _isCheckingAuth = true;
-      _showMarketing = false;
       _showAuthActions = false;
     });
-
-    const logoDisplay = Duration(seconds: 3);
-    const marketingDisplay = Duration(seconds: 5);
-
-    _startupLogoTimer = Timer(logoDisplay, () {
-      if (!mounted) return;
-      setState(() => _showMarketing = true);
-
-      _marketingTimer = Timer(marketingDisplay, () {
-        if (!mounted) return;
-        _runAuthenticatedFlow();
-      });
-    });
-
-    await Future<void>.value();
-  }
-
-  Future<void> _runAuthenticatedFlow() async {
-    if (!mounted) return;
 
     final isAuthenticated = await RouteGuardService().isUserAuthenticated();
 
@@ -100,6 +73,11 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
 
     final isAdminAuthenticated = await AdminGuard.isAuthenticated();
     if (isAdminAuthenticated) {
+      setState(() {
+        _isCheckingAuth = false;
+        _showAuthenticatedWelcome = true;
+      });
+      await Future.delayed(const Duration(seconds: 5));
       if (!mounted) return;
       final adminRole = await AdminGuard.getAdminRole();
       if (adminRole.toLowerCase() == 'super_admin') {
@@ -114,6 +92,12 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
     }
 
     if (isAuthenticated) {
+      setState(() {
+        _isCheckingAuth = false;
+        _showAuthenticatedWelcome = true;
+      });
+      await Future.delayed(const Duration(seconds: 5));
+      if (!mounted) return;
       final restoredRoute = await _readRestoredRoute();
       if (!mounted) return;
       final lockService = BiometricLockService();
@@ -130,6 +114,7 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
     setState(() {
       _isCheckingAuth = false;
       _showAuthActions = true;
+      _showAuthenticatedWelcome = false;
     });
   }
 
@@ -154,36 +139,8 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
         : DashboardWidget.routePath;
   }
 
-  Widget _buildLogoSplash(BuildContext context) {
-    final theme = FlutterFlowTheme.of(context);
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Center(
-        child: Container(
-          width: 96.0,
-          height: 96.0,
-          decoration: BoxDecoration(
-            color: theme.primary,
-            borderRadius: BorderRadius.circular(24.0),
-          ),
-          alignment: Alignment.center,
-          child: Image.asset(
-            'assets/images/app_logo.png',
-            width: 68.0,
-            height: 68.0,
-            fit: BoxFit.contain,
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    if (_isCheckingAuth && !_showMarketing) {
-      return _buildLogoSplash(context);
-    }
-
     final theme = FlutterFlowTheme.of(context);
     final primaryTextColor = const Color(0xFF111111);
     final secondaryTextColor = const Color(0xFF4B5563);
@@ -197,255 +154,331 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
       child: Scaffold(
         key: scaffoldKey,
         backgroundColor: Colors.white,
-        body: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final marketingHeight =
-                  (constraints.maxHeight * 0.34).clamp(250.0, 310.0);
-              final artworkSize = marketingHeight - 24.0;
-
-              return Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 24.0),
+        body: Container(
+          color: Colors.white,
+          child: SingleChildScrollView(
+            primary: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Container(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Container(
-                          width: 96.0,
-                          height: 96.0,
-                          decoration: BoxDecoration(
-                            color: Colors.black,
-                            borderRadius: BorderRadius.circular(24.0),
-                          ),
-                          alignment: Alignment.center,
-                          child: Image.asset(
-                            'assets/images/app_logo.png',
-                            width: 68.0,
-                            height: 68.0,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                        const SizedBox(height: 12.0),
-                        Text(
-                          'onboarding.app_name'.tr(),
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 42.0,
-                            fontWeight: FontWeight.w800,
-                            color: primaryTextColor,
-                          ),
-                        ),
-                        Text(
-                          'onboarding.tagline'.tr(),
-                          style: GoogleFonts.inter(
-                            fontSize: 20.0,
-                            fontStyle: FontStyle.italic,
-                            color: secondaryTextColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Keep the full marketing artwork visible across phone sizes.
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24.0, 28.0, 24.0, 0.0),
-                    child: SizedBox(
-                      height: marketingHeight,
-                      width: double.infinity,
-                      child: Align(
-                        alignment: Alignment.topCenter,
-                        child: Lottie.network(
-                          'https://dimg.dreamflow.cloud/v1/lottie/minimalist+abstract+growing+loop+animation+grayscale',
-                          width: artworkSize,
-                          height: artworkSize,
-                          fit: BoxFit.contain,
-                          animate: true,
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Scrollable content section
-                  Expanded(
-                    child: SingleChildScrollView(
-                      primary: false,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Column(
-                              mainAxisSize: MainAxisSize.min,
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Text(
-                                  'Tokenize Your Future',
-                                  textAlign: TextAlign.center,
-                                  style: FlutterFlowTheme.of(context)
-                                      .headlineMedium
-                                      .override(
-                                        font: GoogleFonts.plusJakartaSans(
-                                          fontWeight: FontWeight.bold,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .headlineMedium
-                                                  .fontStyle,
-                                        ),
-                                        color: primaryTextColor,
-                                        letterSpacing: 0.0,
-                                        fontWeight: FontWeight.bold,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .headlineMedium
-                                            .fontStyle,
-                                        lineHeight: 1.25,
-                                      ),
+                        Padding(
+                          padding: const EdgeInsetsDirectional.fromSTEB(
+                              0.0, 40.0, 0.0, 60.0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: 80.0,
+                                height: 80.0,
+                                decoration: BoxDecoration(
+                                  color: FlutterFlowTheme.of(context).primary,
+                                  borderRadius: BorderRadius.circular(20.0),
+                                  shape: BoxShape.rectangle,
                                 ),
-                                Text(
-                                  'The first integrated blockchain ecosystem for fast payments and escrow services.',
-                                  textAlign: TextAlign.center,
-                                  maxLines: 3,
-                                  style: FlutterFlowTheme.of(context)
-                                      .bodyLarge
-                                      .override(
-                                        font: GoogleFonts.inter(
-                                          fontWeight:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodyLarge
-                                                  .fontWeight,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodyLarge
-                                                  .fontStyle,
+                                alignment: const AlignmentDirectional(0.0, 0.0),
+                                child: SizedBox(
+                                  width: 40.0,
+                                  height: 50.0,
+                                  child: Stack(
+                                    alignment:
+                                        const AlignmentDirectional(-1.0, -1.0),
+                                    children: [
+                                      Align(
+                                        alignment: const AlignmentDirectional(
+                                            0.0, 0.0),
+                                        child: Container(
+                                          width: 6.0,
+                                          height: 50.0,
+                                          decoration: BoxDecoration(
+                                            color: FlutterFlowTheme.of(context)
+                                                .onPrimary,
+                                            borderRadius:
+                                                BorderRadius.circular(2.0),
+                                            shape: BoxShape.rectangle,
+                                          ),
                                         ),
-                                        color: secondaryTextColor,
-                                        letterSpacing: 0.0,
-                                        fontWeight: FlutterFlowTheme.of(context)
-                                            .bodyLarge
-                                            .fontWeight,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .bodyLarge
-                                            .fontStyle,
-                                        lineHeight: 1.5,
                                       ),
+                                      Align(
+                                        alignment: const AlignmentDirectional(
+                                            -1.0, -0.6),
+                                        child: Container(
+                                          width: 24.0,
+                                          height: 6.0,
+                                          decoration: BoxDecoration(
+                                            color: FlutterFlowTheme.of(context)
+                                                .onPrimary,
+                                            borderRadius:
+                                                BorderRadius.circular(2.0),
+                                            shape: BoxShape.rectangle,
+                                          ),
+                                        ),
+                                      ),
+                                      Align(
+                                        alignment: const AlignmentDirectional(
+                                            -1.0, 0.0),
+                                        child: Container(
+                                          width: 18.0,
+                                          height: 6.0,
+                                          decoration: BoxDecoration(
+                                            color: FlutterFlowTheme.of(context)
+                                                .onPrimary,
+                                            borderRadius:
+                                                BorderRadius.circular(2.0),
+                                            shape: BoxShape.rectangle,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ].divide(const SizedBox(height: 16.0)),
-                            ),
-                            const SizedBox(height: 24.0),
-                            wrapWithModel(
-                              model: _model.stepIndicatorModel,
-                              updateCallback: () => safeSetState(() {}),
-                              child: const StepIndicatorWidget(
-                                active: true,
                               ),
-                            ),
-                            const SizedBox(height: 24.0),
-                            if (_isCheckingAuth)
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 12.0),
-                                child: Column(
-                                  children: [
-                                    CircularProgressIndicator(
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                          theme.primary),
-                                    ),
-                                    const SizedBox(height: 12.0),
-                                    Text(
-                                      'Preparing your experience…',
-                                      style: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .copyWith(color: secondaryTextColor),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            else if (_showAuthActions)
                               Column(
                                 mainAxisSize: MainAxisSize.min,
                                 mainAxisAlignment: MainAxisAlignment.start,
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  wrapWithModel(
-                                    model: _model.buttonModel2,
-                                    updateCallback: () => safeSetState(() {}),
-                                    child: ButtonWidget(
-                                      content: 'Sign In',
-                                      icon_present: false,
-                                      icon_end_present: false,
-                                      on_tap: 'navigate:loginpage',
-                                      color: Colors.black,
-                                      variant: 'primary',
-                                      size: 'large',
-                                      full_width: true,
-                                      loading: false,
-                                      disabled: false,
-                                    ),
+                                  Text(
+                                    'FARM',
+                                    textAlign: TextAlign.center,
+                                    style: FlutterFlowTheme.of(context)
+                                        .headlineLarge
+                                        .override(
+                                          font: GoogleFonts.plusJakartaSans(
+                                            fontWeight: FontWeight.w900,
+                                            fontStyle:
+                                                FlutterFlowTheme.of(context)
+                                                    .headlineLarge
+                                                    .fontStyle,
+                                          ),
+                                          color: primaryTextColor,
+                                          letterSpacing: 0.0,
+                                          fontWeight: FontWeight.w900,
+                                          fontStyle:
+                                              FlutterFlowTheme.of(context)
+                                                  .headlineLarge
+                                                  .fontStyle,
+                                          lineHeight: 1.2,
+                                        ),
                                   ),
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 8.0),
-                                    child: Column(
-                                      children: [
-                                        Text(
-                                          "Don't have an account?",
+                                  Text(
+                                    'a loop of growth',
+                                    textAlign: TextAlign.center,
+                                    style: FlutterFlowTheme.of(context)
+                                        .titleMedium
+                                        .override(
+                                          font: GoogleFonts.plusJakartaSans(
+                                            fontWeight:
+                                                FlutterFlowTheme.of(context)
+                                                    .titleMedium
+                                                    .fontWeight,
+                                            fontStyle: FontStyle.italic,
+                                          ),
+                                          color: secondaryTextColor,
+                                          letterSpacing: 0.0,
+                                          fontWeight:
+                                              FlutterFlowTheme.of(context)
+                                                  .titleMedium
+                                                  .fontWeight,
+                                          fontStyle: FontStyle.italic,
+                                          lineHeight: 1.4,
+                                        ),
+                                  ),
+                                ].divide(const SizedBox(height: 4.0)),
+                              ),
+                            ].divide(const SizedBox(height: 24.0)),
+                          ),
+                        ),
+                        Container(
+                          height: 300.0,
+                          alignment: const AlignmentDirectional(0.0, 0.0),
+                          child: Lottie.network(
+                            'https://dimg.dreamflow.cloud/v1/lottie/minimalist+abstract+growing+loop+animation+grayscale',
+                            width: 280.0,
+                            height: 280.0,
+                            fit: BoxFit.contain,
+                            animate: true,
+                          ),
+                        ),
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Tokenize Your Future',
+                              textAlign: TextAlign.center,
+                              style: FlutterFlowTheme.of(context)
+                                  .headlineMedium
+                                  .override(
+                                    font: GoogleFonts.plusJakartaSans(
+                                      fontWeight: FontWeight.bold,
+                                      fontStyle: FlutterFlowTheme.of(context)
+                                          .headlineMedium
+                                          .fontStyle,
+                                    ),
+                                    color: primaryTextColor,
+                                    letterSpacing: 0.0,
+                                    fontWeight: FontWeight.bold,
+                                    fontStyle: FlutterFlowTheme.of(context)
+                                        .headlineMedium
+                                        .fontStyle,
+                                    lineHeight: 1.25,
+                                  ),
+                            ),
+                            Text(
+                              'The first integrated blockchain ecosystem for fast payments and escrow services.',
+                              textAlign: TextAlign.center,
+                              maxLines: 3,
+                              style: FlutterFlowTheme.of(context)
+                                  .bodyLarge
+                                  .override(
+                                    font: GoogleFonts.inter(
+                                      fontWeight: FlutterFlowTheme.of(context)
+                                          .bodyLarge
+                                          .fontWeight,
+                                      fontStyle: FlutterFlowTheme.of(context)
+                                          .bodyLarge
+                                          .fontStyle,
+                                    ),
+                                    color: secondaryTextColor,
+                                    letterSpacing: 0.0,
+                                    fontWeight: FlutterFlowTheme.of(context)
+                                        .bodyLarge
+                                        .fontWeight,
+                                    fontStyle: FlutterFlowTheme.of(context)
+                                        .bodyLarge
+                                        .fontStyle,
+                                    lineHeight: 1.5,
+                                  ),
+                            ),
+                          ].divide(const SizedBox(height: 16.0)),
+                        ),
+                        Container(
+                          height: 32.0,
+                        ),
+                        wrapWithModel(
+                          model: _model.stepIndicatorModel,
+                          updateCallback: () => safeSetState(() {}),
+                          child: const StepIndicatorWidget(
+                            active: true,
+                          ),
+                        ),
+                        Container(
+                          height: 32.0,
+                        ),
+                        if (_isCheckingAuth)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12.0),
+                            child: Column(
+                              children: [
+                                CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      theme.primary),
+                                ),
+                                const SizedBox(height: 12.0),
+                                Text(
+                                  'Preparing your experience…',
+                                  style: FlutterFlowTheme.of(context)
+                                      .bodyMedium
+                                      .copyWith(color: secondaryTextColor),
+                                ),
+                              ],
+                            ),
+                          )
+                        else if (_showAuthenticatedWelcome)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12.0),
+                            child: Text(
+                              'Welcome, continue enjoying the experience',
+                              textAlign: TextAlign.center,
+                              style: FlutterFlowTheme.of(context)
+                                  .titleMedium
+                                  .copyWith(color: secondaryTextColor),
+                            ),
+                          )
+                        else if (_showAuthActions)
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              wrapWithModel(
+                                model: _model.buttonModel2,
+                                updateCallback: () => safeSetState(() {}),
+                                child: ButtonWidget(
+                                  content: 'Sign In',
+                                  icon_present: false,
+                                  icon_end_present: false,
+                                  on_tap: 'navigate:loginpage',
+                                  color: Colors.black,
+                                  variant: 'primary',
+                                  size: 'large',
+                                  full_width: true,
+                                  loading: false,
+                                  disabled: false,
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8.0),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      "Don't have an account?",
+                                      style: FlutterFlowTheme.of(context)
+                                          .bodyMedium
+                                          .copyWith(color: secondaryTextColor),
+                                    ),
+                                    const SizedBox(height: 8.0),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: OutlinedButton(
+                                        onPressed: () =>
+                                            context.pushNamed('registerpage'),
+                                        style: OutlinedButton.styleFrom(
+                                          side: const BorderSide(
+                                            color: Color(0xFF111111),
+                                            width: 1.2,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(16.0),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 16.0,
+                                          ),
+                                          backgroundColor: Colors.white,
+                                        ),
+                                        child: Text(
+                                          'Register',
                                           style: FlutterFlowTheme.of(context)
                                               .bodyMedium
                                               .copyWith(
-                                                  color: secondaryTextColor),
+                                                color: primaryTextColor,
+                                                fontWeight: FontWeight.w700,
+                                              ),
                                         ),
-                                        const SizedBox(height: 8.0),
-                                        SizedBox(
-                                          width: double.infinity,
-                                          child: OutlinedButton(
-                                            onPressed: () => context
-                                                .pushNamed('registerpage'),
-                                            style: OutlinedButton.styleFrom(
-                                              side: const BorderSide(
-                                                color: Color(0xFF111111),
-                                                width: 1.2,
-                                              ),
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(16.0),
-                                              ),
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                vertical: 16.0,
-                                              ),
-                                              backgroundColor: Colors.white,
-                                            ),
-                                            child: Text(
-                                              'Register',
-                                              style:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodyMedium
-                                                      .copyWith(
-                                                        color: primaryTextColor,
-                                                        fontWeight:
-                                                            FontWeight.w700,
-                                                      ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
+                                      ),
                                     ),
-                                  ),
-                                ].divide(const SizedBox(height: 12.0)),
+                                  ],
+                                ),
                               ),
-                          ],
+                            ].divide(const SizedBox(height: 12.0)),
+                          ),
+                        Container(
+                          height: 24.0,
                         ),
-                      ),
-                    ),
-                  ),
-                  // Footer section - always visible at bottom
-                  Container(
-                    color: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24.0, vertical: 16.0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
                         Row(
                           mainAxisSize: MainAxisSize.max,
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -540,9 +573,9 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
                       ],
                     ),
                   ),
-                ],
-              );
-            },
+                ),
+              ],
+            ),
           ),
         ),
       ),

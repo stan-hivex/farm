@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import '../../app_state.dart';
-import '../../backend/services/api_service.dart';
 import 'session_store_service.dart';
 import 'refresh_manager.dart';
 
@@ -24,11 +23,7 @@ class StartupAuthenticator {
     state.setAuthStartupState(AuthStartupState.initializing);
     debugPrint('[AUTH STARTUP] Beginning session restoration');
     try {
-      final role = (await AuthSessionStore.readActiveRole() ?? '').toLowerCase();
-      if (role.isEmpty) {
-        state.setAuthStartupState(AuthStartupState.unauthenticated);
-        return;
-      }
+      final role = state.role.toLowerCase();
       final persisted = await AuthSessionStore.readRoleSession(role);
       if (persisted == null) {
         state.setAuthStartupState(AuthStartupState.unauthenticated);
@@ -48,7 +43,9 @@ class StartupAuthenticator {
       if (state.userId.isEmpty && (persisted.userId).isNotEmpty) {
         state.userId = persisted.userId;
       }
-      state.role = persisted.role;
+      if (state.role.isEmpty && (persisted.role).isNotEmpty) {
+        state.role = persisted.role;
+      }
       // A refresh token keeps the session authenticated while access is renewed.
       state.isLoggedIn = state.accessToken.isNotEmpty || state.refreshToken.isNotEmpty;
 
@@ -60,35 +57,6 @@ class StartupAuthenticator {
         debugPrint('[AUTH STARTUP] Refresh result=$refreshed');
       } catch (e) {
         debugPrint('[AUTH STARTUP] Refresh temporarily unavailable: $e');
-      }
-
-      if (RefreshManager().lastFailureWasRevocation) {
-        await state.clearAuthCredentials('startup refresh session revoked');
-        return;
-      }
-
-      try {
-        final profileResponse = await ApiService.getProfile(timeoutSeconds: 5);
-        final profile = profileResponse['data'] is Map<String, dynamic>
-            ? profileResponse['data'] as Map<String, dynamic>
-            : profileResponse;
-        final serverUserId = profile['id']?.toString() ?? '';
-        final serverRole = profile['role']?.toString().toLowerCase() ?? '';
-        if (serverUserId.isEmpty || serverRole.isEmpty ||
-            (state.userId.isNotEmpty && serverUserId != state.userId)) {
-          await state.clearAuthCredentials('startup identity mismatch');
-          return;
-        }
-        state.userId = serverUserId;
-        state.role = serverRole;
-        await AuthSessionStore.saveRoleSession(
-          role: serverRole,
-          accessToken: state.accessToken,
-          refreshToken: state.refreshToken,
-          userId: serverUserId,
-        );
-      } catch (e) {
-        debugPrint('[AUTH STARTUP] Profile verification unavailable: $e');
       }
 
       if (!refreshed) {

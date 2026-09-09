@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/services/auth/auth_service.dart';
@@ -11,7 +12,8 @@ class DeleteAccountPageWidget extends StatefulWidget {
   static String routePath = '/deleteAccountPage';
 
   @override
-  State<DeleteAccountPageWidget> createState() => _DeleteAccountPageWidgetState();
+  State<DeleteAccountPageWidget> createState() =>
+      _DeleteAccountPageWidgetState();
 }
 
 class _DeleteAccountPageWidgetState extends State<DeleteAccountPageWidget> {
@@ -53,7 +55,7 @@ class _DeleteAccountPageWidgetState extends State<DeleteAccountPageWidget> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Account deleted successfully')),
+        SnackBar(content: Text('success.account_deleted'.tr())),
       );
       context.goNamed('loginpage');
     } catch (e) {
@@ -75,7 +77,7 @@ class _DeleteAccountPageWidgetState extends State<DeleteAccountPageWidget> {
     return Scaffold(
       backgroundColor: theme.primaryBackground,
       appBar: AppBar(
-        title: const Text('Delete Account'),
+        title: Text('common.delete'.tr()),
         backgroundColor: theme.primaryBackground,
         elevation: 0,
       ),
@@ -107,7 +109,7 @@ class _DeleteAccountPageWidgetState extends State<DeleteAccountPageWidget> {
                         controller: _passwordController,
                         obscureText: !_passwordVisible,
                         decoration: InputDecoration(
-                          labelText: 'Current password',
+                          labelText: 'auth.login.password'.tr(),
                           border: const OutlineInputBorder(),
                           prefixIcon: const Icon(Icons.lock_outline),
                           suffixIcon: IconButton(
@@ -117,7 +119,8 @@ class _DeleteAccountPageWidgetState extends State<DeleteAccountPageWidget> {
                                   : Icons.visibility,
                             ),
                             onPressed: () {
-                              setState(() => _passwordVisible = !_passwordVisible);
+                              setState(
+                                  () => _passwordVisible = !_passwordVisible);
                             },
                           ),
                         ),
@@ -125,7 +128,7 @@ class _DeleteAccountPageWidgetState extends State<DeleteAccountPageWidget> {
                       const SizedBox(height: 16),
                       CheckboxListTile(
                         contentPadding: EdgeInsets.zero,
-                        title: const Text('I understand this action is permanent.'),
+                        title: Text('common.confirm'.tr()),
                         value: _acknowledged,
                         onChanged: (value) {
                           setState(() => _acknowledged = value ?? false);
@@ -133,7 +136,7 @@ class _DeleteAccountPageWidgetState extends State<DeleteAccountPageWidget> {
                       ),
                       CheckboxListTile(
                         contentPadding: EdgeInsets.zero,
-                        title: const Text('I want to delete my account permanently.'),
+                        title: Text('common.delete'.tr()),
                         value: _confirmDelete,
                         onChanged: (value) {
                           setState(() => _confirmDelete = value ?? false);
@@ -155,7 +158,9 @@ class _DeleteAccountPageWidgetState extends State<DeleteAccountPageWidget> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.delete_forever_rounded),
-                  label: Text(_isLoading ? 'Deleting account...' : 'Delete account permanently'),
+                  label: Text(_isLoading
+                      ? 'Deleting account...'
+                      : 'Delete account permanently'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.error,
                     foregroundColor: Colors.white,

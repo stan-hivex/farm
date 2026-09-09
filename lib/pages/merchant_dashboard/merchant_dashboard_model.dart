@@ -24,6 +24,8 @@ class MerchantDashboardModel extends FlutterFlowModel<MerchantDashboardWidget> {
   late MerchantTransactionItemModel merchantTransactionItemModel3;
   // Model for MerchantTransactionItem.
   late MerchantTransactionItemModel merchantTransactionItemModel4;
+  // Model for MerchantTransactionItem.
+  late MerchantTransactionItemModel merchantTransactionItemModel5;
 
   @override
   void initState(BuildContext context) {
@@ -41,6 +43,8 @@ class MerchantDashboardModel extends FlutterFlowModel<MerchantDashboardWidget> {
         createModel(context, () => MerchantTransactionItemModel());
     merchantTransactionItemModel4 =
         createModel(context, () => MerchantTransactionItemModel());
+    merchantTransactionItemModel5 =
+        createModel(context, () => MerchantTransactionItemModel());
   }
 
   @override
@@ -53,5 +57,6 @@ class MerchantDashboardModel extends FlutterFlowModel<MerchantDashboardWidget> {
     merchantTransactionItemModel2.dispose();
     merchantTransactionItemModel3.dispose();
     merchantTransactionItemModel4.dispose();
+    merchantTransactionItemModel5.dispose();
   }
 }

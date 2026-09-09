@@ -92,7 +92,8 @@ class _AddAdminPageState extends State<AddAdminPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString().replaceAll('Exception: ', '')}'),
+            content:
+                Text('Error: ${e.toString().replaceAll('Exception: ', '')}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -108,9 +109,13 @@ class _AddAdminPageState extends State<AddAdminPage> {
       labelStyle: const TextStyle(color: Colors.white70),
       filled: true,
       fillColor: const Color(0xFF162033),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFD4AF37))),
+      border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+      enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+      focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Color(0xFFD4AF37))),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     );
   }
@@ -134,7 +139,8 @@ class _AddAdminPageState extends State<AddAdminPage> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF0B1320),
         foregroundColor: Colors.white,
-        title: Text('Create Admin', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+        title: Text('Create Admin',
+            style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
         elevation: 0,
       ),
       body: SafeArea(
@@ -147,7 +153,8 @@ class _AddAdminPageState extends State<AddAdminPage> {
               children: [
                 Text(
                   'Create a new admin account with restricted access.',
-                  style: GoogleFonts.plusJakartaSans(color: Colors.white70, fontSize: 13),
+                  style: GoogleFonts.plusJakartaSans(
+                      color: Colors.white70, fontSize: 13),
                 ),
                 const SizedBox(height: 20),
                 Row(
@@ -162,7 +169,10 @@ class _AddAdminPageState extends State<AddAdminPage> {
                             controller: _firstNameCtrl,
                             style: const TextStyle(color: Colors.white),
                             decoration: _inputDecoration('First name'),
-                            validator: (value) => (value?.trim().isEmpty ?? true) ? 'First name is required' : null,
+                            validator: (value) =>
+                                (value?.trim().isEmpty ?? true)
+                                    ? 'First name is required'
+                                    : null,
                           ),
                         ],
                       ),
@@ -178,7 +188,10 @@ class _AddAdminPageState extends State<AddAdminPage> {
                             controller: _lastNameCtrl,
                             style: const TextStyle(color: Colors.white),
                             decoration: _inputDecoration('Last name'),
-                            validator: (value) => (value?.trim().isEmpty ?? true) ? 'Last name is required' : null,
+                            validator: (value) =>
+                                (value?.trim().isEmpty ?? true)
+                                    ? 'Last name is required'
+                                    : null,
                           ),
                         ],
                       ),
@@ -193,8 +206,10 @@ class _AddAdminPageState extends State<AddAdminPage> {
                   style: const TextStyle(color: Colors.white),
                   decoration: _inputDecoration('Username'),
                   validator: (value) {
-                    if ((value?.trim().isEmpty ?? true)) return 'Username is required';
-                    if ((value?.trim().length ?? 0) < 3) return 'Username must be at least 3 characters';
+                    if ((value?.trim().isEmpty ?? true))
+                      return 'Username is required';
+                    if ((value?.trim().length ?? 0) < 3)
+                      return 'Username must be at least 3 characters';
                     return null;
                   },
                 ),
@@ -213,8 +228,10 @@ class _AddAdminPageState extends State<AddAdminPage> {
                             keyboardType: TextInputType.emailAddress,
                             decoration: _inputDecoration('Email'),
                             validator: (value) {
-                              if ((value?.trim().isEmpty ?? true)) return 'Email is required';
-                              if (!value!.contains('@')) return 'Enter a valid email';
+                              if ((value?.trim().isEmpty ?? true))
+                                return 'Email is required';
+                              if (!value!.contains('@'))
+                                return 'Enter a valid email';
                               return null;
                             },
                           ),
@@ -233,7 +250,10 @@ class _AddAdminPageState extends State<AddAdminPage> {
                             style: const TextStyle(color: Colors.white),
                             keyboardType: TextInputType.phone,
                             decoration: _inputDecoration('Phone'),
-                            validator: (value) => (value?.trim().isEmpty ?? true) ? 'Phone is required' : null,
+                            validator: (value) =>
+                                (value?.trim().isEmpty ?? true)
+                                    ? 'Phone is required'
+                                    : null,
                           ),
                         ],
                       ),
@@ -247,7 +267,9 @@ class _AddAdminPageState extends State<AddAdminPage> {
                   controller: _countryCtrl,
                   style: const TextStyle(color: Colors.white),
                   decoration: _inputDecoration('Country'),
-                  validator: (value) => (value?.trim().isEmpty ?? true) ? 'Country is required' : null,
+                  validator: (value) => (value?.trim().isEmpty ?? true)
+                      ? 'Country is required'
+                      : null,
                 ),
                 const SizedBox(height: 16),
                 Row(
@@ -264,8 +286,10 @@ class _AddAdminPageState extends State<AddAdminPage> {
                             decoration: _inputDecoration('Password'),
                             obscureText: true,
                             validator: (value) {
-                              if ((value?.isEmpty ?? true)) return 'Password is required';
-                              if ((value?.length ?? 0) < 8) return 'Password must be at least 8 characters';
+                              if ((value?.isEmpty ?? true))
+                                return 'Password is required';
+                              if ((value?.length ?? 0) < 8)
+                                return 'Password must be at least 8 characters';
                               return null;
                             },
                           ),
@@ -285,8 +309,10 @@ class _AddAdminPageState extends State<AddAdminPage> {
                             decoration: _inputDecoration('Confirm Password'),
                             obscureText: true,
                             validator: (value) {
-                              if ((value?.isEmpty ?? true)) return 'Confirm password is required';
-                              if (value != _passwordCtrl.text) return 'Passwords do not match';
+                              if ((value?.isEmpty ?? true))
+                                return 'Confirm password is required';
+                              if (value != _passwordCtrl.text)
+                                return 'Passwords do not match';
                               return null;
                             },
                           ),
@@ -303,15 +329,22 @@ class _AddAdminPageState extends State<AddAdminPage> {
                     onPressed: _isSubmitting ? null : _submit,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: accent,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
                     ),
                     child: _isSubmitting
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.black)),
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.black)),
                           )
-                        : Text('Create Admin', style: GoogleFonts.plusJakartaSans(color: Colors.black, fontWeight: FontWeight.w700)),
+                        : Text('Create Admin',
+                            style: GoogleFonts.plusJakartaSans(
+                                color: Colors.black,
+                                fontWeight: FontWeight.w700)),
                   ),
                 ),
               ],

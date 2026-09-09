@@ -14,6 +14,8 @@ class EscrowItemWidget extends StatefulWidget {
     String? role,
     String? status,
     String? username,
+    this.reference,
+    this.onCopyReference,
   })  : amount = amount ?? '450.00',
         date = date ?? 'Oct 24, 2023',
         is_pending = is_pending ?? true,
@@ -27,6 +29,8 @@ class EscrowItemWidget extends StatefulWidget {
   final String role;
   final String status;
   final String username;
+  final String? reference;
+  final VoidCallback? onCopyReference;
 
   @override
   State<EscrowItemWidget> createState() => _EscrowItemWidgetState();
@@ -160,6 +164,14 @@ class _EscrowItemWidgetState extends State<EscrowItemWidget> {
                                       lineHeight: 1.2,
                                     ),
                               ),
+                              if (widget.reference?.isNotEmpty == true)
+                                IconButton(
+                                  tooltip: 'Copy transaction reference',
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  icon: const Icon(Icons.copy, size: 16),
+                                  onPressed: widget.onCopyReference,
+                                ),
                             ].divide(const SizedBox(height: 4.0)),
                           ),
                         ].divide(const SizedBox(width: 16.0)),

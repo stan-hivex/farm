@@ -8,10 +8,6 @@ import '/admin/services/admin_api_service.dart';
 class AdminGuard {
   static Future<bool> isAuthenticated() async {
     final prefs = await SharedPreferences.getInstance();
-    final activeRole = (await AuthSessionStore.readActiveRole() ?? '').toLowerCase();
-    if (activeRole != 'admin' && activeRole != 'super_admin') {
-      return false;
-    }
     final token = prefs.getString('adminToken') ?? '';
     final role = prefs.getString('adminRole') ?? '';
     debugPrint('[AdminGuard] isAuthenticated prefTokenPresent=${token.isNotEmpty} prefRole=$role');
@@ -19,9 +15,10 @@ class AdminGuard {
       return true;
     }
 
-    final session = await AuthSessionStore.readRoleSession(activeRole);
-    final adminToken = session?.accessToken ?? '';
-    final adminRole = session?.role ?? '';
+    final adminSession = await AuthSessionStore.readAdminSession();
+    final superAdminSession = await AuthSessionStore.readSuperAdminSession();
+    final adminToken = adminSession?.accessToken ?? superAdminSession?.accessToken ?? '';
+    final adminRole = adminSession?.role ?? superAdminSession?.role ?? '';
     debugPrint('[AdminGuard] isAuthenticated persistedTokenPresent=${adminToken.isNotEmpty} persistedRole=$adminRole');
 
     // If a persisted token exists but is expired, attempt a forced refresh
@@ -89,9 +86,8 @@ class AdminGuard {
       return role;
     }
 
-    final activeRole = await AuthSessionStore.readActiveRole();
-    if (activeRole != 'admin' && activeRole != 'super_admin') return '';
-    final session = await AuthSessionStore.readRoleSession(activeRole!);
-    return session?.role ?? '';
+    final adminSession = await AuthSessionStore.readAdminSession();
+    final superAdminSession = await AuthSessionStore.readSuperAdminSession();
+    return adminSession?.role ?? superAdminSession?.role ?? '';
   }
 }

@@ -131,9 +131,10 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
 
   Future<void> _loadDashboardData() async {
     debugPrint('[SuperadminDashboardPage] _loadDashboardData started');
-    if (mounted) {
-      setState(() => _error = null);
-    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final token = await FFAppState().getActiveAccessToken();
       debugPrint('[SuperadminDashboardPage] _loadDashboardData token length=${token.length}');
@@ -571,7 +572,7 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
                 child: InkWell(
                   onTap: () {
                     debugPrint('[SuperadminDashboardPage] wallet icon tapped');
-                    context.push(SuperadminWalletPage.routePath);
+                    context.go(SuperadminWalletPage.routePath);
                   },
                   borderRadius: BorderRadius.circular(16),
                   child: Container(
@@ -855,9 +856,7 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
   Widget _buildKYCEarnings(Map<String, dynamic> data, Color cardColor, Color accent, Color muted) {
     final creationEarnings = data['escrow_creation_earnings'] ?? 0.0;
     final releaseEarnings = data['escrow_release_earnings'] ?? 0.0;
-    final withdrawEarnings = data['withdrawal_total_earnings'] ??
-      data['withdraw_fee_earnings'] ??
-      0.0;
+    final withdrawEarnings = data['withdraw_fee_earnings'] ?? 0.0;
     final creationCount = data['escrow_creation_count'] ?? 0;
     final releaseCount = data['escrow_release_count'] ?? 0;
     final withdrawCount = data['withdraw_transaction_count'] ?? data['withdraw_count'] ?? 0;
@@ -972,7 +971,7 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
         ),
         const SizedBox(height: 14),
         GestureDetector(
-          onTap: () => context.push(SuperadminWalletPage.routePath),
+          onTap: () => context.go(SuperadminWalletPage.routePath),
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
